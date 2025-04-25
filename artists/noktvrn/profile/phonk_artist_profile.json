@@ -1,0 +1,18 @@
+{
+  "name": "NØKTVRN",
+  "genre": "Phonk",
+  "subgenre": "Drift Phonk",
+  "era_vibe": "VHS 1990s midnight drift",
+  "mood": "Dark, atmospheric, aggressive",
+  "tempo": "145 BPM",
+  "influences": ["Kordhell", "Dxrk", "Ghostface Playa", "Pholo", "RYDZ"],
+  "social_identity": "Mysterious underground producer with no face, communicates only through visuals and beats.",
+  "description": "NØKTVRN is a ghost in the drift scene. Born from static and smoke, he drives through distorted streets of memory. Each track is a confession whispered to the night. No face, no interviews — only vibrations through dark concrete.",
+  "visual_palette": ["deep purple", "neon red", "CRT grain", "foggy headlights", "urban shadows"],
+  "release_policy": {
+    "singles_per_week": 2,
+    "album_per_month": 1
+  },
+  "keywords_for_video_generator": ["night racing", "vhs static", "drifting", "neon city", "slow motion", "retro cars"],
+  "allowed_video_sources": ["pexels", "pixabay", "public domain", "CC0", "CC-BY only"]
+}
