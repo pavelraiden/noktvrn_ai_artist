@@ -1,0 +1,93 @@
+{
+  "artist": "NØKTVRN",
+  "genre": "drift phonk",
+  "audience_profile": "TikTok/YouTube Shorts users interested in underground phonk aesthetics, car culture, and dark VHS visuals.",
+  "target_platforms": [
+    "tiktok",
+    "youtube_shorts",
+    "instagram_reels"
+  ],
+  "visual_palette": [
+    "purple",
+    "crimson",
+    "cold blue"
+  ],
+  "filters": [
+    "CRT overlay",
+    "glitch",
+    "film burn"
+  ],
+  "motion_type": [
+    "slow-mo",
+    "camera whip",
+    "shaky cam"
+  ],
+  "source_type": [
+    "drift cars",
+    "models",
+    "night city loops",
+    "tinted VHS clips"
+  ],
+  "reuse_policy": "exclusive",
+  "cta_overlay": {
+    "text": "LISTEN TO NØKTVRN",
+    "style": "vhs-title",
+    "placement": "bottom_center"
+  },
+  "segments": [
+    {
+      "label": "INTRO",
+      "start_sec": 0,
+      "duration_sec": 2.5,
+      "visuals": [
+        "neon cityscape",
+        "engine startup",
+        "foggy shot"
+      ],
+      "effects": [
+        "fade-in",
+        "film grain"
+      ]
+    },
+    {
+      "label": "HOOK",
+      "start_sec": 2.5,
+      "duration_sec": 6,
+      "visuals": [
+        "car drifting",
+        "model silhouette",
+        "purple underglow"
+      ],
+      "effects": [
+        "CRT overlay",
+        "timing sync on cowbell"
+      ]
+    },
+    {
+      "label": "DROP",
+      "start_sec": 8.5,
+      "duration_sec": 3.5,
+      "visuals": [
+        "motion blur",
+        "closeup rims",
+        "flashing lights"
+      ],
+      "effects": [
+        "shake",
+        "vhs static burst"
+      ]
+    },
+    {
+      "label": "OUTRO",
+      "start_sec": 12,
+      "duration_sec": 2.5,
+      "visuals": [
+        "wide city zoom out",
+        "black screen fade"
+      ],
+      "effects": [
+        "glitch dissolve"
+      ]
+    }
+  ]
+}
