@@ -1,0 +1,148 @@
+{
+  "phonk": {
+    "visual_style": [
+      "VHS grain",
+      "Neon city",
+      "Night drift",
+      "Cowbell-sync cuts"
+    ],
+    "color_palette": [
+      "purple",
+      "crimson",
+      "cold blue"
+    ],
+    "motion_type": [
+      "slow-mo",
+      "shaky cam",
+      "camera whip",
+      "looped drifts"
+    ],
+    "source_type": [
+      "Car footage",
+      "Models walking",
+      "Tinted cityscapes",
+      "TikTok drift edits"
+    ],
+    "filters": [
+      "CRT overlay",
+      "Glitch",
+      "Film burn"
+    ],
+    "rhythm": "mid-tempo, cut on cowbell or drop."
+  },
+  "lofi": {
+    "visual_style": [
+      "animated sketch",
+      "cozy room",
+      "window rain",
+      "ambient zooms"
+    ],
+    "color_palette": [
+      "warm beige",
+      "muted orange",
+      "soft green"
+    ],
+    "motion_type": [
+      "slow pan",
+      "parallax",
+      "fade-in-out"
+    ],
+    "source_type": [
+      "anime loops",
+      "study footage",
+      "home desk scenes"
+    ],
+    "filters": [
+      "soft blur",
+      "light film grain"
+    ],
+    "rhythm": "slow, calm transitions every 3–4s."
+  },
+  "trap": {
+    "visual_style": [
+      "dark clubs",
+      "fast cars",
+      "chain close-ups",
+      "live edits"
+    ],
+    "color_palette": [
+      "black",
+      "red",
+      "chrome"
+    ],
+    "motion_type": [
+      "quick cuts",
+      "zoom transitions",
+      "camera shake"
+    ],
+    "source_type": [
+      "Performance footage",
+      "TikTok B-roll",
+      "Flex edits"
+    ],
+    "filters": [
+      "RGB shift",
+      "Hard contrast"
+    ],
+    "rhythm": "fast, cut every beat or bar."
+  },
+  "hyperpop": {
+    "visual_style": [
+      "3D models",
+      "bubble visuals",
+      "pastel explosions",
+      "anime flashes"
+    ],
+    "color_palette": [
+      "pink",
+      "lime",
+      "blue neon",
+      "white glow"
+    ],
+    "motion_type": [
+      "overspeed",
+      "time warps",
+      "flash loops"
+    ],
+    "source_type": [
+      "memes",
+      "fan edits",
+      "blender loops"
+    ],
+    "filters": [
+      "color burst",
+      "fisheye",
+      "sparkles"
+    ],
+    "rhythm": "chaotic, experimental, ~2s cadence."
+  },
+  "darkwave": {
+    "visual_style": [
+      "industrial zones",
+      "rainy metro",
+      "neon silhouettes",
+      "decay"
+    ],
+    "color_palette": [
+      "grey",
+      "deep red",
+      "low-saturation blue"
+    ],
+    "motion_type": [
+      "slow fade",
+      "repeat loops",
+      "still scenes"
+    ],
+    "source_type": [
+      "public domain horror",
+      "old footage",
+      "slow zooms"
+    ],
+    "filters": [
+      "film damage",
+      "monochrome",
+      "static"
+    ],
+    "rhythm": "slow, melancholic, 4–6s transitions."
+  }
+}
