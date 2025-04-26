@@ -1,0 +1,30 @@
+{
+  "artist": "NØKTVRN",
+  "cta_templates": [
+    "🎧 Stream now on Spotify",
+    "🔥 Use this sound in your next TikTok",
+    "💀 New drop every Friday — follow to stay ahead",
+    "📲 Add to your gym playlist"
+  ],
+  "posting_schedule": {
+    "tiktok": "2 per week (Tue/Fri)",
+    "youtube_shorts": "1 per week (Saturday)",
+    "spotify_release": "1 single every 4 days"
+  },
+  "virality_traits": [
+    "memeable",
+    "bass-drop-heavy",
+    "aesthetic-ready"
+  ],
+  "soft_behavior_traits": [
+    "mysterious",
+    "no face",
+    "low key promo",
+    "underground anti-label"
+  ],
+  "visibility_boosters": {
+    "shorts_caption_style": "lowercase glitch text, 🖤 emojis, short hooks",
+    "hashtag_style": "#driftphonk #darkvibes #nøktvrn #gymtok"
+  },
+  "content_aesthetic_rule": "Match all CTA with the artist's tone. No cringe, no fake engagement."
+}
