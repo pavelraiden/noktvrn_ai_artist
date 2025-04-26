@@ -1,8 +1,10 @@
-# Artist Prompt Generator
+# AI Artist Generators
 
-This module provides a comprehensive system for generating detailed prompts for AI artist creation based on user-defined parameters. It creates rich, detailed prompts suitable for multi-agent communication between LLMs in the artist creation process.
+This directory contains modules for generating detailed prompts for various aspects of AI artist creation. These modules create rich, detailed prompts suitable for multi-agent communication between LLMs in the artist creation process.
 
-## Overview
+## Modules
+
+### Artist Prompt Generator
 
 The Artist Prompt Generator creates prompts that cover all aspects of an artist's identity:
 
@@ -17,9 +19,25 @@ The Artist Prompt Generator creates prompts that cover all aspects of an artist'
 - Lifestyle/attitude hints
 - Special notes for AI enhancement
 
+### Track Prompt Generator
+
+The Track Prompt Generator creates prompts for AI-written songs based on an artist's style, mood, and audience. It covers:
+
+- Desired song mood and emotion (e.g., "melancholic nostalgia")
+- Tempo (slow, medium, fast)
+- Genre and subgenres (e.g., "Phonk", "Dark Trap", "Retro synthwave")
+- Special lyrical themes (e.g., love, street life, mental struggles)
+- Key musical cues (e.g., strong bass, emotional hook, melodic chorus)
+- Indication of where drops, transitions, and bass-heavy sections should appear
+- Language for the lyrics
+- Target audience emotion to trigger (e.g., "crying in the car", "dancing at night")
+- Stylistic notes (e.g., "make it feel like early 2000s mixtape style")
+
 ## Usage
 
-### Basic Usage
+### Artist Prompt Generator
+
+#### Basic Usage
 
 ```python
 from artist_flow.generators.artist_prompt_generator import generate_artist_prompt
@@ -48,7 +66,7 @@ print(prompt)
 metadata = result["metadata"]
 ```
 
-### Advanced Usage
+#### Advanced Usage
 
 For more control, you can create an instance of the `ArtistPromptGenerator` class:
 
@@ -71,47 +89,96 @@ visual_prompt = generator.generate_visual_identity_prompt(params)
 backstory_prompt = generator.generate_backstory_prompt(params)
 ```
 
+### Track Prompt Generator
+
+#### Basic Usage
+
+```python
+from artist_flow.generators.track_prompt_generator import generate_track_prompt
+
+# Define artist profile
+artist_profile = {
+    "name": "NightShade",
+    "genre": "Dark Trap",
+    "style": "Mysterious, Cold",
+    "themes": "Urban isolation, night life, inner struggles",
+    "lyrics_language": "English"
+}
+
+# Optional overrides for this specific track
+overrides = {
+    "mood": "melancholic, dark",
+    "tempo": "medium",
+    "audience_emotion": "crying in the car, night drive vibes",
+    "stylistic_notes": "Should have a nostalgic quality reminiscent of early 2000s mixtape style"
+}
+
+# Generate a comprehensive track prompt
+result = generate_track_prompt(artist_profile, overrides)
+
+# Access the generated prompt
+prompt = result["prompt"]
+print(prompt)
+
+# Access metadata
+metadata = result["metadata"]
+```
+
+#### Advanced Usage
+
+For more control, you can create an instance of the `TrackPromptGenerator` class:
+
+```python
+from artist_flow.generators.track_prompt_generator import TrackPromptGenerator
+
+# Create a generator with a specific seed for reproducible results
+generator = TrackPromptGenerator(template_variety=3, seed=42)
+
+# Generate a full track prompt
+track_prompt = generator.generate_track_prompt(artist_profile, overrides)
+
+# Generate a focused prompt for lyrics creation
+lyrics_prompt = generator.generate_lyrics_prompt(artist_profile, overrides)
+
+# Generate a focused prompt for melody creation
+melody_prompt = generator.generate_melody_prompt(artist_profile, overrides)
+```
+
 ## Customization
 
 ### Environment Variables
 
-The module supports customization through environment variables:
+The modules support customization through environment variables:
 
+#### Artist Prompt Generator
 - `ARTIST_GENRE_DB_PATH`: Path to a custom JSON file with genre definitions
 - `ARTIST_VISUAL_DB_PATH`: Path to a custom JSON file with visual style definitions
+
+#### Track Prompt Generator
+- `TRACK_GENRE_DB_PATH`: Path to a custom JSON file with genre definitions
+- `TRACK_MOOD_DB_PATH`: Path to a custom JSON file with mood definitions
+- `TRACK_TEMPO_DB_PATH`: Path to a custom JSON file with tempo definitions
 
 Example `.env` file:
 ```
 ARTIST_GENRE_DB_PATH=/path/to/custom_genres.json
 ARTIST_VISUAL_DB_PATH=/path/to/custom_visuals.json
+TRACK_MOOD_DB_PATH=/path/to/custom_moods.json
 ```
 
-### Custom Genre and Visual Databases
+### Custom Databases
 
-You can extend the built-in genre and visual style databases by providing custom JSON files. The format should match the internal structure:
-
-```json
-{
-  "new_genre": {
-    "instruments": ["instrument1", "instrument2"],
-    "tempo_range": [100, 130],
-    "themes": ["theme1", "theme2"],
-    "mood": ["mood1", "mood2"],
-    "production": ["technique1", "technique2"],
-    "audience": ["audience1", "audience2"],
-    "visual_aesthetic": ["aesthetic1", "aesthetic2"]
-  }
-}
-```
+You can extend the built-in databases by providing custom JSON files. The format should match the internal structure of each module.
 
 ## Integration
 
-This module is designed to integrate with the broader artist creation flow:
+These modules are designed to integrate with the broader artist creation flow:
 
-1. Generate artist prompts using this module
-2. Pass prompts to LLM orchestration systems
-3. Process LLM responses to create artist profiles
-4. Use the profiles to generate music, visuals, and other assets
+1. Generate artist profile using the Artist Prompt Generator
+2. Use the artist profile to generate track prompts with the Track Prompt Generator
+3. Pass prompts to LLM orchestration systems
+4. Process LLM responses to create artist profiles and tracks
+5. Use the profiles and track specifications to generate music, visuals, and other assets
 
 ## Requirements
 
@@ -120,4 +187,4 @@ This module is designed to integrate with the broader artist creation flow:
 
 ## License
 
-This module is part of the Artist Creation System and follows the project's licensing terms.
+These modules are part of the Artist Creation System and follow the project's licensing terms.
