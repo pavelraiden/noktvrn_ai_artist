@@ -33,6 +33,19 @@ The Track Prompt Generator creates prompts for AI-written songs based on an arti
 - Target audience emotion to trigger (e.g., "crying in the car", "dancing at night")
 - Stylistic notes (e.g., "make it feel like early 2000s mixtape style")
 
+### Video Prompt Generator
+
+The Video Prompt Generator creates prompts for short-form video content (TikTok, Threads, YouTube Shorts) based on an artist's style, song mood, and social trends. It covers:
+
+- Desired visual style (e.g., VHS retro, cinematic noir, urban grime)
+- Target audience emotions to trigger (e.g., nostalgia, hype, sadness)
+- Recommended tempo of visual cuts (slow, moderate, rapid)
+- Suggested types of footage (e.g., drifting cars, rainy neon cities, anime scenes)
+- Special effects hints (e.g., grain, VHS lines, glitch transitions)
+- Scene dynamics (static, moving, chaotic, rhythmic matching BPM)
+- Hashtag and social trend integration (e.g., "make it TikTok-trendy for #nightdrives")
+- Platform-specific optimization (TikTok, Instagram Reels, YouTube Shorts, Threads)
+
 ## Usage
 
 ### Artist Prompt Generator
@@ -144,6 +157,61 @@ lyrics_prompt = generator.generate_lyrics_prompt(artist_profile, overrides)
 melody_prompt = generator.generate_melody_prompt(artist_profile, overrides)
 ```
 
+### Video Prompt Generator
+
+#### Basic Usage
+
+```python
+from artist_flow.generators.video_prompt_generator import generate_video_prompt
+
+# Define artist profile
+artist_profile = {
+    "name": "NightShade",
+    "genre": "Dark Trap",
+    "style": "Mysterious, Cold",
+    "themes": "Urban isolation, night life, inner struggles",
+    "lyrics_language": "English"
+}
+
+# Define track information
+track_info = {
+    "title": "Midnight Drive",
+    "mood": "melancholic, dark",
+    "tempo": "medium",
+    "audience_emotion": "crying in the car, night drive vibes"
+}
+
+# Generate a comprehensive video prompt for TikTok
+result = generate_video_prompt(artist_profile, track_info, "tiktok")
+
+# Access the generated prompt
+prompt = result["prompt"]
+print(prompt)
+
+# Access metadata
+metadata = result["metadata"]
+```
+
+#### Advanced Usage
+
+For more control, you can create an instance of the `VideoPromptGenerator` class:
+
+```python
+from artist_flow.generators.video_prompt_generator import VideoPromptGenerator
+
+# Create a generator with a specific seed for reproducible results
+generator = VideoPromptGenerator(template_variety=3, seed=42)
+
+# Generate a full video prompt
+video_prompt = generator.generate_video_prompt(artist_profile, track_info, "instagram_reels")
+
+# Generate a focused prompt for video transitions
+transition_prompt = generator.generate_transition_prompt(artist_profile, track_info)
+
+# Generate a focused prompt for text overlays
+text_overlay_prompt = generator.generate_text_overlay_prompt(artist_profile, track_info)
+```
+
 ## Customization
 
 ### Environment Variables
@@ -159,11 +227,18 @@ The modules support customization through environment variables:
 - `TRACK_MOOD_DB_PATH`: Path to a custom JSON file with mood definitions
 - `TRACK_TEMPO_DB_PATH`: Path to a custom JSON file with tempo definitions
 
+#### Video Prompt Generator
+- `VIDEO_STYLE_DB_PATH`: Path to a custom JSON file with visual style definitions
+- `VIDEO_FOOTAGE_DB_PATH`: Path to a custom JSON file with footage type definitions
+- `VIDEO_EFFECTS_DB_PATH`: Path to a custom JSON file with special effects definitions
+- `VIDEO_TRENDS_DB_PATH`: Path to a custom JSON file with social trends definitions
+
 Example `.env` file:
 ```
 ARTIST_GENRE_DB_PATH=/path/to/custom_genres.json
 ARTIST_VISUAL_DB_PATH=/path/to/custom_visuals.json
 TRACK_MOOD_DB_PATH=/path/to/custom_moods.json
+VIDEO_STYLE_DB_PATH=/path/to/custom_video_styles.json
 ```
 
 ### Custom Databases
@@ -176,9 +251,10 @@ These modules are designed to integrate with the broader artist creation flow:
 
 1. Generate artist profile using the Artist Prompt Generator
 2. Use the artist profile to generate track prompts with the Track Prompt Generator
-3. Pass prompts to LLM orchestration systems
-4. Process LLM responses to create artist profiles and tracks
-5. Use the profiles and track specifications to generate music, visuals, and other assets
+3. Use both artist profile and track information to generate video prompts with the Video Prompt Generator
+4. Pass prompts to LLM orchestration systems
+5. Process LLM responses to create artist profiles, tracks, and videos
+6. Use the profiles, track specifications, and video prompts to generate music, visuals, and other assets
 
 ## Requirements
 
