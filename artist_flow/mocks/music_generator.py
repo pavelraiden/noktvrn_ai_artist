@@ -12,6 +12,7 @@ import random
 import os
 import time
 from datetime import datetime
+import re
 
 # Setup logging
 logging.basicConfig(
@@ -19,6 +20,88 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("music_generator")
+
+
+def generate_mock_track(prompt: str) -> dict:
+    """
+    Generate a mock track based on a text prompt.
+    
+    Args:
+        prompt: A text prompt containing lyrics and style guide
+        
+    Returns:
+        Dictionary containing mock track information with the following structure:
+        {
+            "track_url": "https://mock-storage.com/tracks/artist-session-id-track1.mp3",
+            "duration_seconds": 180,
+            "bpm": 95,
+            "mood": "Dark, nostalgic"
+        }
+    """
+    logger.info("Generating mock track from prompt")
+    
+    # Set random seed based on prompt for reproducibility
+    seed = sum(ord(c) for c in prompt[:20])
+    random.seed(seed)
+    
+    # Generate a random session ID and track number for the URL
+    session_id = f"session-{random.randint(10000, 99999)}"
+    track_num = random.randint(1, 10)
+    
+    # Base URL for mock storage
+    base_url = "https://mock-storage.com/tracks"
+    
+    # Generate track URL
+    track_url = f"{base_url}/artist-{session_id}-track{track_num}.mp3"
+    
+    # Extract mood from prompt
+    mood_patterns = [
+        r"(dark|bright|happy|sad|melancholic|energetic|calm|aggressive|nostalgic|dreamy|atmospheric)",
+        r"(upbeat|downbeat|chill|intense|relaxed|tense|emotional|cold|warm|haunting)"
+    ]
+    
+    moods = []
+    for pattern in mood_patterns:
+        matches = re.findall(pattern, prompt.lower())
+        moods.extend(matches)
+    
+    # If no moods found in prompt, generate random ones
+    if not moods:
+        possible_moods = ["Dark", "Bright", "Happy", "Sad", "Melancholic", "Energetic", 
+                         "Calm", "Aggressive", "Nostalgic", "Dreamy", "Atmospheric"]
+        moods = [random.choice(possible_moods)]
+        
+        # 50% chance to add a second mood
+        if random.random() > 0.5:
+            second_mood = random.choice(possible_moods)
+            if second_mood != moods[0]:
+                moods.append(second_mood)
+    
+    # Format moods
+    mood_str = ", ".join(mood.capitalize() for mood in moods[:2])
+    
+    # Determine BPM based on mood and prompt
+    bpm_base = 90  # Default mid-tempo
+    
+    # Adjust BPM based on mood keywords
+    if any(word in prompt.lower() for word in ["fast", "energetic", "upbeat", "dance", "club"]):
+        bpm_base = 120
+    elif any(word in prompt.lower() for word in ["slow", "calm", "chill", "relaxed", "ambient"]):
+        bpm_base = 70
+        
+    # Add some variation
+    bpm = bpm_base + random.randint(-10, 10)
+    
+    # Determine duration (between 2-4 minutes)
+    duration_seconds = random.randint(120, 240)
+    
+    # Return the mock track info
+    return {
+        "track_url": track_url,
+        "duration_seconds": duration_seconds,
+        "bpm": bpm,
+        "mood": mood_str
+    }
 
 
 class MockMusicGenerator:
@@ -203,7 +286,14 @@ def create_music_generator(
 
 # Example usage
 if __name__ == "__main__":
-    # Create a music generator
+    # Test the simple generate_mock_track function
+    example_prompt = "Create a dark trap track with mysterious vibes, cold atmosphere, and a slow tempo"
+    track_info = generate_mock_track(example_prompt)
+    print("Simple mock track generation:")
+    import json
+    print(json.dumps(track_info, indent=2))
+    
+    # Test the class-based approach
     generator = create_music_generator()
     
     # Example artist profile
@@ -231,5 +321,5 @@ if __name__ == "__main__":
     )
     
     # Print the result
-    import json
+    print("\nClass-based mock track generation:")
     print(json.dumps(track, indent=2))

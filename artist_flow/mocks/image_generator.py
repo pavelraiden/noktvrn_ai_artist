@@ -12,6 +12,7 @@ import random
 import os
 import time
 from datetime import datetime
+import re
 
 # Setup logging
 logging.basicConfig(
@@ -19,6 +20,122 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("image_generator")
+
+
+def generate_mock_image(prompt: str) -> dict:
+    """
+    Generate a mock image based on a text prompt.
+    
+    Args:
+        prompt: A text prompt (profile cover prompt or track cover prompt)
+        
+    Returns:
+        Dictionary containing mock image information with the following structure:
+        {
+            "image_url": "https://mock-storage.com/images/artist-session-id-cover1.png",
+            "style": "VHS Retro",
+            "theme": "Dark Neon Nights"
+        }
+    """
+    logger.info("Generating mock image from prompt")
+    
+    # Set random seed based on prompt for reproducibility
+    seed = sum(ord(c) for c in prompt[:20])
+    random.seed(seed)
+    
+    # Generate a random session ID and image number for the URL
+    session_id = f"session-{random.randint(10000, 99999)}"
+    image_num = random.randint(1, 10)
+    
+    # Base URL for mock storage
+    base_url = "https://mock-storage.com/images"
+    
+    # Determine image type from prompt
+    image_type = "cover"
+    if "profile" in prompt.lower():
+        image_type = "profile"
+    elif "album" in prompt.lower():
+        image_type = "album"
+    elif "track" in prompt.lower():
+        image_type = "track"
+    
+    # Generate image URL
+    image_url = f"{base_url}/artist-{session_id}-{image_type}{image_num}.png"
+    
+    # Extract style from prompt
+    style_patterns = [
+        r"(retro|vintage|modern|futuristic|minimalist|abstract|realistic|surreal|cartoon|anime)",
+        r"(vhs|film|digital|painted|drawn|photographic|glitch|neon|cyberpunk|vaporwave)"
+    ]
+    
+    styles = []
+    for pattern in style_patterns:
+        matches = re.findall(pattern, prompt.lower())
+        styles.extend(matches)
+    
+    # If no styles found in prompt, generate random ones
+    if not styles:
+        possible_styles = ["Retro", "Vintage", "Modern", "Futuristic", "Minimalist", 
+                          "Abstract", "Realistic", "Surreal", "Cartoon", "VHS", 
+                          "Film Noir", "Digital", "Painted", "Glitch", "Neon"]
+        styles = [random.choice(possible_styles)]
+        
+        # 50% chance to add a style modifier
+        if random.random() > 0.5:
+            style_modifiers = ["Dark", "Bright", "Grainy", "Smooth", "Distorted", "Clean"]
+            styles.insert(0, random.choice(style_modifiers))
+    
+    # Format style
+    style_str = " ".join(s.capitalize() for s in styles[:2])
+    
+    # Extract theme from prompt
+    theme_keywords = [
+        "night", "day", "urban", "nature", "space", "ocean", "desert", "forest",
+        "city", "street", "studio", "stage", "bedroom", "club", "underground",
+        "neon", "dark", "light", "colorful", "monochrome", "dystopian", "utopian"
+    ]
+    
+    themes = []
+    for keyword in theme_keywords:
+        if keyword in prompt.lower():
+            themes.append(keyword)
+    
+    # If no themes found in prompt, generate random ones
+    if not themes:
+        possible_themes = [
+            "Night Sky", "City Lights", "Urban Jungle", "Neon Streets", 
+            "Dark Alley", "Cosmic Void", "Desert Mirage", "Ocean Depths",
+            "Mountain Peak", "Studio Portrait", "Stage Lights", "Underground Club"
+        ]
+        themes = [random.choice(possible_themes)]
+    else:
+        # Format existing themes into a coherent phrase
+        if "night" in themes:
+            if "city" in themes or "urban" in themes or "street" in themes:
+                themes = ["Night City"]
+            elif "neon" in themes:
+                themes = ["Neon Nights"]
+        elif "urban" in themes or "city" in themes:
+            if "dark" in themes:
+                themes = ["Dark City"]
+        
+        # If we couldn't create a compound theme, just use the first theme
+        if len(themes) > 1:
+            themes = [themes[0].capitalize()]
+    
+    # Format theme
+    theme_str = themes[0].capitalize()
+    if len(themes[0].split()) == 1:
+        # Add a descriptor if the theme is just one word
+        descriptors = ["Vibrant", "Moody", "Atmospheric", "Dramatic", "Serene", "Chaotic"]
+        theme_str = f"{random.choice(descriptors)} {theme_str}"
+    
+    # Return the mock image info
+    return {
+        "image_url": image_url,
+        "style": style_str,
+        "theme": theme_str
+    }
 
 
 class MockImageGenerator:
@@ -240,7 +357,14 @@ def create_image_generator(
 
 # Example usage
 if __name__ == "__main__":
-    # Create an image generator
+    # Test the simple generate_mock_image function
+    example_prompt = "Create a profile image with VHS retro style for a dark trap artist in an urban night setting"
+    image_info = generate_mock_image(example_prompt)
+    print("Simple mock image generation:")
+    import json
+    print(json.dumps(image_info, indent=2))
+    
+    # Test the class-based approach
     generator = create_image_generator()
     
     # Example artist profile
@@ -268,5 +392,5 @@ if __name__ == "__main__":
     )
     
     # Print the result
-    import json
+    print("\nClass-based mock image generation:")
     print(json.dumps(image, indent=2))
