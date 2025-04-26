@@ -1,0 +1,9 @@
+[
+  {
+    "date": "YYYY-MM-DD",
+    "platform": "TikTok",
+    "post_type": "teaser",
+    "prompt": "Sample prompt text",
+    "cta": "Sample CTA"
+  }
+]
