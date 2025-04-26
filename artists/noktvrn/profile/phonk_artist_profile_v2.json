@@ -1,0 +1,39 @@
+{
+  "artist_name": "NØKTVRN",
+  "genre": "Phonk",
+  "subgenre": "Drift Phonk",
+  "mood": [
+    "dark",
+    "nocturnal",
+    "aggressive"
+  ],
+  "visual_palette": [
+    "neon",
+    "streetlights",
+    "cyberpunk"
+  ],
+  "influences": [
+    "Kordhell",
+    "Ryan Celsius",
+    "INTERWORLD"
+  ],
+  "vocal_style": "male dark trap",
+  "audience_targets": [
+    "car scene",
+    "night drivers",
+    "gym crowd"
+  ],
+  "platform_focus": [
+    "Spotify",
+    "YouTube",
+    "TikTok"
+  ],
+  "prompts": {
+    "artist_description_prompt": "Generate a bio for an underground drift phonk artist named NØKTVRN with cyberpunk aesthetics and a cult following.",
+    "image_prompt": "Create a Spotify avatar for a dark phonk artist, glitchcore meets cyberpunk, no human face visible, high contrast, dystopian vibes."
+  },
+  "ai_stylist_notes": {
+    "anti_detect_strategy": "Avoid facial renders. Always rotate styles slightly between artists. Avoid static prompts.",
+    "avatar_tip": "No face, abstract or artistic representation. Match genre mood and platform audience."
+  }
+}
