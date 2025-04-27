@@ -34,7 +34,7 @@ logging.basicConfig(
 logger = logging.getLogger("artist_builder.profile_validator")
 
 
-class ProfileValidationError(Exception):
+class ValidationError(Exception):
     """Exception raised for errors in the profile validation."""
     pass
 
@@ -47,6 +47,49 @@ class ProfileValidator:
     def __init__(self):
         """Initialize the profile validator."""
         logger.info("Initialized ProfileValidator")
+
+    def validate_and_correct_profile(self, profile_data: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        """
+        Validate and correct an artist profile.
+        
+        Args:
+            profile_data: Dictionary containing the profile data
+            
+        Returns:
+            Tuple of (corrected_profile, validation_report)
+        """
+        logger.info("Validating and correcting artist profile")
+        
+        # First validate the profile
+        is_valid, errors = self.validate_profile(profile_data)
+        
+        # Auto-correct the profile
+        corrected_profile = self.auto_correct_profile(profile_data)
+        
+        # Ensure field consistency
+        corrected_profile = self.ensure_field_consistency(corrected_profile)
+        
+        # Generate validation report
+        validation_report = self.generate_validation_report(corrected_profile)
+        
+        # Validate the corrected profile
+        is_valid_after_correction, errors_after_correction = self.validate_profile(corrected_profile)
+        
+        # Update the validation report
+        validation_report["is_valid"] = is_valid_after_correction
+        validation_report["errors"] = errors_after_correction
+        validation_report["auto_corrected"] = (not is_valid and is_valid_after_correction)
+        validation_report["field_errors"] = {}
+        
+        # Add field-specific errors
+        for error in errors:
+            if ":" in error:
+                field, message = error.split(":", 1)
+                validation_report["field_errors"][field.strip()] = message.strip()
+        
+        logger.info(f"Profile validation and correction completed: valid={is_valid_after_correction}")
+        
+        return corrected_profile, validation_report
 
     def validate_profile(self, profile_data: Dict[str, Any]) -> Tuple[bool, List[str]]:
         """
@@ -382,6 +425,7 @@ class ProfileValidator:
         # Generate suggestions for improvement
         self._generate_suggestions(profile_data, report["suggestions"])
         
+        # Log report summary
         logger.info(f"Validation report generated: valid={is_valid}, errors={len(errors)}, warnings={len(report['warnings'])}, suggestions={len(report['suggestions'])}")
         
         return report
@@ -396,21 +440,19 @@ class ProfileValidator:
         """
         # Check for short descriptions
         if "style_description" in profile and len(profile["style_description"]) < 50:
-            warnings.append("Style description is quite short, consider expanding it")
-        
-        if "backstory" in profile and len(profile["backstory"]) < 100:
-            warnings.append("Backstory is quite short, consider expanding it")
+            warnings.append("Style description is quite short, consider expanding it for better results")
         
         # Check for minimal personality traits
-        if "personality_traits" in profile and isinstance(profile["personality_traits"], list):
-            if len(profile["personality_traits"]) < 3:
-                warnings.append("Few personality traits defined, consider adding more for a richer character")
+        if "personality_traits" in profile and len(profile["personality_traits"]) < 3:
+            warnings.append("Few personality traits defined, consider adding more for a richer character")
         
-        # Check for missing optional fields
-        optional_fields = ["influences", "backstory"]
-        for field in optional_fields:
-            if field not in profile or not profile[field]:
-                warnings.append(f"Optional field '{field}' is missing or empty")
+        # Check for missing backstory
+        if "backstory" not in profile or not profile["backstory"]:
+            warnings.append("No backstory provided, consider adding one for a more complete profile")
+        
+        # Check for missing influences
+        if "influences" not in profile or not profile["influences"]:
+            warnings.append("No influences provided, consider adding some for better musical context")
 
     def _generate_suggestions(self, profile: Dict[str, Any], suggestions: List[str]) -> None:
         """
@@ -420,87 +462,18 @@ class ProfileValidator:
             profile: Dictionary containing the profile data
             suggestions: List to append suggestion messages to
         """
-        # Suggest expanding influences
-        if "influences" in profile and isinstance(profile["influences"], list):
-            if len(profile["influences"]) < 3:
-                suggestions.append("Consider adding more musical influences for a richer artistic background")
+        # Suggest adding more subgenres if only one is present
+        if "subgenres" in profile and len(profile["subgenres"]) == 1:
+            suggestions.append("Consider adding more subgenres for a more nuanced musical identity")
         
-        # Suggest more detailed target audience
+        # Suggest expanding target audience
         if "target_audience" in profile and len(profile["target_audience"]) < 50:
-            suggestions.append("Consider providing a more detailed description of the target audience")
+            suggestions.append("Consider expanding the target audience description for better marketing")
         
-        # Suggest more detailed visual identity
-        if "visual_identity_prompt" in profile and len(profile["visual_identity_prompt"]) < 50:
-            suggestions.append("Consider providing a more detailed visual identity prompt")
-
-    def validate_and_correct_profile(self, profile_data: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-        """
-        Validate a profile and attempt to correct any issues.
+        # Suggest adding more personality traits for complexity
+        if "personality_traits" in profile and len(profile["personality_traits"]) < 5:
+            suggestions.append("Adding more personality traits would create a more complex character")
         
-        Args:
-            profile_data: Dictionary containing the profile data
-            
-        Returns:
-            Tuple of (corrected_profile, validation_report)
-        """
-        logger.info("Validating and correcting profile")
-        
-        # First, try to auto-correct any issues
-        corrected_profile = self.auto_correct_profile(profile_data)
-        
-        # Then, ensure field consistency
-        consistent_profile = self.ensure_field_consistency(corrected_profile)
-        
-        # Generate validation report for the corrected profile
-        validation_report = self.generate_validation_report(consistent_profile)
-        
-        # If still not valid, log the remaining issues
-        if not validation_report["is_valid"]:
-            logger.warning("Profile still has validation issues after correction attempts")
-            for error in validation_report["errors"]:
-                logger.warning(f"Remaining error: {error}")
-        else:
-            logger.info("Profile successfully validated and corrected")
-        
-        return consistent_profile, validation_report
-
-
-def main():
-    """Main function for testing the profile validator."""
-    # Example profile data with some issues
-    profile_data = {
-        "stage_name": "Neon Horizon",
-        "genre": "Electronic",
-        "subgenres": "Synthwave, Chillwave",  # Should be a list
-        "style_description": "Retro-futuristic electronic music",  # Too short
-        "voice_type": "Ethereal female vocals with vocoder effects",
-        "personality_traits": ["Mysterious", "Introspective"],  # Too few traits
-        "target_audience": "25-35 year old electronic music fans",
-        "visual_identity_prompt": "Neon cityscape at night",  # Too short
-        "song_prompt_generator": "electronic_template",
-        "video_prompt_generator": "retro_video_template",
-        # Missing settings
-    }
-    
-    try:
-        # Initialize validator
-        validator = ProfileValidator()
-        
-        # Validate and correct the profile
-        corrected_profile, validation_report = validator.validate_and_correct_profile(profile_data)
-        
-        # Print the results
-        print("\nCorrected Profile:")
-        print(json.dumps(corrected_profile, indent=2))
-        
-        print("\nValidation Report:")
-        print(json.dumps(validation_report, indent=2))
-        
-    except Exception as e:
-        logger.error(f"Error in main: {e}")
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()
+        # Suggest adding notes for future reference
+        if "notes" not in profile or not profile["notes"]:
+            suggestions.append("Consider adding notes for future reference and development ideas")

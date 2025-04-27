@@ -1,9 +1,9 @@
 """
-Artist Profile Builder Module
+Enhanced Profile Builder Module with Production Polishing
 
 This module integrates all components of the Artist Profile Builder
 to provide a complete workflow for creating, validating, and storing
-artist profiles.
+artist profiles with enhanced logging, error handling, and creation reports.
 """
 
 import logging
@@ -25,6 +25,7 @@ from builder.profile_validator import ProfileValidator, ValidationError
 from builder.storage_manager import StorageManager, StorageError
 from builder.future_hooks import FutureHooks
 from builder.error_handler import setup_logging_and_error_handling, ArtistBuilderError
+from builder.creation_report_manager import CreationReportManager
 
 # Configure logging
 logging.basicConfig(
@@ -49,8 +50,9 @@ class ArtistProfileBuilder:
         self.profile_validator = ProfileValidator()
         self.storage_manager = StorageManager()
         self.future_hooks = FutureHooks()
+        self.creation_report_manager = CreationReportManager()
         
-        self.logger.info("Initialized ArtistProfileBuilder")
+        self.logger.info("Initialized ArtistProfileBuilder with enhanced production features")
 
     def create_artist_profile(self, input_data: Dict[str, Any], input_source: str = "api") -> Dict[str, Any]:
         """
@@ -67,6 +69,9 @@ class ArtistProfileBuilder:
         self.logger.info(f"Starting artist profile creation from {input_source} input")
         
         try:
+            # Log profile received event
+            self.logger.info(f"Profile received from {input_source}: {json.dumps(input_data)[:100]}...")
+            
             # Process and validate input
             self.logger.info("Processing input data")
             processed_input = process_input(input_data, input_source)
@@ -79,11 +84,18 @@ class ArtistProfileBuilder:
             self.logger.info("Validating and correcting profile")
             corrected_profile, validation_report = self.profile_validator.validate_and_correct_profile(profile_draft)
             
-            # If validation failed, log warnings but continue
-            if not validation_report["is_valid"]:
-                self.logger.warning(f"Profile validation has issues: {validation_report['errors']}")
-                for error in validation_report["errors"]:
+            # Log validation status
+            if validation_report["is_valid"]:
+                self.logger.info("Profile validation passed successfully")
+            else:
+                self.logger.warning(f"Profile validation has issues: {len(validation_report['errors'])} errors found")
+                for error in validation_report['errors']:
                     self.logger.warning(f"Validation error: {error}")
+                    
+                # Log specific field failures
+                if 'field_errors' in validation_report:
+                    for field, error in validation_report['field_errors'].items():
+                        self.logger.warning(f"Field validation error: {field} - {error}")
             
             # Apply custom validators from future hooks
             self.logger.info("Applying custom validators")
@@ -97,6 +109,19 @@ class ArtistProfileBuilder:
             self.logger.info("Saving profile")
             file_path = self.storage_manager.save_profile(corrected_profile)
             self.logger.info(f"Saved profile to {file_path}")
+            
+            # Generate and save creation report
+            self.logger.info("Generating creation report")
+            creation_report = self.creation_report_manager.generate_creation_report(
+                corrected_profile, validation_report
+            )
+            report_path = self.creation_report_manager.save_creation_report(creation_report)
+            self.logger.info(f"Saved creation report to {report_path}")
+            
+            # Create asset folders
+            self.logger.info("Creating asset folders")
+            asset_dir = self._create_asset_folders(corrected_profile)
+            self.logger.info(f"Created asset folders at {asset_dir}")
             
             # Run post-generation hooks
             self.logger.info("Running post-generation hooks")
@@ -117,14 +142,17 @@ class ArtistProfileBuilder:
             return corrected_profile
             
         except InputValidationError as e:
+            self.logger.error(f"Input validation error: {str(e)}")
             self.error_handler.handle_error(e, {
                 "module": "profile_builder",
                 "operation": "create_artist_profile",
                 "input_source": input_source,
-                "error_type": "input"
+                "error_type": "input",
+                "input_data": input_data
             })
             raise
         except LLMPipelineError as e:
+            self.logger.error(f"LLM pipeline error: {str(e)}")
             self.error_handler.handle_error(e, {
                 "module": "profile_builder",
                 "operation": "create_artist_profile",
@@ -133,14 +161,17 @@ class ArtistProfileBuilder:
             })
             raise
         except ValidationError as e:
+            self.logger.error(f"Validation error: {str(e)}")
             self.error_handler.handle_error(e, {
                 "module": "profile_builder",
                 "operation": "create_artist_profile",
                 "input_source": input_source,
-                "error_type": "validation"
+                "error_type": "validation",
+                "validation_details": str(e)
             })
             raise
         except StorageError as e:
+            self.logger.error(f"Storage error: {str(e)}")
             self.error_handler.handle_error(e, {
                 "module": "profile_builder",
                 "operation": "create_artist_profile",
@@ -149,6 +180,7 @@ class ArtistProfileBuilder:
             })
             raise
         except Exception as e:
+            self.logger.error(f"Unexpected error in profile creation: {str(e)}")
             self.error_handler.handle_error(e, {
                 "module": "profile_builder",
                 "operation": "create_artist_profile",
@@ -156,6 +188,33 @@ class ArtistProfileBuilder:
                 "error_type": "unknown"
             })
             raise ArtistBuilderError(f"Unexpected error in profile creation: {e}")
+
+    def _create_asset_folders(self, profile: Dict[str, Any]) -> str:
+        """
+        Create asset folders for an artist profile.
+        
+        Args:
+            profile: The artist profile
+            
+        Returns:
+            Path to the asset directory
+        """
+        artist_id = profile.get("artist_id", "unknown")
+        stage_name = profile.get("stage_name", "Unknown Artist").replace(" ", "_")
+        
+        # Get the project root directory
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        
+        # Create asset directory
+        asset_dir = os.path.join(project_root, "assets", f"{stage_name}_{artist_id}")
+        os.makedirs(asset_dir, exist_ok=True)
+        
+        # Create subdirectories
+        subdirs = ["images", "audio", "video", "metadata", "social"]
+        for subdir in subdirs:
+            os.makedirs(os.path.join(asset_dir, subdir), exist_ok=True)
+            
+        return asset_dir
 
     def update_artist_profile(self, profile_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -177,24 +236,39 @@ class ArtistProfileBuilder:
             existing_profile = self.storage_manager.load_profile(profile_id)
             
             # Apply updates
-            self.logger.info(f"Applying updates to profile")
+            self.logger.info(f"Applying updates to profile: {json.dumps(updates)[:100]}...")
             updated_profile = self.storage_manager.update_profile(profile_id, updates)
             
             # Validate updated profile
             self.logger.info("Validating updated profile")
             corrected_profile, validation_report = self.profile_validator.validate_and_correct_profile(updated_profile)
             
-            # If validation failed, log warnings but continue
-            if not validation_report["is_valid"]:
-                self.logger.warning(f"Updated profile validation has issues: {validation_report['errors']}")
-                for error in validation_report["errors"]:
+            # Log validation status
+            if validation_report["is_valid"]:
+                self.logger.info("Updated profile validation passed successfully")
+            else:
+                self.logger.warning(f"Updated profile validation has issues: {len(validation_report['errors'])} errors found")
+                for error in validation_report['errors']:
                     self.logger.warning(f"Validation error: {error}")
+                    
+                # Log specific field failures
+                if 'field_errors' in validation_report:
+                    for field, error in validation_report['field_errors'].items():
+                        self.logger.warning(f"Field validation error: {field} - {error}")
             
             # Save corrected profile if needed
             if corrected_profile != updated_profile:
                 self.logger.info("Saving corrected profile")
                 file_path = self.storage_manager.save_profile(corrected_profile)
                 self.logger.info(f"Saved corrected profile to {file_path}")
+            
+            # Generate and save updated creation report
+            self.logger.info("Generating updated creation report")
+            creation_report = self.creation_report_manager.generate_creation_report(
+                corrected_profile, validation_report
+            )
+            report_path = self.creation_report_manager.save_creation_report(creation_report)
+            self.logger.info(f"Saved updated creation report to {report_path}")
             
             # Track profile evolution
             self.logger.info("Tracking profile evolution")
@@ -215,6 +289,7 @@ class ArtistProfileBuilder:
             return corrected_profile
             
         except StorageError as e:
+            self.logger.error(f"Storage error: {str(e)}")
             self.error_handler.handle_error(e, {
                 "module": "profile_builder",
                 "operation": "update_artist_profile",
@@ -223,14 +298,17 @@ class ArtistProfileBuilder:
             })
             raise
         except ValidationError as e:
+            self.logger.error(f"Validation error: {str(e)}")
             self.error_handler.handle_error(e, {
                 "module": "profile_builder",
                 "operation": "update_artist_profile",
                 "profile_id": profile_id,
-                "error_type": "validation"
+                "error_type": "validation",
+                "validation_details": str(e)
             })
             raise
         except Exception as e:
+            self.logger.error(f"Unexpected error in profile update: {str(e)}")
             self.error_handler.handle_error(e, {
                 "module": "profile_builder",
                 "operation": "update_artist_profile",
@@ -263,6 +341,7 @@ class ArtistProfileBuilder:
             return profile
             
         except StorageError as e:
+            self.logger.error(f"Storage error: {str(e)}")
             self.error_handler.handle_error(e, {
                 "module": "profile_builder",
                 "operation": "get_artist_profile",
@@ -271,6 +350,7 @@ class ArtistProfileBuilder:
             })
             raise
         except Exception as e:
+            self.logger.error(f"Unexpected error getting profile: {str(e)}")
             self.error_handler.handle_error(e, {
                 "module": "profile_builder",
                 "operation": "get_artist_profile",
@@ -278,6 +358,37 @@ class ArtistProfileBuilder:
                 "error_type": "unknown"
             })
             raise ArtistBuilderError(f"Unexpected error getting profile: {e}")
+
+    def get_creation_report(self, profile_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get the creation report for an artist profile.
+        
+        Args:
+            profile_id: ID of the profile
+            
+        Returns:
+            Dictionary containing the creation report, or None if not found
+        """
+        try:
+            self.logger.info(f"Getting creation report for profile {profile_id}")
+            report = self.creation_report_manager.get_creation_report(profile_id)
+            
+            if report:
+                self.logger.info(f"Retrieved creation report for profile {profile_id}")
+            else:
+                self.logger.warning(f"No creation report found for profile {profile_id}")
+                
+            return report
+            
+        except Exception as e:
+            self.logger.error(f"Error getting creation report: {str(e)}")
+            self.error_handler.handle_error(e, {
+                "module": "profile_builder",
+                "operation": "get_creation_report",
+                "profile_id": profile_id,
+                "error_type": "unknown"
+            })
+            return None
 
     def delete_artist_profile(self, profile_id: str, create_backup: bool = True) -> bool:
         """
@@ -294,6 +405,10 @@ class ArtistProfileBuilder:
             self.logger.info(f"Deleting artist profile {profile_id}")
             success = self.storage_manager.delete_profile(profile_id, create_backup)
             
+            # Delete creation reports
+            self.logger.info(f"Deleting creation reports for profile {profile_id}")
+            self.creation_report_manager.delete_creation_report(profile_id)
+            
             # Log profile operation
             self.logging_manager.log_profile_operation(
                 "delete",
@@ -304,6 +419,7 @@ class ArtistProfileBuilder:
             return success
             
         except StorageError as e:
+            self.logger.error(f"Storage error: {str(e)}")
             self.error_handler.handle_error(e, {
                 "module": "profile_builder",
                 "operation": "delete_artist_profile",
@@ -312,6 +428,7 @@ class ArtistProfileBuilder:
             })
             raise
         except Exception as e:
+            self.logger.error(f"Unexpected error deleting profile: {str(e)}")
             self.error_handler.handle_error(e, {
                 "module": "profile_builder",
                 "operation": "delete_artist_profile",
@@ -335,6 +452,7 @@ class ArtistProfileBuilder:
             return profiles
             
         except StorageError as e:
+            self.logger.error(f"Storage error: {str(e)}")
             self.error_handler.handle_error(e, {
                 "module": "profile_builder",
                 "operation": "list_artist_profiles",
@@ -342,12 +460,39 @@ class ArtistProfileBuilder:
             })
             raise
         except Exception as e:
+            self.logger.error(f"Unexpected error listing profiles: {str(e)}")
             self.error_handler.handle_error(e, {
                 "module": "profile_builder",
                 "operation": "list_artist_profiles",
                 "error_type": "unknown"
             })
             raise ArtistBuilderError(f"Unexpected error listing profiles: {e}")
+
+    def list_creation_reports(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        List the most recent creation reports.
+        
+        Args:
+            limit: Maximum number of reports to retrieve
+            
+        Returns:
+            List of dictionaries containing creation reports
+        """
+        try:
+            self.logger.info(f"Listing creation reports (limit: {limit})")
+            reports = self.creation_report_manager.list_creation_reports(limit)
+            
+            self.logger.info(f"Found {len(reports)} creation reports")
+            return reports
+            
+        except Exception as e:
+            self.logger.error(f"Error listing creation reports: {str(e)}")
+            self.error_handler.handle_error(e, {
+                "module": "profile_builder",
+                "operation": "list_creation_reports",
+                "error_type": "unknown"
+            })
+            return []
 
     def search_artist_profiles(self, search_criteria: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
@@ -367,6 +512,7 @@ class ArtistProfileBuilder:
             return profiles
             
         except StorageError as e:
+            self.logger.error(f"Storage error: {str(e)}")
             self.error_handler.handle_error(e, {
                 "module": "profile_builder",
                 "operation": "search_artist_profiles",
@@ -374,6 +520,7 @@ class ArtistProfileBuilder:
             })
             raise
         except Exception as e:
+            self.logger.error(f"Unexpected error searching profiles: {str(e)}")
             self.error_handler.handle_error(e, {
                 "module": "profile_builder",
                 "operation": "search_artist_profiles",
@@ -403,9 +550,7 @@ class ArtistProfileBuilder:
             
             # Save updated profile
             file_path = self.storage_manager.save_profile(updated_profile)
-            
-            # Track profile evolution
-            self.future_hooks.track_profile_evolution(existing_profile, updated_profile)
+            self.logger.info(f"Saved trend-updated profile to {file_path}")
             
             # Log profile operation
             self.logging_manager.log_profile_operation(
@@ -417,6 +562,7 @@ class ArtistProfileBuilder:
             return updated_profile
             
         except StorageError as e:
+            self.logger.error(f"Storage error: {str(e)}")
             self.error_handler.handle_error(e, {
                 "module": "profile_builder",
                 "operation": "apply_trend_analysis",
@@ -425,6 +571,7 @@ class ArtistProfileBuilder:
             })
             raise
         except Exception as e:
+            self.logger.error(f"Unexpected error applying trend analysis: {str(e)}")
             self.error_handler.handle_error(e, {
                 "module": "profile_builder",
                 "operation": "apply_trend_analysis",
@@ -435,7 +582,7 @@ class ArtistProfileBuilder:
 
     def adapt_behavior(self, profile_id: str, performance_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Adapt an artist profile's behavior based on performance data.
+        Adapt artist behavior based on performance data.
         
         Args:
             profile_id: ID of the profile to update
@@ -455,9 +602,7 @@ class ArtistProfileBuilder:
             
             # Save updated profile
             file_path = self.storage_manager.save_profile(updated_profile)
-            
-            # Track profile evolution
-            self.future_hooks.track_profile_evolution(existing_profile, updated_profile)
+            self.logger.info(f"Saved behavior-adapted profile to {file_path}")
             
             # Log profile operation
             self.logging_manager.log_profile_operation(
@@ -469,6 +614,7 @@ class ArtistProfileBuilder:
             return updated_profile
             
         except StorageError as e:
+            self.logger.error(f"Storage error: {str(e)}")
             self.error_handler.handle_error(e, {
                 "module": "profile_builder",
                 "operation": "adapt_behavior",
@@ -477,6 +623,7 @@ class ArtistProfileBuilder:
             })
             raise
         except Exception as e:
+            self.logger.error(f"Unexpected error adapting behavior: {str(e)}")
             self.error_handler.handle_error(e, {
                 "module": "profile_builder",
                 "operation": "adapt_behavior",
@@ -487,76 +634,42 @@ class ArtistProfileBuilder:
 
 
 def main():
-    """Main function for testing the Artist Profile Builder."""
-    # Example input data
+    """
+    Main function for testing the Artist Profile Builder.
+    """
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    
+    # Create builder
+    builder = ArtistProfileBuilder()
+    
+    # Example input
     input_data = {
-        "stage_name": "Neon Horizon",
+        "stage_name": "Test Artist",
         "genre": "Electronic",
         "subgenres": ["Synthwave", "Chillwave"],
-        "style_description": "Retro-futuristic electronic music with nostalgic 80s influences",
-        "voice_type": "Ethereal female vocals with vocoder effects",
-        "personality_traits": ["Mysterious", "Introspective"],
-        "target_audience": "25-35 year old electronic music fans",
-        "visual_identity_prompt": "Neon cityscape at night with purple and blue color palette"
+        "style_description": "Test style description",
+        "voice_type": "Test voice type",
+        "personality_traits": ["Creative", "Innovative"],
+        "target_audience": "Test audience",
+        "visual_identity_prompt": "Test visual identity"
     }
     
+    # Create profile
     try:
-        # Initialize profile builder
-        builder = ArtistProfileBuilder()
-        
-        # Create artist profile
-        print("Creating artist profile...")
         profile = builder.create_artist_profile(input_data, "test")
+        print(f"Created profile: {profile['stage_name']} ({profile['artist_id']})")
         
-        # Print the profile
-        print(f"\nCreated profile: {profile['stage_name']} ({profile['artist_id']})")
-        print(f"Genre: {profile['genre']}")
-        print(f"Subgenres: {', '.join(profile['subgenres'])}")
-        
-        # List all profiles
-        print("\nListing all profiles:")
-        profiles = builder.list_artist_profiles()
-        for p in profiles:
-            print(f"  - {p['stage_name']} ({p['artist_id']})")
-        
-        # Update the profile
-        print("\nUpdating profile...")
-        updates = {
-            "backstory": "Neon Horizon emerged from the digital underground in 2025, quickly gaining recognition for blending nostalgic synthwave elements with cutting-edge production techniques. Their debut track 'Digital Dreams' became a viral sensation.",
-            "update_reason": "Added more detail to backstory"
-        }
-        updated_profile = builder.update_artist_profile(profile["artist_id"], updates)
-        print(f"Updated profile backstory: {updated_profile['backstory'][:100]}...")
-        
-        # Apply trend analysis
-        print("\nApplying trend analysis...")
-        trend_data = {
-            "trending_subgenres": ["Darksynth", "Vaporwave"],
-            "genre_compatibility": {
-                "Electronic": {
-                    "Darksynth": 0.9,
-                    "Vaporwave": 0.8
-                }
-            }
-        }
-        trend_profile = builder.apply_trend_analysis(profile["artist_id"], trend_data)
-        print(f"Profile after trend analysis - Subgenres: {', '.join(trend_profile['subgenres'])}")
-        
-        # Get the profile
-        print("\nGetting profile...")
-        retrieved_profile = builder.get_artist_profile(profile["artist_id"])
-        print(f"Retrieved profile: {retrieved_profile['stage_name']}")
-        
-        # Delete the profile (comment out to keep the profile for testing)
-        # print("\nDeleting profile...")
-        # builder.delete_artist_profile(profile["artist_id"])
-        # print("Profile deleted")
-        
-        print("\nTest completed successfully!")
+        # Get creation report
+        report = builder.get_creation_report(profile['artist_id'])
+        if report:
+            print(f"Creation report: {json.dumps(report, indent=2)}")
         
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+        print(f"Error: {e}")
 
 
 if __name__ == "__main__":
