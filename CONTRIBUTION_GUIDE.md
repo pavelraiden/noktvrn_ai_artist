@@ -25,6 +25,9 @@ This guide describes the mandatory rules for contributing to the project to main
 - **Modular and Scalable Design**  
   Code must be modular, scalable, clean, and ready for future expansions without major rewrites.
 
+- **Self-Learning Enhancement**  
+  Every contribution must aim to improve the system's ability to self-learn, self-adapt, and self-optimize over time based on performance data and feedback.
+
 ---
 
 ## 📂 Project Structure Overview
@@ -32,10 +35,12 @@ This guide describes the mandatory rules for contributing to the project to main
 | Folder | Purpose |
 |--------|---------|
 | `artist_builder/` | Artist prompt creation, validation, profile assembly |
+| `artist_flow/` | Artist creation workflow and asset management |
+| `artists/` | Generated artist data and assets |
 | `llm_orchestrator/` | Session management, logging, LLM orchestration |
-| `validators/` | Quality checks, feedback loops |
-| `composer/` | Final artist profile construction |
-| `review/` | Reviews and feedback on generated data |
+| `scripts/` | Utility scripts for content and video generation |
+| `templates/` | Template files for generation |
+| `video_gen_config/` | Video generation configuration |
 
 ---
 
@@ -46,6 +51,8 @@ This guide describes the mandatory rules for contributing to the project to main
 - Avoid redundant code or duplicate logic.
 - Follow best practices for error handling.
 - Ensure reusability where appropriate.
+- Implement comprehensive logging for performance analysis.
+- Include metrics collection for self-optimization.
 
 ---
 
@@ -60,6 +67,30 @@ This guide describes the mandatory rules for contributing to the project to main
 
 ---
 
+## 🧠 Self-Learning Principles
+
+All contributions must adhere to these self-learning principles:
+
+- **Data-Driven Improvement**  
+  Implement mechanisms to collect, analyze, and learn from performance data.
+
+- **Feedback Loop Integration**  
+  Every module should include or connect to feedback loops that enable continuous improvement.
+
+- **Adaptation Mechanisms**  
+  Design components to adapt their behavior based on historical performance and changing conditions.
+
+- **Performance Metrics**  
+  Include clear metrics for measuring success and identifying areas for improvement.
+
+- **Learning Persistence**  
+  Ensure learning outcomes are properly stored and applied to future operations.
+
+- **Incremental Optimization**  
+  Support gradual refinement of processes based on accumulated knowledge.
+
+---
+
 ## 🛠 Special Reminder for AI Agents
 
 If you are an AI agent contributing to the project:
@@ -69,6 +100,21 @@ If you are an AI agent contributing to the project:
 - **Never create isolated or disconnected modules**.
 - **Proactively improve** the project when opportunities arise.
 - **Maintain production-level standards at all times**.
+- **Enhance self-learning capabilities** with each contribution.
+- **Document learning mechanisms** thoroughly.
+
+---
+
+## 🔍 Module Integration Requirements
+
+When integrating modules:
+
+- Ensure clear interfaces between components.
+- Document all integration points.
+- Implement comprehensive error handling at boundaries.
+- Include tests that verify correct integration.
+- Design for backward compatibility.
+- Consider how the integration supports self-learning goals.
 
 ---
 
