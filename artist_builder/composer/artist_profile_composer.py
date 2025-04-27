@@ -3,6 +3,7 @@ Artist Profile Composer Module
 
 This module provides functionality for assembling complete artist profiles
 based on validated prompts, preparing them for storage and further use.
+The composer now supports the new artist profile schema.
 """
 
 import re
@@ -11,6 +12,11 @@ import logging
 import random
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
+
+# Import schema components
+from artist_builder.schema.artist_profile_schema import ArtistProfile, validate_artist_profile
+from artist_builder.schema.schema_converter import legacy_to_new_schema, new_to_legacy_schema
+from artist_builder.schema.schema_defaults import create_default_settings, get_default_subgenres, get_default_personality_traits, get_default_target_audience
 
 # Configure logging
 logging.basicConfig(
@@ -25,7 +31,7 @@ class ArtistProfileComposer:
     Assembles complete artist profiles based on validated prompts.
     
     This class extracts information from prompts to create structured artist
-    profiles with name, genre, vibe, backstory, style, and visual description.
+    profiles that conform to the required schema.
     """
     
     def __init__(
@@ -74,7 +80,7 @@ class ArtistProfileComposer:
             "rebellious": ["rebellious", "defiant", "revolutionary", "anti-establishment", "punk"]
         }
         
-        logger.info("Initialized artist profile composer")
+        logger.info("Initialized artist profile composer with schema support")
     
     def compose_profile(
         self,
@@ -91,7 +97,7 @@ class ArtistProfileComposer:
             metadata: Additional metadata for the profile
             
         Returns:
-            A complete artist profile
+            A complete artist profile conforming to the schema
         """
         # Extract components from the prompt
         components = self.extract_components(prompt)
@@ -104,8 +110,8 @@ class ArtistProfileComposer:
         if self.enhance_profiles:
             components = self.enhance_profile(components)
         
-        # Create the profile
-        profile = {
+        # Create the legacy profile structure (for backward compatibility)
+        legacy_profile = {
             "id": f"artist_{datetime.now().strftime('%Y%m%d%H%M%S')}_{random.randint(1000, 9999)}",
             "name": components["name"],
             "genre": components["genre"],
@@ -120,11 +126,288 @@ class ArtistProfileComposer:
             "metadata": metadata or {}
         }
         
-        # Format for storage
-        formatted_profile = self.format_for_storage(profile)
+        # Format for storage (legacy format)
+        formatted_legacy_profile = self.format_for_storage(legacy_profile)
         
-        logger.info(f"Composed profile for artist '{profile['name']}' with genre '{profile['genre']}'")
-        return formatted_profile
+        # Convert to new schema
+        new_schema_profile = self._create_schema_profile(formatted_legacy_profile, prompt, session_id, metadata)
+        
+        # Validate against schema
+        is_valid, errors = validate_artist_profile(new_schema_profile)
+        if not is_valid:
+            logger.warning(f"Generated profile does not fully conform to schema: {errors}")
+            # Fix validation issues
+            new_schema_profile = self._fix_validation_issues(new_schema_profile, errors)
+            
+            # Validate again after fixes
+            is_valid, errors = validate_artist_profile(new_schema_profile)
+            if not is_valid:
+                logger.error(f"Failed to create valid profile after fixes: {errors}")
+            else:
+                logger.info("Profile validation issues fixed successfully")
+        
+        logger.info(f"Composed profile for artist '{new_schema_profile['stage_name']}' with genre '{new_schema_profile['genre']}'")
+        return new_schema_profile
+    
+    def _create_schema_profile(
+        self, 
+        legacy_profile: Dict[str, Any], 
+        prompt: str, 
+        session_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Create a schema-compliant profile from legacy profile components.
+        
+        Args:
+            legacy_profile: The legacy profile structure
+            prompt: The original prompt
+            session_id: The session ID
+            metadata: Additional metadata
+            
+        Returns:
+            A schema-compliant artist profile
+        """
+        # Start with conversion from legacy format
+        profile = legacy_to_new_schema(legacy_profile)
+        
+        # Extract additional information from the prompt that might not be in the legacy profile
+        
+        # Extract subgenres if not already present or insufficient
+        if not profile.get("subgenres") or len(profile["subgenres"]) < 2:
+            profile["subgenres"] = get_default_subgenres(profile["genre"])
+        
+        # Extract personality traits if not already present or insufficient
+        if not profile.get("personality_traits") or len(profile["personality_traits"]) < 2:
+            profile["personality_traits"] = self._extract_personality_traits(prompt, profile["genre"])
+        
+        # Ensure target audience is set
+        if not profile.get("target_audience"):
+            profile["target_audience"] = get_default_target_audience(profile["genre"])
+        
+        # Ensure song prompt generator is set
+        if not profile.get("song_prompt_generator"):
+            profile["song_prompt_generator"] = self._create_song_prompt(profile)
+        
+        # Ensure video prompt generator is set
+        if not profile.get("video_prompt_generator"):
+            profile["video_prompt_generator"] = self._create_video_prompt(profile)
+        
+        # Ensure settings are complete
+        if not profile.get("settings"):
+            profile["settings"] = create_default_settings()
+        
+        # Keep original metadata
+        if metadata:
+            profile["metadata"] = {**profile.get("metadata", {}), **metadata}
+        
+        # Keep session ID
+        if session_id:
+            profile["session_id"] = session_id
+        
+        # Keep source prompt
+        profile["source_prompt"] = prompt
+        
+        return profile
+    
+    def _fix_validation_issues(self, profile: Dict[str, Any], errors: List[str]) -> Dict[str, Any]:
+        """
+        Fix common validation issues in a profile.
+        
+        Args:
+            profile: The profile with validation issues
+            errors: The validation error messages
+            
+        Returns:
+            A fixed profile
+        """
+        fixed_profile = profile.copy()
+        
+        for error in errors:
+            # Handle missing required fields
+            if "field required" in error.lower():
+                field = error.split(":")[0].strip()
+                
+                if field == "artist_id" and not fixed_profile.get("artist_id"):
+                    fixed_profile["artist_id"] = f"artist_{datetime.now().strftime('%Y%m%d%H%M%S')}_{random.randint(1000, 9999)}"
+                
+                elif field == "stage_name" and not fixed_profile.get("stage_name"):
+                    fixed_profile["stage_name"] = fixed_profile.get("name", f"Artist_{random.randint(1000, 9999)}")
+                
+                elif field == "genre" and not fixed_profile.get("genre"):
+                    fixed_profile["genre"] = self.default_genre
+                
+                elif field == "subgenres" and not fixed_profile.get("subgenres"):
+                    fixed_profile["subgenres"] = get_default_subgenres(fixed_profile.get("genre", self.default_genre))
+                
+                elif field == "style_description" and not fixed_profile.get("style_description"):
+                    genre = fixed_profile.get("genre", self.default_genre)
+                    fixed_profile["style_description"] = f"A {genre} artist with a unique sound that blends traditional elements with modern production techniques."
+                
+                elif field == "voice_type" and not fixed_profile.get("voice_type"):
+                    genre = fixed_profile.get("genre", self.default_genre)
+                    fixed_profile["voice_type"] = f"Distinctive {genre.lower()} vocal style that resonates with listeners."
+                
+                elif field == "personality_traits" and not fixed_profile.get("personality_traits"):
+                    fixed_profile["personality_traits"] = get_default_personality_traits(fixed_profile.get("genre", self.default_genre))
+                
+                elif field == "target_audience" and not fixed_profile.get("target_audience"):
+                    fixed_profile["target_audience"] = get_default_target_audience(fixed_profile.get("genre", self.default_genre))
+                
+                elif field == "visual_identity_prompt" and not fixed_profile.get("visual_identity_prompt"):
+                    genre = fixed_profile.get("genre", self.default_genre)
+                    fixed_profile["visual_identity_prompt"] = f"Professional portrait photograph of a {genre} artist with a distinctive style and presence."
+                
+                elif field == "song_prompt_generator" and not fixed_profile.get("song_prompt_generator"):
+                    fixed_profile["song_prompt_generator"] = self._create_song_prompt(fixed_profile)
+                
+                elif field == "video_prompt_generator" and not fixed_profile.get("video_prompt_generator"):
+                    fixed_profile["video_prompt_generator"] = self._create_video_prompt(fixed_profile)
+                
+                elif field == "creation_date" and not fixed_profile.get("creation_date"):
+                    fixed_profile["creation_date"] = datetime.now().date()
+                
+                elif field == "settings" and not fixed_profile.get("settings"):
+                    fixed_profile["settings"] = create_default_settings()
+                
+                # Handle nested settings fields
+                elif field.startswith("settings."):
+                    if not fixed_profile.get("settings"):
+                        fixed_profile["settings"] = create_default_settings()
+                    else:
+                        # Handle specific nested fields
+                        nested_field = field.split(".", 1)[1]
+                        self._fix_nested_settings(fixed_profile["settings"], nested_field)
+            
+            # Handle empty lists
+            elif "ensure this value has at least" in error.lower():
+                field = error.split(":")[0].strip()
+                
+                if field == "subgenres" and (not fixed_profile.get("subgenres") or len(fixed_profile["subgenres"]) == 0):
+                    fixed_profile["subgenres"] = get_default_subgenres(fixed_profile.get("genre", self.default_genre))
+                
+                elif field == "personality_traits" and (not fixed_profile.get("personality_traits") or len(fixed_profile["personality_traits"]) == 0):
+                    fixed_profile["personality_traits"] = get_default_personality_traits(fixed_profile.get("genre", self.default_genre))
+        
+        return fixed_profile
+    
+    def _fix_nested_settings(self, settings: Dict[str, Any], field_path: str) -> None:
+        """
+        Fix nested settings fields.
+        
+        Args:
+            settings: The settings dictionary
+            field_path: The path to the nested field
+        """
+        default_settings = create_default_settings()
+        
+        # Handle top-level settings fields
+        if "." not in field_path:
+            if field_path not in settings:
+                settings[field_path] = default_settings.get(field_path)
+            return
+        
+        # Handle nested fields
+        parts = field_path.split(".", 1)
+        parent, child = parts
+        
+        # Ensure parent exists
+        if parent not in settings:
+            settings[parent] = default_settings.get(parent, {})
+        
+        # If parent is a dict, recurse
+        if isinstance(settings[parent], dict):
+            self._fix_nested_settings(settings[parent], child)
+    
+    def _create_song_prompt(self, profile: Dict[str, Any]) -> str:
+        """
+        Create a song prompt generator based on profile information.
+        
+        Args:
+            profile: The artist profile
+            
+        Returns:
+            A song prompt generator template
+        """
+        genre = profile.get("genre", self.default_genre)
+        
+        # Extract personality traits for vibe
+        traits = profile.get("personality_traits", [])
+        vibe = ", ".join(traits[:2]) if traits else "unique"
+        
+        # Extract style elements
+        style_desc = profile.get("style_description", "")
+        style_elements = re.sub(r'[.!?].*', '', style_desc).strip() if style_desc else ""
+        
+        prompt = f"Create a {genre} track with a {vibe} vibe"
+        
+        if style_elements:
+            prompt += f". {style_elements}"
+        
+        prompt += f". The track should represent the artist's unique sound and appeal to their target audience: {profile.get('target_audience', 'music fans')}."
+        
+        return prompt
+    
+    def _create_video_prompt(self, profile: Dict[str, Any]) -> str:
+        """
+        Create a video prompt generator based on profile information.
+        
+        Args:
+            profile: The artist profile
+            
+        Returns:
+            A video prompt generator template
+        """
+        genre = profile.get("genre", self.default_genre)
+        
+        # Extract personality traits for vibe
+        traits = profile.get("personality_traits", [])
+        vibe = ", ".join(traits[:2]) if traits else "unique"
+        
+        # Extract visual elements
+        visual_prompt = profile.get("visual_identity_prompt", "")
+        visual_elements = re.sub(r'[.!?].*', '', visual_prompt).strip() if visual_prompt else ""
+        
+        prompt = f"Create a music video teaser for a {genre} track with a {vibe} atmosphere"
+        
+        if visual_elements:
+            prompt += f". Visual style: {visual_elements}"
+        
+        prompt += f". The video should capture the essence of the artist's identity and complement their music, appealing to {profile.get('target_audience', 'music fans')}."
+        
+        return prompt
+    
+    def _extract_personality_traits(self, prompt: str, genre: str) -> List[str]:
+        """
+        Extract personality traits from a prompt.
+        
+        Args:
+            prompt: The artist prompt
+            genre: The artist's genre
+            
+        Returns:
+            A list of personality traits
+        """
+        traits = []
+        prompt_lower = prompt.lower()
+        
+        # Check for explicit trait mentions
+        for trait, keywords in self.vibe_keywords.items():
+            for keyword in keywords:
+                if keyword in prompt_lower and trait.title() not in traits:
+                    traits.append(trait.title())
+                    break  # Only count each trait once
+        
+        # If we don't have enough traits, add genre-based defaults
+        if len(traits) < 3:
+            default_traits = get_default_personality_traits(genre)
+            for trait in default_traits:
+                if trait not in traits:
+                    traits.append(trait)
+                    if len(traits) >= 3:
+                        break
+        
+        return traits[:3]  # Limit to top 3 traits
     
     def extract_components(self, prompt: str) -> Dict[str, Any]:
         """
