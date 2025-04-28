@@ -1,0 +1,30 @@
+{
+  "artist_id": "1eaef3c3-2f8d-4617-ac77-7b51ad4d1b82",
+  "artist_name": "Test Artist",
+  "timestamp": "2025-04-27T15:29:17.805255",
+  "validation_status": "valid",
+  "validation_details": {
+    "is_valid": true,
+    "errors": [],
+    "warnings": [
+      "Style description is quite short, consider expanding it for better results",
+      "Few personality traits defined, consider adding more for a richer character",
+      "No backstory provided, consider adding one for a more complete profile"
+    ]
+  },
+  "auto_generated_defaults": {
+    "biography": true,
+    "influences": true,
+    "social_media": true,
+    "visual_identity": true
+  },
+  "profile_summary": {
+    "genre": "Electronic",
+    "subgenres": [
+      "Synthwave",
+      "Chillwave"
+    ],
+    "creation_method": "llm_pipeline",
+    "total_fields": 24
+  }
+}

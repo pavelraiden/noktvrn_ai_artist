@@ -28,6 +28,12 @@ This guide describes the mandatory rules for contributing to the project to main
 - **Self-Learning Enhancement**  
   Every contribution must aim to improve the system's ability to self-learn, self-adapt, and self-optimize over time based on performance data and feedback.
 
+- **Documentation Maintenance**
+  - Always check `/TODO.md` before starting a new big module.
+  - Always update `/docs/project_context.md` after major structural changes.
+  - Always update `/docs/development/dev_diary.md` after completing tricky tasks.
+  - Always reflect lessons and decisions in `/docs/development/solutions_catalog.md` and `/docs/development/lessons_learned.md`.
+
 ---
 
 ## 📂 Project Structure Overview
@@ -37,6 +43,7 @@ This guide describes the mandatory rules for contributing to the project to main
 | `artist_builder/` | Artist prompt creation, validation, profile assembly |
 | `artist_flow/` | Artist creation workflow and asset management |
 | `artists/` | Generated artist data and assets |
+| `docs/` | Project documentation and knowledge management |
 | `llm_orchestrator/` | Session management, logging, LLM orchestration |
 | `scripts/` | Utility scripts for content and video generation |
 | `templates/` | Template files for generation |
@@ -137,6 +144,58 @@ Example:
   3. Local application/library specific imports
 - Use Black for code formatting
 - Use isort for import sorting
+
+---
+
+## 🌐 External API Integration Guidelines
+
+When integrating external APIs into the system, follow these guidelines:
+
+1. **API Selection Criteria**
+   - Document the specific capabilities required from the API
+   - Justify the selection of a particular API over alternatives
+   - Consider reliability, cost, rate limits, and data quality
+   - Evaluate the API's terms of service and usage restrictions
+
+2. **Integration Implementation**
+   - Create a dedicated module for each API integration
+   - Implement a clean, well-documented interface
+   - Use environment variables for all API keys and configuration
+   - Add comprehensive error handling with appropriate fallbacks
+   - Implement rate limiting and retry logic
+   - Include detailed logging for all API interactions
+
+3. **Testing Requirements**
+   - Create unit tests with mocked API responses
+   - Implement integration tests with actual API calls
+   - Add the API to the `scripts/api_test.py` testing framework
+   - Document test cases in the API testing guide
+   - Test error handling, rate limiting, and edge cases
+
+4. **Configuration Management**
+   - Add all required API keys to `.env.example`
+   - Document configuration variables in README.md
+   - Provide clear instructions for obtaining API keys
+   - Include information about rate limits and usage costs
+
+5. **Documentation Standards**
+   - Update `/docs/development/api_testing_guide.md` with details about the new API
+   - Document the API's purpose, capabilities, and limitations
+   - Include example usage and response formats
+   - Add troubleshooting information for common issues
+   - Document any rate limits or usage restrictions
+
+6. **Security Considerations**
+   - Never commit API keys to the repository
+   - Implement appropriate security measures for API keys
+   - Consider implementing token rotation for sensitive APIs
+   - Document security best practices for the API
+
+7. **Maintenance Responsibilities**
+   - Monitor API for changes or deprecations
+   - Update integration when API changes
+   - Track API usage and costs
+   - Document known issues and workarounds
 
 ---
 
@@ -249,6 +308,43 @@ To expand the trend analyzer to incorporate new data sources:
    - Document connector configuration
    - Add usage examples for new data in analysis
    - Include troubleshooting information
+
+---
+
+## 📚 Documentation and Knowledge Management
+
+The project maintains a comprehensive knowledge management system to ensure continuity and knowledge transfer:
+
+1. **Documentation Structure**
+   - Architecture documentation in `/docs/architecture/`
+   - Development insights in `/docs/development/`
+   - Prompt templates in `/docs/prompts/`
+   - Project overview in `/docs/project_context.md`
+
+2. **Documentation Requirements**
+   - All major modules must have dedicated documentation
+   - Architecture changes must be reflected in diagrams and documentation
+   - Complex algorithms must include explanations and rationales
+   - APIs must have comprehensive documentation
+
+3. **Self-Reflection Practice**
+   - After completing major features, update:
+     - `/docs/development/dev_diary.md` with challenges and solutions
+     - `/docs/development/solutions_catalog.md` with design decisions
+     - `/docs/development/lessons_learned.md` with insights
+     - `/docs/project_context.md` with updated project status
+
+4. **Knowledge Continuity**
+   - Document all non-obvious decisions and their rationales
+   - Maintain up-to-date diagrams of system architecture
+   - Record performance benchmarks and optimization strategies
+   - Document known limitations and planned improvements
+
+5. **Documentation Review**
+   - Review documentation for accuracy during code reviews
+   - Update documentation when code changes affect behavior
+   - Ensure documentation is accessible and understandable
+   - Verify documentation completeness before major releases
 
 ---
 

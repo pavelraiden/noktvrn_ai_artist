@@ -1,0 +1,25 @@
+2025-04-27 15:26:28,357 - artist_builder.profile_builder - INFO - Initialized ArtistProfileBuilder with enhanced production features
+2025-04-27 15:26:28,357 - artist_builder.profile_builder - INFO - Starting artist profile creation from test input
+2025-04-27 15:26:28,357 - artist_builder.profile_builder - INFO - Profile received from test: {"stage_name": "Test Artist", "genre": "Electronic", "subgenres": ["Synthwave", "Chillwave"], "style...
+2025-04-27 15:26:28,357 - artist_builder.profile_builder - INFO - Processing input data
+2025-04-27 15:26:28,358 - artist_builder.profile_builder - INFO - Generating profile using LLM
+2025-04-27 15:26:28,358 - artist_builder.profile_builder - INFO - Validating and correcting profile
+2025-04-27 15:26:28,358 - artist_builder.profile_builder - ERROR - Unexpected error in profile creation: 'ProfileValidator' object has no attribute 'validate_and_correct_profile'
+2025-04-27 15:29:17,801 - artist_builder.profile_builder - INFO - Initialized ArtistProfileBuilder with enhanced production features
+2025-04-27 15:29:17,801 - artist_builder.profile_builder - INFO - Starting artist profile creation from test input
+2025-04-27 15:29:17,801 - artist_builder.profile_builder - INFO - Profile received from test: {"stage_name": "Test Artist", "genre": "Electronic", "subgenres": ["Synthwave", "Chillwave"], "style...
+2025-04-27 15:29:17,801 - artist_builder.profile_builder - INFO - Processing input data
+2025-04-27 15:29:17,801 - artist_builder.profile_builder - INFO - Generating profile using LLM
+2025-04-27 15:29:17,801 - artist_builder.profile_builder - INFO - Validating and correcting profile
+2025-04-27 15:29:17,803 - artist_builder.profile_builder - INFO - Profile validation passed successfully
+2025-04-27 15:29:17,803 - artist_builder.profile_builder - INFO - Applying custom validators
+2025-04-27 15:29:17,803 - artist_builder.profile_builder - INFO - Saving profile
+2025-04-27 15:29:17,805 - artist_builder.profile_builder - INFO - Saved profile to /home/ubuntu/ai_artist_system/noktvrn_ai_artist/artist_profiles/1eaef3c3-2f8d-4617-ac77-7b51ad4d1b82.json
+2025-04-27 15:29:17,805 - artist_builder.profile_builder - INFO - Generating creation report
+2025-04-27 15:29:17,806 - artist_builder.profile_builder - INFO - Saved creation report to /home/ubuntu/ai_artist_system/noktvrn_ai_artist/creation_reports/Test_Artist_1eaef3c3-2f8d-4617-ac77-7b51ad4d1b82_20250427_152917_creation_report.json
+2025-04-27 15:29:17,806 - artist_builder.profile_builder - INFO - Creating asset folders
+2025-04-27 15:29:17,806 - artist_builder.profile_builder - INFO - Created asset folders at /home/ubuntu/ai_artist_system/noktvrn_ai_artist/assets/Test_Artist_1eaef3c3-2f8d-4617-ac77-7b51ad4d1b82
+2025-04-27 15:29:17,806 - artist_builder.profile_builder - INFO - Running post-generation hooks
+2025-04-27 15:29:17,807 - artist_builder.profile_builder - INFO - Completed artist profile creation in 5.80ms
+2025-04-27 15:29:17,807 - artist_builder.profile_builder - INFO - Getting creation report for profile 1eaef3c3-2f8d-4617-ac77-7b51ad4d1b82
+2025-04-27 15:29:17,807 - artist_builder.profile_builder - INFO - Retrieved creation report for profile 1eaef3c3-2f8d-4617-ac77-7b51ad4d1b82

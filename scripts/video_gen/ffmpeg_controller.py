@@ -1,4 +1,4 @@
-""" 
+"""
 ffmpeg_controller.py
 Helper module for ffmpeg-based video editing operations.
 """
@@ -6,15 +6,21 @@ Helper module for ffmpeg-based video editing operations.
 import subprocess
 from pathlib import Path
 
+
 def cut_video_segment(input_path: Path, output_path: Path, duration: float):
     cmd = [
-        "ffmpeg", "-y",
-        "-i", str(input_path),
-        "-t", str(duration),
-        "-c", "copy",
-        str(output_path)
+        "ffmpeg",
+        "-y",
+        "-i",
+        str(input_path),
+        "-t",
+        str(duration),
+        "-c",
+        "copy",
+        str(output_path),
     ]
     subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
 
 def apply_effects(input_output_path: Path, effects: list):
     if not effects:
@@ -31,14 +37,18 @@ def apply_effects(input_output_path: Path, effects: list):
 
     filter_str = ",".join(filters)
     cmd = [
-        "ffmpeg", "-y",
-        "-i", str(input_output_path),
-        "-vf", filter_str,
-        str(temp_path)
+        "ffmpeg",
+        "-y",
+        "-i",
+        str(input_output_path),
+        "-vf",
+        filter_str,
+        str(temp_path),
     ]
     subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     temp_path.rename(input_output_path)
+
 
 def concatenate_segments(segment_paths: list, output_path: Path):
     list_file = output_path.with_suffix(".txt")
@@ -47,12 +57,17 @@ def concatenate_segments(segment_paths: list, output_path: Path):
             f.write(f"file '{str(seg.resolve())}'\n")
 
     cmd = [
-        "ffmpeg", "-y",
-        "-f", "concat",
-        "-safe", "0",
-        "-i", str(list_file),
-        "-c", "copy",
-        str(output_path)
+        "ffmpeg",
+        "-y",
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-i",
+        str(list_file),
+        "-c",
+        "copy",
+        str(output_path),
     ]
     subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 

@@ -1,4 +1,4 @@
-""" 
+"""
 video_generator.py
 Main module for building shortform video teasers based on artist profile and video plan.
 """
@@ -6,7 +6,11 @@ Main module for building shortform video teasers based on artist profile and vid
 import json
 import os
 from pathlib import Path
-from scripts.ffmpeg_controller import cut_video_segment, apply_effects, concatenate_segments
+from scripts.ffmpeg_controller import (
+    cut_video_segment,
+    apply_effects,
+    concatenate_segments,
+)
 from tqdm import tqdm
 
 # Constants
@@ -21,9 +25,11 @@ RENDER_LOG_PATH = ARTIST_DIR / "video" / "render_log.json"
 # Ensure output directory exists
 TEASER_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+
 def load_video_plan():
     with open(VIDEO_PLAN_PATH, "r") as f:
         return json.load(f)
+
 
 def find_video_clip(keywords):
     """Mock: find a local video matching one of the keywords."""
@@ -33,6 +39,7 @@ def find_video_clip(keywords):
             return list(candidate_dir.glob("*.mp4"))[0]  # Return first match
     return None
 
+
 def build_teaser():
     plan = load_video_plan()
     segments = plan.get("segments", [])
@@ -40,7 +47,7 @@ def build_teaser():
     render_log = []
 
     print(f"Building teaser for artist: {plan.get('artist')} ({plan.get('genre')})")
-    
+
     for segment in tqdm(segments, desc="Processing segments"):
         visuals = segment.get("visuals", [])
         effects = segment.get("effects", [])
@@ -53,12 +60,14 @@ def build_teaser():
             cut_video_segment(clip_path, segment_output, duration)
             apply_effects(segment_output, effects)
             teaser_clips.append(segment_output)
-            render_log.append({
-                "segment": label,
-                "source": str(clip_path),
-                "duration_sec": duration,
-                "effects_applied": effects
-            })
+            render_log.append(
+                {
+                    "segment": label,
+                    "source": str(clip_path),
+                    "duration_sec": duration,
+                    "effects_applied": effects,
+                }
+            )
         else:
             print(f"⚠️ Warning: No source found for visuals {visuals}")
 
@@ -69,6 +78,7 @@ def build_teaser():
         json.dump(render_log, f, indent=2)
 
     print(f"✅ Teaser built successfully: {final_teaser_path}")
+
 
 if __name__ == "__main__":
     build_teaser()

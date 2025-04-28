@@ -1,0 +1,95 @@
+{
+  "stage_name": "Test Artist",
+  "genre": "Electronic",
+  "subgenres": [
+    "Synthwave",
+    "Chillwave"
+  ],
+  "style_description": "Test style description",
+  "voice_type": "Test voice type",
+  "personality_traits": [
+    "Creative",
+    "Innovative"
+  ],
+  "target_audience": "Test audience",
+  "visual_identity_prompt": "Test visual identity",
+  "artist_id": "1eaef3c3-2f8d-4617-ac77-7b51ad4d1b82",
+  "creation_timestamp": "2025-04-27T15:29:17.801624",
+  "creation_method": "llm_pipeline",
+  "biography": "This is a generated biography for Test Artist, a Electronic artist.",
+  "influences": [
+    "Artist A",
+    "Artist B",
+    "Artist C"
+  ],
+  "social_media": {
+    "instagram": "@test_artist",
+    "twitter": "@test_artist",
+    "soundcloud": "test-artist"
+  },
+  "discography": [],
+  "upcoming_releases": [],
+  "visual_identity": {
+    "color_palette": [
+      "#FF5733",
+      "#33FF57",
+      "#3357FF"
+    ],
+    "style_keywords": [
+      "modern",
+      "minimalist",
+      "bold"
+    ]
+  },
+  "metadata": {
+    "version": "1.0",
+    "generated_by": "mock_llm_pipeline",
+    "auto_generated_fields": {
+      "biography": true,
+      "influences": true,
+      "social_media": true,
+      "visual_identity": true
+    }
+  },
+  "creation_date": "2025-04-27T15:29:17.802560",
+  "update_history": [],
+  "settings": {
+    "release_strategy": {
+      "track_release_random_days": [
+        3,
+        15
+      ],
+      "video_release_ratio": 0.7,
+      "content_plan_length_days": 90,
+      "social_media_post_frequency": 3
+    },
+    "llm_assignments": {
+      "artist_prompt_llm": "gpt-4",
+      "song_prompt_llm": "gpt-4",
+      "video_prompt_llm": "gpt-4",
+      "final_validator_llm": "gpt-4"
+    },
+    "training_data_version": "v1.0",
+    "trend_alignment_behavior": "soft",
+    "behavior_evolution_settings": {
+      "allow_minor_genre_shifts": true,
+      "allow_personality_shifts": true,
+      "safe_mode": true,
+      "evolution_speed": "medium",
+      "preserve_core_identity": true
+    },
+    "social_media_presence": {
+      "platforms": [
+        "instagram",
+        "tiktok",
+        "twitter"
+      ],
+      "posting_style": "casual",
+      "engagement_strategy": "moderate"
+    },
+    "performance_metrics_tracking": true
+  },
+  "song_prompt_generator": "electronic_song_template",
+  "video_prompt_generator": "electronic_video_template",
+  "last_updated": "2025-04-27T15:29:17.803788"
+}

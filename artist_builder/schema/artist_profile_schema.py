@@ -5,7 +5,7 @@ This module defines the schema for artist profiles using Pydantic models,
 providing validation, serialization, and database integration capabilities.
 """
 
-from pydantic import BaseModel, Field, validator, root_validator
+from pydantic import BaseModel, Field, validator, model_validator
 from typing import List, Optional, Dict, Any, Union
 from datetime import date, datetime
 import logging
@@ -28,7 +28,7 @@ class UpdateHistoryItem(BaseModel):
     update_source: Optional[str] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class TrendAlignmentBehavior(str, Enum):
@@ -64,7 +64,7 @@ class BehaviorEvolutionSettings(BaseModel):
         return v
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class LLMAssignments(BaseModel):
@@ -76,7 +76,7 @@ class LLMAssignments(BaseModel):
     final_validator_llm: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class ReleaseStrategy(BaseModel):
@@ -114,7 +114,7 @@ class ReleaseStrategy(BaseModel):
         return v
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class SocialMediaPresence(BaseModel):
@@ -154,7 +154,7 @@ class SocialMediaPresence(BaseModel):
         return v
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class ArtistProfileSettings(BaseModel):
@@ -179,7 +179,7 @@ class ArtistProfileSettings(BaseModel):
     )
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class ArtistProfile(BaseModel):
@@ -272,19 +272,19 @@ class ArtistProfile(BaseModel):
             raise ValueError("At least one personality trait must be provided")
         return v
         
-    @root_validator
-    def check_content_plan_consistency(cls, values):
+    @model_validator(mode='after')
+    def check_content_plan_consistency(self):
         """Ensure content plan fields are consistent."""
-        has_plan_id = values.get("current_content_plan_id") is not None
-        has_end_date = values.get("content_plan_end_date") is not None
+        has_plan_id = self.current_content_plan_id is not None
+        has_end_date = self.content_plan_end_date is not None
         
         if has_plan_id != has_end_date:
             raise ValueError("Both current_content_plan_id and content_plan_end_date must be provided together")
             
-        return values
+        return self
 
     class Config:
-        orm_mode = True
+        from_attributes = True
         schema_extra = {
             "example": {
                 "artist_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
@@ -343,17 +343,17 @@ def create_database_model(profile: ArtistProfile) -> dict:
         dict: The profile in a format ready for database insertion
     """
     # Convert to dict with orm_mode enabled
-    db_model = profile.dict(by_alias=True)
+    db_model = profile.model_dump()
     
     # Ensure nested models are also converted properly
-    db_model["settings"] = profile.settings.dict()
-    db_model["settings"]["release_strategy"] = profile.settings.release_strategy.dict()
-    db_model["settings"]["llm_assignments"] = profile.settings.llm_assignments.dict()
-    db_model["settings"]["behavior_evolution_settings"] = profile.settings.behavior_evolution_settings.dict()
-    db_model["settings"]["social_media_presence"] = profile.settings.social_media_presence.dict()
+    db_model["settings"] = profile.settings.model_dump()
+    db_model["settings"]["release_strategy"] = profile.settings.release_strategy.model_dump()
+    db_model["settings"]["llm_assignments"] = profile.settings.llm_assignments.model_dump()
+    db_model["settings"]["behavior_evolution_settings"] = profile.settings.behavior_evolution_settings.model_dump()
+    db_model["settings"]["social_media_presence"] = profile.settings.social_media_presence.model_dump()
     
     # Convert update history items
-    db_model["update_history"] = [item.dict() for item in profile.update_history]
+    db_model["update_history"] = [item.model_dump() for item in profile.update_history]
     
     return db_model
 
@@ -381,8 +381,8 @@ def update_artist_profile(profile: ArtistProfile, updates: dict) -> ArtistProfil
     )
     
     # Add to update history
-    profile_dict = profile.dict()
-    profile_dict["update_history"] = profile_dict.get("update_history", []) + [update_item.dict()]
+    profile_dict = profile.model_dump()
+    profile_dict["update_history"] = profile_dict.get("update_history", []) + [update_item.model_dump()]
     
     # Apply updates
     for key, value in updates.items():

@@ -1,0 +1,47 @@
+2025-04-27 22:21:59,680 - suno_api - ERROR - SUNO_API_KEY not found in environment variables
+2025-04-27 22:24:29,617 - env_utils - INFO - Successfully loaded environment variables from .env
+2025-04-27 22:24:29,617 - api_test - INFO - Successfully loaded environment variables from .env file
+2025-04-27 22:24:29,804 - api_test - ERROR - Error importing modules: No module named 'tqdm'
+2025-04-27 22:24:29,804 - api_test - ERROR - Make sure you're running this script from the project root directory
+2025-04-27 22:25:09,883 - env_utils - INFO - Successfully loaded environment variables from .env
+2025-04-27 22:25:09,883 - api_test - INFO - Successfully loaded environment variables from .env file
+2025-04-27 22:25:10,078 - api_test - INFO - Testing Suno API integration...
+2025-04-27 22:25:10,078 - api_test - INFO - Generating test song: Test Song
+2025-04-27 22:25:10,078 - api_test - ERROR - Error testing Suno API: 'PosixPath' object has no attribute 'format'
+2025-04-27 22:26:40,771 - env_utils - INFO - Successfully loaded environment variables from .env
+2025-04-27 22:26:40,771 - api_test - INFO - Successfully loaded environment variables from .env file
+2025-04-27 22:26:40,988 - api_test - INFO - Testing Suno API integration...
+2025-04-27 22:26:40,988 - api_test - INFO - Generating test song: Test Song
+2025-04-27 22:26:40,988 - suno_api - INFO - Generating song 'Test Song' for artist 'test_artist'
+2025-04-27 22:26:41,038 - suno_api - ERROR - Error generating song: 503 Server Error: Service Unavailable for url: https://api.suno.ai/v1/generate
+2025-04-27 22:26:41,039 - api_test - ERROR - Suno API error: 503 Server Error: Service Unavailable for url: https://api.suno.ai/v1/generate
+2025-04-27 22:26:58,685 - env_utils - INFO - Successfully loaded environment variables from .env
+2025-04-27 22:26:58,685 - api_test - INFO - Successfully loaded environment variables from .env file
+2025-04-27 22:26:58,924 - api_test - INFO - Testing Pixabay API integration...
+2025-04-27 22:26:58,925 - api_test - INFO - Fetching video from Pixabay for keyword: retro car race
+2025-04-27 22:26:58,925 - video_assets - INFO - Fetching from Pixabay: retro car race
+2025-04-27 22:26:59,053 - video_assets - ERROR - Pixabay API error for 'retro car race': 400 Client Error: Bad Request for url: https://pixabay.com/api/videos/?key=49941633-74bb08eeab74756d08e7ba75a&q=retro%20car%20race&per_page=1
+2025-04-27 22:26:59,053 - api_test - WARNING - No video found on Pixabay for keyword: retro car race
+2025-04-27 22:26:59,053 - api_test - INFO - Fetching video from Pixabay for keyword: city night lights
+2025-04-27 22:26:59,053 - video_assets - INFO - Fetching from Pixabay: city night lights
+2025-04-27 22:26:59,215 - video_assets - ERROR - Pixabay API error for 'city night lights': 400 Client Error: Bad Request for url: https://pixabay.com/api/videos/?key=49941633-74bb08eeab74756d08e7ba75a&q=city%20night%20lights&per_page=1
+2025-04-27 22:26:59,215 - api_test - WARNING - No video found on Pixabay for keyword: city night lights
+2025-04-27 22:26:59,215 - api_test - INFO - Fetching video from Pixabay for keyword: electronic music concert
+2025-04-27 22:26:59,215 - video_assets - INFO - Fetching from Pixabay: electronic music concert
+2025-04-27 22:26:59,336 - video_assets - ERROR - Pixabay API error for 'electronic music concert': 400 Client Error: Bad Request for url: https://pixabay.com/api/videos/?key=49941633-74bb08eeab74756d08e7ba75a&q=electronic%20music%20concert&per_page=1
+2025-04-27 22:26:59,337 - api_test - WARNING - No video found on Pixabay for keyword: electronic music concert
+2025-04-27 22:27:23,901 - env_utils - INFO - Successfully loaded environment variables from .env
+2025-04-27 22:27:23,902 - api_test - INFO - Successfully loaded environment variables from .env file
+2025-04-27 22:27:24,132 - api_test - INFO - Testing Pexels API integration...
+2025-04-27 22:27:24,132 - api_test - INFO - Fetching video from Pexels for keyword: retro car race
+2025-04-27 22:27:24,133 - video_assets - INFO - Fetching from Pexels: retro car race
+2025-04-27 22:27:24,328 - video_assets - INFO - Pexels video found for 'retro car race'
+2025-04-27 22:27:24,329 - api_test - INFO - Successfully fetched video from Pexels for keyword: retro car race
+2025-04-27 22:27:24,329 - api_test - INFO - Fetching video from Pexels for keyword: city night lights
+2025-04-27 22:27:24,329 - video_assets - INFO - Fetching from Pexels: city night lights
+2025-04-27 22:27:24,575 - video_assets - INFO - Pexels video found for 'city night lights'
+2025-04-27 22:27:24,576 - api_test - INFO - Successfully fetched video from Pexels for keyword: city night lights
+2025-04-27 22:27:24,576 - api_test - INFO - Fetching video from Pexels for keyword: electronic music concert
+2025-04-27 22:27:24,576 - video_assets - INFO - Fetching from Pexels: electronic music concert
+2025-04-27 22:27:24,738 - video_assets - INFO - Pexels video found for 'electronic music concert'
+2025-04-27 22:27:24,739 - api_test - INFO - Successfully fetched video from Pexels for keyword: electronic music concert

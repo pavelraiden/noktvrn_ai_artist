@@ -1,0 +1,15 @@
+[
+  {
+    "error_id": "becb1651-7bf1-400f-b82e-ce3efe8f1951",
+    "timestamp": "2025-04-27T15:26:28.358420",
+    "error_type": "AttributeError",
+    "error_message": "'ProfileValidator' object has no attribute 'validate_and_correct_profile'",
+    "traceback": "Traceback (most recent call last):\n  File \"/home/ubuntu/ai_artist_system/noktvrn_ai_artist/artist_builder/builder/profile_builder.py\", line 85, in create_artist_profile\n    corrected_profile, validation_report = self.profile_validator.validate_and_correct_profile(profile_draft)\n                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'ProfileValidator' object has no attribute 'validate_and_correct_profile'\n",
+    "context": {
+      "module": "profile_builder",
+      "operation": "create_artist_profile",
+      "input_source": "test",
+      "error_type": "unknown"
+    }
+  }
+]
