@@ -1,7 +1,49 @@
-
-__pycache__
+# Python cache/build
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
+*build/
+*dist/
+*.egg-info/
+
+# Virtual environment
+venv/
+.venv/
+
+# Environment variables
+.env
+*.env.*
+!.env.example
+
+# Runtime Data / Logs / Output / Assets
+output/
+logs/
+artist_profiles/
+artists/
+assets/
+creation_reports/
+
+# Media files (if generated locally and not meant for repo)
+*.mp3
+*.mp4
+*.wav
+*.jpg
+*.png
+*.jpeg
+*.gif
+*.svg
+*.tiff
+*.bmp
+
+# IDE / OS specific
+.idea/
+.vscode/
+*.DS_Store
+Thumbs.db
+
+# Temporary files from this task
+/home/ubuntu/github_repo_clone/
+/home/ubuntu/production_phase/repo_diff.txt
+/home/ubuntu/production_phase/files_to_sync.txt
 
