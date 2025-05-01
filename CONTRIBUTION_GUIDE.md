@@ -64,3 +64,20 @@ A task or feature is considered "Done" only when all the following criteria are 
 6.  **Repository Link:** (For agent context) The final state of the relevant code/documentation is accessible and potentially linked in the `dev_diary.md` or final report.
 
 Adhering to this DoD ensures that contributions are complete, verifiable, and maintainable.
+
+
+
+## Git Workflow: Commit & Push After Each Task
+
+**Mandatory Requirement:** To ensure the repository always reflects the latest stable state of the project and to facilitate continuous integration and collaboration, a Git commit and push to the `main` branch is **required** at the successful completion of *every* assigned task.
+
+**Process:**
+
+1.  **Complete Task:** Ensure the assigned task is fully completed, tested (where applicable), and meets all requirements.
+2.  **Stage Changes:** Use `git add .` (or selectively add files) to stage all new and modified files relevant to the completed task. Ensure `.gitignore` is up-to-date to exclude unnecessary files.
+3.  **Commit Changes:** Create a clear, concise commit message summarizing the task completed. Use conventional commit message formats (e.g., `feat: ...`, `fix: ...`, `docs: ...`, `chore: ...`).
+4.  **Push Changes:** Push the commit to the `origin/main` branch using `git push origin main`.
+5.  **Log in Dev Diary:** Add an entry to `docs/development/dev_diary.md` summarizing the task and explicitly stating that the changes have been pushed to GitHub.
+
+**No task is considered complete until the corresponding changes are successfully pushed to the GitHub repository.**
+

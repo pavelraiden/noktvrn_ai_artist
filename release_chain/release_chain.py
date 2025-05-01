@@ -40,10 +40,15 @@ RELEASES_DIR = os.getenv("RELEASES_DIR", os.path.join(OUTPUT_BASE_DIR, "releases
 RUN_STATUS_DIR = os.getenv("RUN_STATUS_DIR", os.path.join(OUTPUT_BASE_DIR, "run_status"))
 RELEASE_LOG_FILE = os.getenv("RELEASE_LOG_FILE", os.path.join(OUTPUT_BASE_DIR, "release_log.md"))
 RELEASE_QUEUE_FILE = os.getenv("RELEASE_QUEUE_FILE", os.path.join(OUTPUT_BASE_DIR, "release_queue.json"))
+# New config for evolution log
+EVOLUTION_LOG_FILE = os.getenv("EVOLUTION_LOG_FILE", os.path.join(PROJECT_ROOT, "docs", "development", "artist_evolution_log.md"))
 
 # Ensure directories exist
 os.makedirs(RELEASES_DIR, exist_ok=True)
 os.makedirs(RUN_STATUS_DIR, exist_ok=True)
+# Ensure evolution log directory exists
+if EVOLUTION_LOG_FILE:
+    os.makedirs(os.path.dirname(EVOLUTION_LOG_FILE), exist_ok=True)
 
 # --- Logging Setup ---
 log_level_mapping = {
@@ -73,10 +78,8 @@ def generate_artist_slug(artist_name):
     """Generates a filesystem-safe slug from the artist name."""
     if not artist_name:
         return "unknown_artist"
-    # Remove special characters, replace spaces with underscores, lowercase
-    slug = ".join(c for c in artist_name if c.isalnum() or c.isspace())
+    slug = "".join(c for c in artist_name if c.isalnum() or c.isspace())
     slug = slug.strip().replace(" ", "_").lower()
-    # Ensure slug is not empty after cleaning
     return slug if slug else "unknown_artist"
 
 def create_release_directory(artist_slug, date_str):
@@ -110,11 +113,11 @@ def download_asset(url, save_path):
 
 def generate_cover_art(artist_info, save_path):
     """Placeholder function to simulate cover art generation."""
-    logger.info(f"Simulating cover art generation for artist {artist_info.get(\"name\")} to {save_path}")
+    logger.info(f"Simulating cover art generation for artist {artist_info.get('name')} to {save_path}")
     try:
         Path(save_path).parent.mkdir(parents=True, exist_ok=True)
         with open(save_path, "w") as f:
-            f.write(f"Placeholder cover art for {artist_info.get(\"name\")}\n")
+            f.write(f"Placeholder cover art for {artist_info.get('name')}\n")
         logger.info(f"Saved placeholder cover art to {save_path}")
         return True
     except IOError as e:
@@ -128,13 +131,28 @@ def analyze_track_structure(audio_path):
 
 def get_prompts_from_run_data(run_data):
     """Extracts prompt information from the run data."""
+    # TODO: Enhance this to extract full prompt chain (Author->Helper->Validator) if available
     return {
         "suno_prompt": run_data.get("suno_prompt", "N/A"),
-        "video_keywords": run_data.get("video_keywords", []), # Assuming keywords are a list
+        "video_keywords": run_data.get("video_keywords", []), 
         "cover_prompt": "Placeholder cover prompt based on genre/mood" # Placeholder
     }
 
 # --- Metadata and File Saving --- #
+
+def save_json_file(data, filepath):
+    """Saves data to a JSON file."""
+    try:
+        with open(filepath, "w") as f:
+            json.dump(data, f, indent=4)
+        logger.debug(f"Saved JSON file: {filepath}")
+        return True
+    except IOError as e:
+        logger.error(f"Failed to save JSON file {filepath}: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"Error serializing data to {filepath}: {e}")
+        return False
 
 def save_metadata_file(metadata_model, filepath):
     """Saves a Pydantic model as a JSON file."""
@@ -164,6 +182,16 @@ def save_prompts_file(prompts_model, filepath):
         logger.error(f"Error serializing prompts to {filepath}: {e}")
         return False
 
+def create_feedback_placeholder(filepath):
+    """Creates a placeholder JSON file for feedback scores."""
+    placeholder_data = {"score": None, "reason": "pending"}
+    if save_json_file(placeholder_data, filepath):
+        logger.info(f"Created feedback placeholder file: {filepath}")
+        return True
+    else:
+        logger.error(f"Failed to create feedback placeholder file: {filepath}")
+        return False
+
 # --- Logging and Queueing --- #
 
 def log_release_to_markdown(metadata, release_dir_path):
@@ -172,14 +200,14 @@ def log_release_to_markdown(metadata, release_dir_path):
         f"### Release: {metadata.release_id}\n"
         f"- **Artist:** {metadata.artist_name}\n"
         f"- **Date:** {metadata.release_date}\n"
-        f"- **Genre:** {metadata.genre or \"N/A\"}\n"
-        f"- **Track:** {metadata.track_title or \"N/A\"}\n"
+        f"- **Genre:** {metadata.genre or 'N/A'}\n"
+        f"- **Track:** {metadata.track_title or 'N/A'}\n"
         f"- **Directory:** `{release_dir_path}`\n"
         f"- **Run ID:** {metadata.generation_run_id}\n"
         f"---\n\n"
     )
     
-    with file_lock: # Ensure only one thread/process writes at a time
+    with file_lock:
         try:
             with open(RELEASE_LOG_FILE, "a") as f:
                 f.write(log_entry)
@@ -194,7 +222,7 @@ def add_release_to_queue(metadata, release_dir_path):
     queue_entry = {
         "release_id": metadata.release_id,
         "artist_name": metadata.artist_name,
-        "release_directory": str(release_dir_path.resolve()), # Store absolute path
+        "release_directory": str(release_dir_path.resolve()),
         "queued_at": datetime.utcnow().isoformat()
     }
     
@@ -225,6 +253,38 @@ def add_release_to_queue(metadata, release_dir_path):
             logger.error(f"Unexpected error updating queue file {RELEASE_QUEUE_FILE}: {e}")
             return False
 
+def log_learning_entry(metadata, prompts, feedback_file_path):
+    """Appends a learning entry to the artist evolution log file."""
+    if not EVOLUTION_LOG_FILE:
+        logger.warning("EVOLUTION_LOG_FILE not set. Skipping learning log entry.")
+        return False
+        
+    log_entry = (
+        f"## Learning Entry: {datetime.utcnow().isoformat()}\n"
+        f"- **Release ID:** {metadata.release_id}\n"
+        f"- **Artist ID:** {metadata.artist_id}\n"
+        f"- **Artist Name:** {metadata.artist_name}\n"
+        f"- **Genre:** {metadata.genre}\n"
+        f"- **Generation Run ID:** {metadata.generation_run_id}\n"
+        f"- **Suno Prompt:** `{prompts.suno_prompt}`\n"
+        f"- **Video Keywords:** `{prompts.video_keywords}`\n"
+        f"- **Cover Prompt:** `{prompts.cover_prompt}`\n"
+        f"- **Metadata File:** `../output/releases/{Path(metadata.release_id).name}/metadata.json`\n" # Relative path assumption
+        f"- **Prompts File:** `../output/releases/{Path(metadata.release_id).name}/prompts_used.json`\n"
+        f"- **Feedback File:** `../output/releases/{Path(metadata.release_id).name}/{Path(feedback_file_path).name}`\n"
+        f"---\n\n"
+    )
+    
+    with file_lock:
+        try:
+            with open(EVOLUTION_LOG_FILE, "a") as f:
+                f.write(log_entry)
+            logger.info(f"Appended learning entry for release {metadata.release_id} to: {EVOLUTION_LOG_FILE}")
+            return True
+        except IOError as e:
+            logger.error(f"Failed to append to evolution log file {EVOLUTION_LOG_FILE}: {e}")
+            return False
+
 # --- Main Processing Function --- #
 
 def process_approved_run(run_id):
@@ -241,7 +301,7 @@ def process_approved_run(run_id):
             run_data = json.load(f)
         
         if run_data.get("status") != "approved":
-            logger.warning(f"Run {run_id} status is not \"approved\" ({run_data.get(\"status\")}). Skipping release.")
+            logger.warning(f"Run {run_id} status is not 'approved' ({run_data.get('status')}). Skipping release.")
             return False
             
     except json.JSONDecodeError as e:
@@ -257,20 +317,20 @@ def process_approved_run(run_id):
     # 2. Prepare Release Info
     artist_name = run_data.get("artist_name", "Unknown Artist")
     artist_slug = generate_artist_slug(artist_name)
-    date_str = datetime.utcnow().strftime("%Y%m%d")
-    release_id = f"{artist_slug}_{date_str}_{run_id[:4]}" # Unique ID for the release
+    date_str = datetime.utcnow().strftime("%Y%m%d%H%M%S") # Added time for more uniqueness
+    release_id = f"{artist_slug}_{date_str}_{run_id[:4]}"
     track_url = run_data.get("track_url")
     video_url = run_data.get("video_url")
 
     # 3. Create Release Directory
     release_dir_path = create_release_directory(artist_slug, date_str)
     if not release_dir_path:
-        return False # Error already logged
+        return False
 
     # 4. Gather Assets (Placeholders)
-    audio_filename = f"{release_id}_audio.mp3" # Example filename
+    audio_filename = f"{release_id}_audio.mp3"
     video_filename = f"{release_id}_video.mp4"
-    cover_filename = f"{release_id}_cover.jpg"
+    cover_filename = f"{release_id}_cover.png" # Changed to png
     
     audio_save_path = release_dir_path / "audio" / audio_filename
     video_save_path = release_dir_path / "video" / video_filename
@@ -278,7 +338,6 @@ def process_approved_run(run_id):
 
     if not track_url or not download_asset(track_url, audio_save_path):
         logger.error(f"Failed to download or save audio asset for run {run_id}.")
-        # Consider cleanup? For now, just fail.
         return False
     if not video_url or not download_asset(video_url, video_save_path):
         logger.error(f"Failed to download or save video asset for run {run_id}.")
@@ -293,22 +352,24 @@ def process_approved_run(run_id):
     # 6. Get Prompts
     prompts_data = get_prompts_from_run_data(run_data)
 
-    # 7. Create and Save Metadata
+    # 7. Create and Save Metadata & Prompts
+    metadata = None
+    prompts = None
     try:
         metadata = ReleaseMetadata(
             release_id=release_id,
             artist_name=artist_name,
             artist_id=run_data.get("artist_id"),
             genre=run_data.get("genre"),
-            release_date=datetime.utcnow().date(),
-            track_title=f"{artist_name} - Track {run_id[:4]}", # Placeholder title
-            audio_file=str(Path("audio") / audio_filename), # Relative path within release dir
+            release_date=datetime.utcnow().date().isoformat(),
+            track_title=f"{artist_name} - Track {run_id[:4]}",
+            audio_file=str(Path("audio") / audio_filename),
             video_file=str(Path("video") / video_filename),
             cover_file=str(Path("cover") / cover_filename),
             generation_run_id=run_id,
             track_structure_summary=track_structure,
             visuals_source=run_data.get("video_source", "N/A"),
-            llm_summary="Placeholder LLM summary of the track/release." # Placeholder
+            llm_summary="Placeholder LLM summary of the track/release."
         )
         if not save_metadata_file(metadata, release_dir_path / "metadata.json"):
             return False
@@ -318,20 +379,30 @@ def process_approved_run(run_id):
             suno_prompt=prompts_data.get("suno_prompt"),
             video_keywords=prompts_data.get("video_keywords"),
             cover_prompt=prompts_data.get("cover_prompt")
+            # TODO: Add fields for full prompt chain if available
         )
         if not save_prompts_file(prompts, release_dir_path / "prompts_used.json"):
             return False
             
-    except Exception as e: # Catch potential Pydantic validation errors too
+    except Exception as e:
         logger.error(f"Error creating or saving metadata/prompts for run {run_id}: {e}")
         return False
 
-    # 8. Log and Queue
+    # 8. Create Feedback Placeholder
+    feedback_filepath = release_dir_path / "feedback_score.json"
+    if not create_feedback_placeholder(feedback_filepath):
+        logger.warning(f"Failed to create feedback placeholder for {release_id}, but continuing.")
+
+    # 9. Log and Queue
     if not log_release_to_markdown(metadata, release_dir_path):
         logger.warning(f"Failed to log release {release_id} to markdown, but continuing.")
     if not add_release_to_queue(metadata, release_dir_path):
         logger.error(f"Failed to add release {release_id} to queue. Release process incomplete.")
         return False
+        
+    # 10. Log Learning Entry
+    if not log_learning_entry(metadata, prompts, feedback_filepath):
+         logger.warning(f"Failed to log learning entry for release {release_id}, but continuing.")
 
     logger.info(f"--- Successfully Completed Release Chain for Run ID: {run_id} -> Release ID: {release_id} ---")
     return True
@@ -339,20 +410,19 @@ def process_approved_run(run_id):
 # --- Example Usage (if run directly) --- #
 if __name__ == "__main__":
     logger.info("Running release_chain.py directly for testing.")
-    # Create a dummy approved run file for testing
-    test_run_id = "test_direct_run"
+    test_run_id = "test_direct_run_phase8"
     dummy_run_data = {
         "run_id": test_run_id,
         "status": "approved",
-        "artist_id": 99,
-        "artist_name": "Direct Test Artist",
-        "genre": "test-pop",
-        "track_id": "dummy_track_123",
-        "track_url": "http://example.com/audio.mp3",
-        "video_url": "http://example.com/video.mp4",
-        "video_source": "test_source",
-        "suno_prompt": "A test pop track",
-        "video_keywords": ["test", "pop"],
+        "artist_id": 101,
+        "artist_name": "Phase Eight Test",
+        "genre": "ambient-tech",
+        "track_id": "dummy_track_456",
+        "track_url": "http://example.com/audio_p8.mp3",
+        "video_url": "http://example.com/video_p8.mp4",
+        "video_source": "pexels_test",
+        "suno_prompt": "An ambient tech track for Phase 8 testing",
+        "video_keywords": ["phase8", "test", "ambient"],
         "make_instrumental": False
     }
     dummy_status_path = Path(RUN_STATUS_DIR) / f"run_{test_run_id}.json"
@@ -361,27 +431,25 @@ if __name__ == "__main__":
             json.dump(dummy_run_data, f, indent=4)
         logger.info(f"Created dummy run status file: {dummy_status_path}")
         
-        # Process the dummy run
         success = process_approved_run(test_run_id)
         
         if success:
             logger.info(f"Direct test run {test_run_id} processed successfully.")
-            # Verify output files exist (optional)
-            date_str = datetime.utcnow().strftime("%Y%m%d")
+            date_str = datetime.utcnow().strftime("%Y%m%d%H%M%S")
             artist_slug = generate_artist_slug(dummy_run_data["artist_name"])
+            release_id = f"{artist_slug}_{date_str}_{test_run_id[:4]}"
             release_dir = Path(RELEASES_DIR) / f"{artist_slug}_{date_str}"
             logger.info(f"Check output in: {release_dir}")
             logger.info(f"Check log: {RELEASE_LOG_FILE}")
             logger.info(f"Check queue: {RELEASE_QUEUE_FILE}")
+            logger.info(f"Check evolution log: {EVOLUTION_LOG_FILE}")
         else:
             logger.error(f"Direct test run {test_run_id} failed.")
             
     except Exception as e:
         logger.critical(f"Error during direct test run: {e}")
     finally:
-        # Clean up dummy file
         if dummy_status_path.exists():
-            # os.remove(dummy_status_path)
             logger.info(f"Kept dummy run status file for inspection: {dummy_status_path}")
         pass
 

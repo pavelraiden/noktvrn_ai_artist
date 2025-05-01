@@ -252,3 +252,18 @@ This dashboard reads the JSON files from the `output/run_status/` directory.
 *   The release logic (`trigger_release_logic`) is a stub.
 *   Error handling for external API calls within the placeholder functions is basic.
 
+
+
+
+## Phase 8: Production Deployment Preparation (Current)
+
+**Goal:** Prepare the system for final production deployment by implementing a release upload pipeline, cleaning up the repository, adding auto-training hooks, and creating a deployment checklist.
+
+**Key Components:**
+*   **Release Uploader (`release_uploader/release_uploader.py`):** Scans for approved releases, performs dummy uploads, logs status, and prepares files in `/output/deploy_ready/`.
+*   **Repository Cleanup:** Ensuring logs, queues, and output directories are managed correctly.
+*   **Auto-Training Hooks:** Modifying the `release_chain` to save necessary data (prompts, metadata, feedback placeholders) and log learning entries for future LLM refinement.
+*   **Deployment Checklist (`docs/deployment/deployment_checklist.md`):** Documenting required API keys, infrastructure, and integration steps for actual deployment.
+
+**Status:** Implementation in progress. Focus is on building the framework for upload and deployment readiness.
+
