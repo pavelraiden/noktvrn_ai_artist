@@ -28,7 +28,21 @@ Maintaining synchronized documentation is crucial. Update the following document
     *   **When:** When implementing or changing specific architectural patterns, module designs, LLM prompts/flows, deployment strategies, etc.
     *   **Content:** Detailed design documents, flow diagrams, API specifications, specific guides (e.g., `setup_guide.md`, `behavioral_rules.md`). Update relevant documents when the corresponding system aspect changes.
 
-## 3. LLM Prompt Writing Rules
+## 3. Configuration and Secrets Management
+
+Proper configuration and handling of secrets (API keys, tokens, passwords) are critical for security and deployment flexibility.
+
+*   **Environment Variables:** All configuration values that differ between environments (development, staging, production) or contain sensitive information **must** be managed using environment variables.
+*   **`.env` Files:** Environment variables should be loaded from `.env` files located in the relevant component's root directory (e.g., `noktvrn_ai_artist/.env`, `streamlit_app/.env`).
+*   **`.env.example` Files:** For each `.env` file, a corresponding `.env.example` file **must** exist in the repository. This file serves as a template, listing all required environment variables with placeholder values (e.g., `YOUR_API_KEY`) or default non-sensitive values.
+*   **`.gitignore`:** Ensure that `.env` files (containing real secrets) are listed in the root `.gitignore` file to prevent accidental commits.
+*   **Loading Variables:** Use libraries like `python-dotenv` to load variables from `.env` files into the application environment at runtime (as seen in `release_chain.py`, `batch_runner.py`, etc.).
+*   **Accessing Variables:** Access configuration values within the code using `os.getenv("VARIABLE_NAME", "default_value")`.
+*   **Documentation:** The purpose and usage of each environment variable should be documented within the `.env.example` file and potentially in relevant module READMEs or the `docs/deployment/configuration_guide.md`.
+
+**Never commit `.env` files or hardcode secrets directly into the source code.**
+
+## 4. LLM Prompt Writing Rules
 
 *(Note: Specific rules depend heavily on the chosen model and its version. These are general guidelines. Assume placeholders until specific models are finalized.)*
 
@@ -44,7 +58,7 @@ Maintaining synchronized documentation is crucial. Update the following document
 *   **Iterative Refinement:** Test and refine prompts based on actual outputs. Log prompt versions and performance.
 *   **Centralization (Future):** Aim to centralize core system prompts or templates in a dedicated `/docs/llm/prompts/` directory or configuration files, rather than hardcoding them deep within logic.
 
-## 4. Naming Conventions
+## 5. Naming Conventions
 
 *   **Files/Directories:** Use `snake_case` (e.g., `video_selector.py`, `api_clients/`).
 *   **Python Variables/Functions:** Use `snake_case` (e.g., `artist_id`, `calculate_score`).
@@ -52,7 +66,7 @@ Maintaining synchronized documentation is crucial. Update the following document
 *   **Constants:** Use `UPPER_SNAKE_CASE` (e.g., `API_TIMEOUT = 30`).
 *   **Commit Messages:** Follow Conventional Commits format (e.g., `feat: add stock video tracking`, `fix: correct database index syntax`, `docs: update main README`). Use imperative mood (e.g., "add" not "added"). Include issue tracker references if applicable.
 
-## 5. Definition of Done (DoD)
+## 6. Definition of Done (DoD)
 
 A task or feature is considered "Done" only when all the following criteria are met:
 
@@ -65,9 +79,7 @@ A task or feature is considered "Done" only when all the following criteria are 
 
 Adhering to this DoD ensures that contributions are complete, verifiable, and maintainable.
 
-
-
-## Git Workflow: Commit & Push After Each Task
+## 7. Git Workflow: Commit & Push After Each Task
 
 **Mandatory Requirement:** To ensure the repository always reflects the latest stable state of the project and to facilitate continuous integration and collaboration, a Git commit and push to the `main` branch is **required** at the successful completion of *every* assigned task.
 

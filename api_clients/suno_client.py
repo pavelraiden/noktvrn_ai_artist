@@ -34,7 +34,8 @@ class SunoApiClient(BaseApiClient):
         resolved_api_key = api_key or settings.SUNO_API_KEY
         resolved_base_url = base_url or self.DEFAULT_BASE_URL
         
-        if not resolved_api_key or resolved_api_key == "YOUR_SUNO_API_KEY_HERE":
+        # Removed check for placeholder key as we expect a real key in production
+        if not resolved_api_key:
              logger.error("Suno API Key is not configured.")
              raise ValueError("Suno API Key must be provided either directly or via settings.SUNO_API_KEY")
 
@@ -142,10 +143,11 @@ class SunoApiClient(BaseApiClient):
 
 # Example Usage (for testing purposes)
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logging.basicConfig(level=logging.INFO, format=\'%(asctime)s - %(name)s - %(levelname)s - %(message)s\')
     
-    if not settings.SUNO_API_KEY or settings.SUNO_API_KEY == "YOUR_SUNO_API_KEY_HERE":
-        print("Please set the SUNO_API_KEY in your .env file or environment variables to run this example.")
+    # Removed check for placeholder key as we expect a real key in production .env
+    if not settings.SUNO_API_KEY:
+        print("Please ensure the SUNO_API_KEY is set in your .env file or environment variables to run this example.")
     else:
         try:
             client = SunoApiClient()

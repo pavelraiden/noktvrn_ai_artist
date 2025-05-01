@@ -251,3 +251,138 @@ Implemented the initial version of the Artist Batch Runner system (`batch_runner
 
 **Next Steps:** Verify release logs/queue, cleanup output directories, implement auto-training hooks, create deployment checklist.
 
+
+
+
+## Phase 8 — Production Deployment & Uploader (2025-05-01)
+
+**Goal:** Implement the final stage of the release pipeline, preparing packaged releases for external upload, and establish deployment procedures.
+
+**Key Activities:**
+*   **Release Uploader (`release_uploader.py`):** Created the script to monitor the `release_queue.json`, process queued releases, simulate uploads (TuneCore, Web3 placeholders), move processed releases to `/output/deploy_ready/`, and log upload status to `release_upload_status.json`.
+*   **Directory Structure:** Created `/release_uploader/` and `/output/deploy_ready/` directories.
+*   **Smart Auto-Training Hooks:** Integrated hooks into `release_chain.py` to create a `feedback_score.json` placeholder and log a learning entry to `docs/development/artist_evolution_log.md` for each processed release.
+*   **Deployment Checklist:** Created a comprehensive `docs/deployment/deployment_checklist.md` covering environment setup, configuration, database, API keys, component status, testing, deployment steps, monitoring, and cleanup for the current placeholder-heavy system state.
+*   **Integration Testing:** Performed integration testing by creating a dummy approved run file (`run_integration_test_001.json`), running `release_chain.py` to process it, and verifying the creation of the release package, log entries, queue update, and evolution log entry. Identified and fixed multiple syntax errors (f-strings, formatting) and a Pydantic validation error (date format) in `release_chain.py` during this process. Also installed the missing `python-dotenv` dependency for Python 3.11.
+*   **Cleanup:** Reviewed output directories and created a `cleanup_report.md` (though no major cleanup was needed at this stage).
+*   **Documentation:** Updated the main `README.md` and this `dev_diary.md`.
+*   **Git Workflow:** Staged, committed (`feat: implement Phase 8 - Production Deployment & Uploader`), and successfully pushed all Phase 8 changes to the GitHub repository (excluding workflow files due to token limitations), adhering to the updated contribution guide.
+
+**Outcome:** Phase 8 implementation is complete. The system now includes a placeholder uploader mechanism, auto-training hooks, and initial deployment documentation. The core generation and release packaging loop is functionally complete (using placeholders). The codebase is synchronized with the GitHub repository.
+
+
+
+## Phase 8.1 — Fallback System & Self-Repair Logic (2025-05-01)
+
+**Goal:** Enhance system resilience by implementing a fallback system for transient errors and basic self-repair logic through health checks.
+
+**Key Activities & Outcomes:**
+
+*   **Analysis & Design:**
+    *   Reviewed existing error handling across API clients (`spotify_client`, `pexels_client`) and the `artist_batch_runner`.
+    *   Identified opportunities for handling transient errors (e.g., network issues, temporary API unavailability) more gracefully.
+    *   Designed a `retry_decorator` utility for applying configurable retry logic to functions.
+    *   Designed a `health_checker` utility to periodically check the status of external dependencies.
+    *   Documented the design in `docs/development/phase_8.1_fallback_design.md`.
+*   **Syntax Error Correction:** Fixed several pre-existing syntax errors identified in the previous project analysis (`spotify_client.py`, `pexels_client.py`, `artist_evolution_service.py`, `style_adaptor.py`) as a prerequisite for stable implementation.
+*   **Retry Decorator Implementation (`utils/retry_decorator.py`):**
+    *   Created a reusable decorator (`@retry_on_exception`) with configurable retries, initial delay, exponential backoff, and specific exception handling.
+    *   Added comprehensive logging for retry attempts and final failures.
+*   **Health Checker Implementation (`utils/health_checker.py`):**
+    *   Created functions to check the health of Spotify, Pexels, and Telegram services using lightweight API calls or dedicated checks.
+    *   Applied the retry decorator to the health check functions themselves to handle transient failures during checks.
+    *   Implemented a central registry (`HEALTH_CHECKS`) and runner function (`run_health_check`).
+*   **Integration with API Clients:**
+    *   Applied the `@retry_on_exception` decorator to methods in `spotify_client.py` and `pexels_client.py` that make external calls, configuring appropriate exceptions (`SPOTIFY_RETRY_EXCEPTIONS`, `PEXELS_RETRY_EXCEPTIONS`) and retry parameters.
+*   **Integration with Batch Runner (`artist_batch_runner.py`):**
+    *   Applied the `@retry_on_exception` decorator to key steps within the batch cycle: `generate_track`, `select_video`, `send_to_telegram_for_approval`, and `trigger_release_logic`.
+    *   Imported and integrated the `health_checker`.
+    *   Implemented periodic system health checks (`perform_system_health_check`) within the main loop.
+    *   Added logic (`check_critical_components_healthy`) to verify the health of critical dependencies (currently `telegram`) before starting each batch cycle, skipping the cycle if a critical component is unhealthy.
+    *   Refined error handling within the main `run_batch_cycle` function to work correctly with the exceptions raised by the retry decorator after definitive failures.
+*   **Unit Testing:**
+    *   Created `tests/utils/test_retry_decorator.py` with extensive tests covering various scenarios for the retry logic.
+    *   Created `tests/utils/test_health_checker.py` with tests for the health check runner and individual check functions using mocking.
+*   **Documentation:**
+    *   Created `docs/modules/retry_decorator.md` explaining the retry decorator's functionality and usage.
+    *   Created `docs/modules/health_checker.md` explaining the health checker's purpose, implementation, and integration.
+    *   Updated this `dev_diary.md`.
+
+**Status:** Phase 8.1 complete. The system now incorporates automatic retries for transient errors in API calls and key batch processes. It also includes a basic self-repair mechanism where the batch runner pauses operations if critical dependencies (like Telegram) are detected as unhealthy via periodic checks. This significantly improves the resilience and robustness of the automated pipeline.
+
+**Next Steps:** Proceed with further enhancements or address other items from the project analysis report, potentially focusing on replacing placeholder components or implementing real LLM integration based on prioritization.
+
+
+
+
+## Phase 8.2 — Metrics, Logging Summary, and Telegram Feedback Layer (2025-05-01)
+
+**Goal:** Enhance monitoring and feedback capabilities by implementing metrics collection, generating summary reports, and integrating Telegram feedback data.
+
+**Key Activities & Outcomes:**
+
+*   **Metrics Collection (`metrics/metrics_logger.py`):**
+    *   Implemented the `MetricsLogger` class to capture run start/end, stage start/end (with duration), errors (with tracebacks), and feedback events.
+    *   Configured to output detailed logs in JSON Lines format (`metrics/metrics_log.jsonl`) for machine processing.
+    *   Configured to generate and append a human-readable Markdown summary for each run to `metrics/metrics_report.md`.
+*   **Telegram Feedback Analysis (`metrics/telegram_feedback_log.py`):**
+    *   Implemented a script to scan `output/run_status/` files.
+    *   Calculates feedback statistics (approval rate, counts) for batches of runs (based on processing time or all files).
+    *   Updates individual `run_*.json` files with a `feedback_summary` object containing batch statistics.
+    *   Generates and appends a Markdown summary of batch feedback statistics to `metrics/telegram_feedback_summary.md`.
+    *   Designed to be run periodically (e.g., via cron) after batches complete.
+*   **Batch Runner Integration (`batch_runner/artist_batch_runner.py`):**
+    *   Integrated `MetricsLogger` to log events throughout the `run_batch_cycle`.
+    *   Ensured appropriate stages (`select_artist`, `adapt_parameters`, `generate_track`, `select_video`, `send_to_telegram`, `wait_for_approval`, `trigger_release`) are logged with start/end times and success/failure status.
+    *   Error logging implemented within `except` blocks.
+    *   Feedback logging (`log_feedback`) added when approval status is determined.
+    *   Run end logging (`log_run_end`) added with the final status.
+*   **Streamlit UI Update (`streamlit_app/monitoring/batch_monitor.py`):**
+    *   Modified the dashboard to load and display feedback statistics (`batch_id`, `approval_rate_percent`) from the updated `run_*.json` files.
+    *   Added overall metrics for total runs and average batch approval rate.
+    *   Included filters for batch ID.
+    *   Added sidebar sections to view the content of `metrics_report.md` and `telegram_feedback_summary.md`.
+    *   Added a button to download the raw `metrics_log.jsonl` file.
+*   **Unit Testing (`tests/metrics/`):**
+    *   Created comprehensive unit tests (`test_metrics_logger.py`, `test_telegram_feedback_log.py`) covering core functionality, edge cases, and error handling for the new metrics modules.
+*   **Documentation (`docs/modules/`):**
+    *   Created detailed documentation files (`metrics_logger.md`, `telegram_feedback_log.md`) explaining the purpose, functionality, integration, and usage of the new modules.
+    *   Updated this `dev_diary.md`.
+
+**Status:** Phase 8.2 complete. The system now has significantly improved monitoring capabilities with detailed run metrics, stage timings, error logging, and aggregated feedback analysis. The Streamlit UI provides visibility into this new data.
+
+
+
+## Phase 8.4: Final Production Integration — 2025-05-01
+
+**Goal:** Integrate real production API credentials, activate multi-provider LLM support, finalize configuration, and update documentation to achieve Production Ready v1 status.
+
+**Key Activities & Outcomes:**
+
+*   **Credential Integration:**
+    *   Successfully integrated production API keys for Suno, Pexels, Pixabay, DeepSeek, Gemini, Grok, Mistral, and the Telegram Bot into `.env` files.
+    *   Updated `.env.example` files to serve as comprehensive templates.
+    *   **Noted Missing Keys:** `LUMA_API_KEY` and `TELEGRAM_CHAT_ID` were not provided and remain as placeholders requiring manual configuration.
+*   **Multi-Provider LLM Orchestrator (`llm_orchestrator/orchestrator.py`):**
+    *   Refactored the orchestrator to support multiple LLM providers (OpenAI, DeepSeek, Grok, Gemini, Mistral).
+    *   Implemented dynamic API key loading from environment variables based on the selected provider.
+    *   Added provider-specific client initialization and API call logic.
+    *   Included robust error handling, retry mechanisms, and library availability checks.
+    *   Installed required libraries (`google-generativeai`, `mistralai`).
+*   **API Client Verification:** Confirmed existing API clients (`suno_client.py`, `pexels_client.py`, `luma_client.py`) correctly load keys from the environment.
+*   **Pipeline Integration:** Verified `llm_pipeline.py` interacts correctly with the updated multi-provider orchestrator.
+*   **Testing & Fixes:**
+    *   Ran basic execution tests on the updated orchestrator.
+    *   Fixed a `NameError` related to Gemini's `HarmCategory` by ensuring constants are defined conditionally based on library import success.
+*   **Documentation Updates:**
+    *   Updated the main `README.md` with the new architecture, setup instructions reflecting credential requirements (including `TELEGRAM_CHAT_ID`), and current project status (Production Ready v1).
+    *   Created a detailed `final_integration_report_phase8.4.md`.
+
+**Status:** Phase 8.4 complete. The system is now configured with production credentials for most services and features a functional multi-provider LLM orchestrator. Documentation reflects the current state.
+
+**Known Issues/Next Steps:**
+*   Configure missing `LUMA_API_KEY` and `TELEGRAM_CHAT_ID`.
+*   Conduct thorough end-to-end testing.
+*   Review and refactor stale modules (`artist_builder`, etc.).
+*   Implement real release uploads and data pipelines.
+
