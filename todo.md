@@ -1,27 +1,48 @@
-# Final Phase 8 Task - Todo List
+# Finalization & Production-Sync Task - Todo List
 
-- [ ] 001: Read task instructions (Done)
-- [ ] 002: Analyze GitHub repository structure (Done)
-- [ ] 003: Check existing environment files and credentials (Done)
-- [x] 004: Create detailed todo list (Done)
-- [x] 005: Update `.env` file with all real credentials (Suno, Pexels, Pixabay, DeepSeek, Gemini, Grok, Mistral, Telegram).
-- [x] 006: Verify/Update `.env.example` to match all required variables.
-- [x] 007: Enhance `llm_orchestrator/orchestrator.py` for multi-LLM support (confirm all providers from task are handled).
-- [x] 008: Implement/Document intelligent model routing/switching logic in LLM orchestrator (or document as future work).
-- [x] 009: Create `/docs/system_state/` directory.
-- [x] 010: Create `/docs/system_state/api_key_mapping.md` summarizing credential usage.
-- [x] 011: Create `/docs/system_state/llm_support.md` summarizing supported LLMs and role assignments.
-- [x] 012: Create/Update `/docs/system_state/architecture.md` (or link to existing diagrams).
-- [x] 013: Update `README.md` with current structure and setup instructions.
-- [x] 014: Update `CONTRIBUTION_GUIDE.md` with details on fallback, LLM logic, prompt design.
-- [x] 015: Update `project_context.md` to reflect final system logic (LLM chains, roles).
-- [x] 016: Review code, remove dummy comments/placeholders, or mark explicitly for future work.
-- [x] 017: Run self-review of the final repository state.
-- [x] 018: Update `dev_diary.md` with final changes, reflections, known gaps, and future recommendations.
-- [x] 019: Configure Git with the new token (`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`).
-- [ ] 020: Stage all changes (including `.github/workflows/ci.yml` if modified).
-- [ ] 021: Commit changes with a descriptive message (e.g., "feat: Finalize Phase 8 - Prod Ready v1.0").
-- [ ] 022: Push changes to `origin/main`.
-- [ ] 023: Verify push success (including workflow file update).
-- [ ] 024: Create production readiness evaluation summary.
-- [ ] 025: Notify user of completion.
+This list tracks the steps required to finalize the AI Artist Platform repository for production deployment based on the instructions received on 2025-05-01.
+
+## 1. Git Push Fix
+- [x] 001: Configure Git with the new token (`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`).
+- [x] 002: Attempt to push the previous commit (`f5fae27`) to `origin/main`.
+- [x] 003: Verify push success, including `.github/workflows/ci.yml` update.
+- [ ] 004: (Contingency) If push fails, diagnose and apply necessary fixes (e.g., reset, recommit, force push if needed and safe).
+
+## 2. Repository Audit & Cleanup
+- [x] 005: Review current folder structure (`noktvrn_ai_artist/`, `streamlit_app/`, `docs/`, etc.).
+- [x] 006: Identify unused/deprecated modules, scripts, and placeholder files (e.g., check older modules like `artist_builder`, `artist_creator`, `artist_manager`, `artist_flow`).
+- [x] 007: Verify module connectivity and ensure core components (`llm_orchestrator`, `batch_runner`, `release_chain`, `api_clients`, `metrics`) are integrated.
+- [x] 008: Remove hardcoded Luma API usage (confirm removal from `api_clients/luma_client.py`, `batch_runner`, etc.).
+- [x] 009: Delete identified unused/placeholder files/folders (e.g., `dummy_keys`, `temp/`, `old_code/`, stale modules if confirmed removable). *Note: Keep `todo.md` until task completion.*
+- [x] 010: Verify `.env` contains real keys and no dummy placeholders remain (visual check).
+
+## 3. GitHub Actions CI
+- [x] 011: Check/Create `.github/workflows/ci.yml`.
+- [x] 012: Add CI steps: Code formatting (e.g., Black), Linting (e.g., Flake8), Tests (e.g., pytest execution).
+- [x] 013: Add CI step: Validate `.env.example` presence in key directories (`/`, `batch_runner/`, `release_chain/`, `streamlit_app/`).
+- [ ] 014: (Optional) Add CI step: Detect unused/misplaced files (if feasible).
+
+## 4. LLM Ecosystem Health Evaluation
+- [x] 015: Review `llm_orchestrator.py` structure, provider logic, and fallback mechanism.
+- [x] 016: Assess conceptual efficiency of model usage (primary/fallback sequence).
+- [ ] 017: Log evaluation (stability score 1-10, weak links, improvements) in `docs/development/dev_diary.md`.
+
+## 5. Documentation Update
+- [ ] 018: Update `README.md` with final production state, CI badge (once working), and refined setup/usage instructions.
+- [ ] 019: Update `CONTRIBUTION_GUIDE.md` reflecting CI process and cleanup standards.
+- [ ] 020: Update `docs/project_context.md` with a summary of the final production-ready state.
+- [ ] 021: Add a detailed entry for the "Finalization & Production-Sync" phase in `docs/development/dev_diary.md` (to be done *after* completing steps).
+
+## 6. Final Production Sync Verification
+- [ ] 022: Conceptually review core workflow (Batch Runner -> Release Chain -> Output) for closed-loop operation.
+- [ ] 023: Verify LLM orchestrator fallback logic through code review.
+- [ ] 024: Perform final check for overall repository cleanliness and production readiness.
+
+## 7. Final Git Push & Reporting
+- [ ] 025: Stage all final changes.
+- [ ] 026: Commit changes with a descriptive message (e.g., "chore: Finalize repository for production sync v1.0").
+- [ ] 027: Push final commit to `origin/main`.
+- [ ] 028: Verify final push success.
+- [ ] 029: Create a completion report summarizing the finalization process.
+- [ ] 030: Notify user of completion.
+
