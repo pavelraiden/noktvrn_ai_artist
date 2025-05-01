@@ -1,190 +1,121 @@
-# AI Artist Creation and Management System
+# AI Artist Platform - Production Ready v1.0
 
 ## Project Description
 
-The AI Artist Creation and Management System is a comprehensive platform designed to generate, manage, and evolve AI-powered virtual music artists. The system creates complete artist identities, manages their content creation (music, visuals), analyzes performance and market trends, and autonomously adapts the artist's profile, style, and content strategy based on data-driven insights.
+The AI Artist Platform is a comprehensive system designed to autonomously generate, manage, and evolve AI-powered virtual music artists. It creates unique artist identities, orchestrates content creation (music, visuals), analyzes performance, and adapts based on data-driven insights and feedback, aiming to explore the potential of autonomous creative systems in the music industry.
 
-Our mission is to explore the potential of autonomous creative systems in the music industry, enabling the automated creation and evolution of virtual artists who produce authentic content while continuously adapting to audience feedback and market dynamics.
+## System Architecture (Phase 8 Final)
 
-## System Architecture & Artist Lifecycle
+The system employs a modular architecture focused on a continuous evolution loop, enhanced with multi-provider LLM support, API integration, resilience mechanisms (retry/fallback), and feedback processing.
 
-The system follows a modular architecture centered around a continuous evolution loop, enhanced with resilience mechanisms and multi-provider LLM support:
+For a detailed breakdown, refer to:
+*   `/docs/system_state/architecture.md` (High-level overview)
+*   `/docs/system_state/llm_support.md` (LLM providers and orchestration)
+*   `/docs/system_state/api_key_mapping.md` (API credential usage)
+*   `/docs/architecture/` (Older, more detailed diagrams - may require updates)
 
-1.  **Profile Management:** An artist profile (managed by `Artist Profile Manager` - currently placeholder) defines the artist's identity, genre, style, etc.
-2.  **Content Generation:** Based on the profile and potentially adapted parameters (`Style Adaptor`), the `Content Generation Flow` orchestrates requests to `Generation Services`.
-3.  **LLM Orchestration:** The `LLM Orchestrator` handles interactions with various LLMs (DeepSeek, Gemini, Grok, Mistral, OpenAI) for tasks like profile generation, adaptation, and evolution, using API keys configured via `.env`.
-4.  **External APIs:** Services interact with external APIs (Suno for music, Luma for video, Pexels for stock footage) to generate/retrieve content assets. API interactions are wrapped with retry logic (`utils/retry_decorator`) and use keys from `.env`.
-5.  **Video Selection:** The `Video Selector` chooses appropriate stock videos based on audio analysis.
-6.  **Release & Storage:** Approved content URLs are stored in the `Database` (`approved_releases` table).
-7.  **Performance Tracking:** Performance metrics (views, likes, streams, etc.) are collected (manually via `Analytics Dashboard` or potentially via future `Data Pipelines`) and stored in the `Database` (`content_performance` table).
-8.  **Evolution Analysis:** The `Artist Evolution Service` analyzes performance data against the artist's profile.
-9.  **Adaptation:** Based on the analysis and evolution rules, the `Style Adaptor` modifies generation parameters, and the `Artist Evolution Service` updates the artist profile (logging changes to `artist_progression_log`).
-10. **Health Monitoring:** The `utils/health_checker` periodically checks the status of critical external dependencies (e.g., Telegram, APIs).
-11. **Batch Automation:** The `Batch Runner` automates the cycle, incorporating health checks, retry logic, and using the `LLM Orchestrator` and API clients.
-12. **Feedback Loop:** The `Batch Runner` sends previews via Telegram (using `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` from `.env`) and processes feedback via the `Streamlit App` and `Webhook Server`.
-13. **Metrics & Logging:** Detailed run metrics and feedback summaries are generated (`metrics/`).
-14. **Loop:** The updated profile influences future content generation, closing the loop.
+**Simplified Flow:**
+
+1.  **Configuration:** Uses `.env` for API keys and settings.
+2.  **Artist Generation/Evolution:** `artist_builder` (or future refactored module) uses `LLMOrchestrator` to create/update profiles.
+3.  **LLM Orchestration:** `llm_orchestrator` interacts with DeepSeek, Gemini, Grok, Mistral, OpenAI (optional) using keys from `.env`, with retry and fallback logic.
+4.  **Content Prompting:** `artist_flow/generators` create prompts for music/video.
+5.  **External APIs:** `api_clients` interact with Suno (music), Pexels (video assets), Luma (video gen - placeholder).
+6.  **Batch Processing:** `batch_runner` automates generation cycles, sends Telegram previews (requires `TELEGRAM_BOT_TOKEN` & `TELEGRAM_CHAT_ID`), and processes feedback.
+7.  **Release Packaging:** `release_chain` prepares approved content runs.
+8.  **Metrics & Feedback:** `metrics` module logs performance and feedback.
+9.  **Evolution:** `artist_evolution` service analyzes data and adapts artists (partially implemented).
 
 ```mermaid
 graph TD
-    A[Artist Profile Manager (Placeholder)] -- Profile --> B(Content Generation Flow);
-    B -- Content Request & Params --> C{Generation Services};
-    B -- LLM Task --> LLM_Orch[LLM Orchestrator];
-    LLM_Orch -- LLM API Call --> LLM_APIs[LLM APIs (DeepSeek, Gemini, Grok, Mistral, OpenAI)];
-    LLM_Orch -- Result --> B;
-    C -- Suno Prompt --> D_Suno[Suno API];
-    C -- Luma Prompt/Ref --> D_Luma[Luma API];
-    C -- Video Keywords --> D_Pexels[Pexels API];
-    D_Suno -- Generated Track URL --> E[Database - Approved Releases];
-    D_Luma -- Generated Video URL --> E;
-    D_Pexels -- Stock Video URLs --> F[Video Selector];
-    F -- Selected Video URL --> E; 
-    E -- Release Info --> G[Analytics Dashboard/Data Entry];
-    G -- Manual Metrics --> H[Database - Content Performance];
-    I[External APIs - YouTube/Spotify etc.] --> J[Data Pipelines - Future];
-    J -- Automated Metrics --> H;
-    H -- Performance Data --> K[Artist Evolution Service];
-    A -- Artist Profile --> K;
-    K -- Analysis & Rules --> L[Style Adaptor];
-    L -- Adapted Params --> B;
-    K -- Updated Profile --> A;
-    K -- Log Entry --> M[Database - Artist Progression Log];
-    N[Batch Runner] --> B;
-    N -- Checks Health --> O[Health Checker];
-    O -- Checks --> D_Suno;
-    O -- Checks --> D_Luma;
-    O -- Checks --> D_Pexels;
-    O -- Checks --> P[Telegram Service];
-    O -- Checks --> LLM_APIs;
-    C -- Uses --> Q[Retry Decorator];
-    N -- Uses --> Q;
-    LLM_Orch -- Uses --> Q;
-    N -- Send Preview --> P;
-    P -- Receive Feedback --> N;
-    N -- Log Metrics --> Metrics[Metrics Logger];
-    N -- Trigger Release --> ReleaseChain[Release Chain];
-
-    subgraph Core Modules
-        A;
-        B;
-        F;
-        K;
-        L;
-        N;
-        LLM_Orch;
-        Metrics;
-        ReleaseChain;
+    subgraph Configuration
+        Env[".env File (API Keys, Settings)"]
     end
 
-    subgraph Data & Integration
-        C;
-        D_Suno;
-        D_Luma;
-        D_Pexels;
-        LLM_APIs;
-        E;
-        G;
-        H;
-        I;
-        J;
-        M;
-        P;
+    subgraph Core Logic
+        Builder["Artist Builder/Evolution (Uses LLM)"]
+        Orchestrator["LLM Orchestrator (Multi-Provider, Fallback)"]
+        BatchRunner["Batch Runner (Automation, Telegram)"]
+        ReleaseChain["Release Chain (Packaging)"]
+        Metrics["Metrics & Feedback"]
     end
 
-    subgraph Utilities
-        O;
-        Q;
+    subgraph External Services
+        LLM_APIs["LLM APIs (DeepSeek, Gemini, Grok, Mistral, ...)"]
+        Suno["Suno API (Music Gen)"]
+        Pexels["Pexels API (Video Assets)"]
+        Luma["Luma API (Video Gen - Placeholder)"]
+        Telegram["Telegram Bot API (Notifications, Feedback)"]
     end
+
+    subgraph Data
+        DB["(Optional) Database (Profiles, Metrics)"]
+        Output["Output Directory (Logs, Releases, Status)"]
+    end
+
+    Env --> Orchestrator
+    Env --> BatchRunner
+    Env --> Suno
+    Env --> Pexels
+    Env --> Luma
+    Env --> Telegram
+
+    Builder -- LLM Tasks --> Orchestrator
+    Orchestrator -- API Calls --> LLM_APIs
+    LLM_APIs -- Responses --> Orchestrator
+    Orchestrator -- Results --> Builder
+
+    BatchRunner -- Triggers --> Builder
+    BatchRunner -- Uses --> Orchestrator
+    BatchRunner -- Uses --> Suno
+    BatchRunner -- Uses --> Pexels
+    BatchRunner -- Uses --> Luma
+    BatchRunner -- Sends Previews/Receives Feedback --> Telegram
+    BatchRunner -- Logs --> Metrics
+    BatchRunner -- Creates Releases --> ReleaseChain
+
+    ReleaseChain -- Saves --> Output
+    Metrics -- Saves --> Output
+    Builder -- Saves --> Output
+
+    Metrics -- (Optional) --> DB
+    Builder -- (Optional) --> DB
 ```
 
-**Core Components (Status as of 2025-05-01 - Production Ready v1):**
-
-1.  **Artist Profile Manager (Placeholder/Stale)**: Manages artist profiles. Requires refactoring.
-2.  **Content Generation Flow (Assumed Active)**: Orchestrates content creation.
-3.  **Generation Services (Active)**: Interfaces with external APIs.
-4.  **Video Selector (Active)**: Selects stock videos.
-5.  **Database (PostgreSQL - Active)**: Central persistent storage.
-6.  **Analytics Dashboard/Data Entry (Streamlit - Active)**: UI for metrics.
-7.  **Database Services (Active)**: Modules for DB interaction.
-8.  **Artist Evolution Service (Active)**: Analyzes performance, applies rules, logs changes.
-9.  **Style Adaptor (Active)**: Translates profiles to generation parameters.
-10. **API Clients (Active & Integrated)**: Standardized clients for external APIs (Suno, Luma*, Pexels) using production keys from `.env`. (*Luma key is placeholder*).
-11. **LLM Orchestrator (Active & Integrated)**: Manages interactions with multiple LLMs (DeepSeek, Gemini, Grok, Mistral, OpenAI) using production keys from `.env`.
-12. **Batch Runner (Active & Integrated)**: Automates the generation cycle, includes approval workflow via Telegram (requires `TELEGRAM_CHAT_ID` in `.env`), health checks, retries, and metrics logging.
-13. **Release Chain (Active)**: Packages approved runs into releases.
-14. **Release Uploader (Active - Placeholder Upload)**: Prepares releases for deployment.
-15. **Utilities (`utils/` - Active)**:
-    *   `retry_decorator.py`: Handles transient errors with retries.
-    *   `health_checker.py`: Monitors external service health.
-16. **Metrics & Feedback (`metrics/` - Active)**: Logs run metrics, generates summaries, processes Telegram feedback.
-17. **Data Pipelines (Future)**: Planned for automated data fetching.
-18. **Stale Modules (Require Review/Refactoring)**: `artist_builder/`, `artist_creator/`, `artist_manager/`, `artist_flow/`.
-
-## Directory Structure (Reflecting Production Ready v1)
+## Directory Structure (Phase 8 Final)
 
 ```
 noktvrn_ai_artist/
-├── api_clients/          # Clients for external APIs (Suno, Luma, Pexels, Base)
-│   └── README.md
-├── analytics/            # Performance data handling (DB service, Stock Tracker)
-│   └── README.md
-├── artist_evolution/     # Artist profile evolution logic, style adaptation, progression logging
-│   └── README.md
-├── batch_runner/         # Automated generation cycle runner
-│   └── README.md
-├── database/
-│   ├── schema/           # SQL schema definitions
-│   └── connection_manager.py # DB connection pooling
-├── docs/                 # Documentation (Architecture, Development, Project State, LLM, Modules)
-│   ├── architecture/
-│   ├── deployment/
-│   ├── development/
-│   ├── llm/
-│   ├── modules/
-│   └── ...
-├── llm_orchestrator/     # Multi-provider LLM interaction handler
-│   └── orchestrator.py
-├── metrics/              # Metrics logging and feedback analysis
-│   ├── metrics_logger.py
-│   └── telegram_feedback_log.py
-├── output/               # Generated outputs (run status, releases, logs, metrics)
-│   ├── deploy_ready/
-│   ├── feedback_summary.md
-│   ├── metrics_logs/
-│   ├── release_log.md
-│   ├── release_queue.json
-│   ├── releases/
-│   └── run_status/
-├── release_chain/        # Logic for packaging approved runs into releases
-│   └── README.md
-├── release_uploader/     # Logic for preparing releases for upload/deployment
-│   └── README.md
-├── scripts/              # Utility & operational scripts
-├── tests/                # Unit and integration tests
-│   ├── api_clients/
-│   ├── batch_runner/
-│   ├── llm_orchestrator/
-│   ├── metrics/
-│   ├── release_chain/
-│   └── utils/            # Tests for utilities (retry, health checker)
-├── utils/                # Common utilities (retry decorator, health checker)
-│   ├── health_checker.py
-│   └── retry_decorator.py
-├── video_processing/     # Audio analysis and video selection logic
-│   └── README.md
 ├── .env                  # Local environment variables (DO NOT COMMIT)
 ├── .env.example          # Environment variables template
 ├── .github/              # GitHub Actions workflows
 ├── .gitignore
-├── requirements.txt      # Python dependencies for backend
-├── requirements_monitoring.txt # Dependencies for monitoring
-├── Dockerfile            # Main application Dockerfile
-├── docker-compose.yml    # Docker Compose configuration
-├── logging_config.json   # Logging configuration
+├── api_clients/          # Clients for external APIs (Suno, Luma, Pexels, Base)
+├── analytics/            # Performance data handling (DB service, Stock Tracker)
+├── artist_evolution/     # Artist profile evolution logic, style adaptation
+├── batch_runner/         # Automated generation cycle runner
+├── database/             # DB connection and schema (Optional)
+├── docs/                 # Documentation (Architecture, Development, System State, etc.)
+│   ├── architecture/
+│   ├── deployment/
+│   ├── development/
+│   ├── system_state/     # Current state docs (API Keys, LLM Support, Arch)
+│   └── ...
+├── llm_orchestrator/     # Multi-provider LLM interaction handler
+├── logs/                 # Log file output directory (if configured)
+├── metrics/              # Metrics logging and feedback analysis
+├── output/               # Default dir for generated outputs (run status, releases, etc.)
+├── release_chain/        # Logic for packaging approved runs into releases
+├── release_uploader/     # Logic for preparing releases for upload/deployment (Placeholder)
+├── requirements.txt      # Python dependencies
+├── scripts/              # Utility & operational scripts
+├── tests/                # Unit and integration tests
+├── utils/                # Common utilities (retry decorator, health checker)
+├── video_processing/     # Audio analysis and video selection logic
 ├── CONTRIBUTION_GUIDE.md # Contribution guidelines
 └── README.md             # This file
 
-# --- Potentially Stale/Overlapping Modules (Require Review) ---
+# --- Potentially Stale/Overlapping Modules (Require Review/Refactoring) ---
 # artist_builder/
 # artist_creator/
 # artist_manager/
@@ -193,83 +124,81 @@ noktvrn_ai_artist/
 # video_gen_config/
 # --------------------------------------------------------------
 
-streamlit_app/            # Streamlit frontend application
-├── analytics/            # Dashboard and Data Entry UI components
-├── monitoring/           # Batch Runner monitoring dashboard
-├── release_management/   # Release Chain dashboard
-├── services/             # Services used by Streamlit (e.g., Telegram)
-├── tests/                # Tests for Streamlit components/services
-├── config/
+streamlit_app/            # Streamlit frontend application (Separate Deployment)
 ├── .env                  # Environment variables for Streamlit (DO NOT COMMIT)
 ├── .env.example          # Streamlit environment variables template
+├── requirements.txt      # Streamlit dependencies
 ├── app.py                # Main Streamlit application entry point
-├── webhook_server.py     # Telegram webhook handler
-└── README.md             # Streamlit app documentation
+├── services/             # Services used by Streamlit (e.g., Telegram)
+├── monitoring/           # Batch Runner monitoring dashboard
+└── ...                   # Other UI components
 ```
 
 ## Setup and Usage
 
 ### Prerequisites
 
-- Python 3.10+
-- PostgreSQL 13+ (Database server)
-- Docker & Docker Compose (Recommended)
-- FFmpeg (for audio/video processing)
-- API keys/credentials for: Suno.ai, Pexels, DeepSeek, Gemini, Grok, Mistral, Telegram Bot. (Luma key optional/placeholder).
-- A specific Telegram Chat ID where the bot will operate.
+*   Python 3.10+
+*   Docker & Docker Compose (Recommended for simplified setup)
+*   FFmpeg (Required for some audio/video operations, install system-wide)
+*   API keys/credentials for: Suno.ai, Pexels, DeepSeek, Gemini, Grok, Mistral, Telegram Bot. (Luma key optional/placeholder).
+*   A specific Telegram Chat ID where the bot will operate.
 
 ### Environment Setup
 
-1.  Clone the repository.
-2.  Create and activate a Python virtual environment (if not using Docker).
-3.  Install dependencies:
-    ```bash
-    pip install -r noktvrn_ai_artist/requirements.txt
-    pip install -r streamlit_app/requirements.txt 
-    # Ensure ffmpeg is installed system-wide
-    ```
-4.  Set up PostgreSQL database.
-5.  Configure environment variables:
+1.  **Clone:** `git clone https://github.com/pavelraiden/noktvrn_ai_artist.git`
+2.  **Navigate:** `cd noktvrn_ai_artist`
+3.  **Configure `.env`:**
     *   Copy `noktvrn_ai_artist/.env.example` to `noktvrn_ai_artist/.env`.
-    *   Copy `streamlit_app/.env.example` to `streamlit_app/.env`.
-    *   Fill in **all** required credentials in both `.env` files (DB details, API keys, **`TELEGRAM_CHAT_ID`**).
-6.  Apply database schemas (ensure correct order: `approved_releases`, `content_performance`, `artist_progression_log`):
+    *   Fill in **all** required credentials (API keys, `TELEGRAM_CHAT_ID`, `OUTPUT_BASE_DIR`).
+    *   If using the Streamlit app, also copy `streamlit_app/.env.example` to `streamlit_app/.env` and fill in credentials.
+4.  **Install Dependencies (if not using Docker):**
     ```bash
-    psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f noktvrn_ai_artist/database/schema/<schema_file>.sql
-    # Repeat for all schema files
+    python -m venv venv
+    source venv/bin/activate # or venv\Scripts\activate on Windows
+    pip install -r requirements.txt
+    # If using Streamlit app: pip install -r streamlit_app/requirements.txt
+    # Ensure ffmpeg is installed and in your system PATH
     ```
 
-### Running the System (Docker Compose Recommended)
+### Running the System
 
-1.  Ensure Docker and Docker Compose are installed.
-2.  Ensure `.env` files are correctly populated.
-3.  Build and start the services:
+**Option 1: Docker Compose (Recommended)**
+
+1.  Ensure Docker and Docker Compose are installed and running.
+2.  Ensure `noktvrn_ai_artist/.env` (and `streamlit_app/.env` if used) are correctly populated.
+3.  From the `noktvrn_ai_artist` directory, run:
     ```bash
     docker-compose up --build -d
     ```
-4.  Access the Streamlit UI (typically `http://localhost:8501`).
-5.  The Telegram webhook server also starts (ensure `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` are correct in `streamlit_app/.env`).
+4.  This typically starts the main application components and the Streamlit UI.
+5.  Access Streamlit UI (usually `http://localhost:8501`).
 6.  Monitor logs: `docker-compose logs -f`
 
-## AI Agent Behavior
+**Option 2: Manual Execution (Example: Batch Runner)**
 
-This system is developed with the assistance of an AI agent. The agent's expected behavior, responsibilities, and interaction protocols are defined in the [LLM Behavioral Contract](docs/architecture/behavioral_rules.md).
+1.  Ensure dependencies are installed and the virtual environment is active.
+2.  Ensure `noktvrn_ai_artist/.env` is correctly populated.
+3.  Run a specific component, e.g., the batch runner:
+    ```bash
+    python batch_runner/artist_batch_runner.py
+    ```
 
 ## Contribution Guide
 
 Contributions are welcome! Please read our [Contribution Guide](CONTRIBUTION_GUIDE.md) for details on code standards, development workflow, testing, documentation, and the core principle of building a self-evolving system.
 
-## Project Status & Next Steps
+## Project Status (Phase 8 Final - Production Ready v1.0)
 
-- **Status:** Production Ready v1 (Integration Complete).
-- **Key Changes:** Integrated real API credentials, implemented multi-provider LLM orchestrator, enhanced resilience, metrics, and feedback mechanisms.
-- **Known Issues/Placeholders:**
-    *   `LUMA_API_KEY` remains a placeholder in `.env` (key not provided).
-    *   `TELEGRAM_CHAT_ID` must be manually configured in `.env` files.
-    *   Several older modules (`artist_builder`, etc.) are potentially stale and need review/refactoring.
-    *   `Release Uploader` performs dummy uploads; real platform integration needed.
-    *   `Data Pipelines` for automated metric collection are not yet implemented.
-- **Next Step:** System is ready for initial production testing and operation. Further development can focus on replacing remaining placeholders, refining LLM logic, implementing data pipelines, and integrating real release uploads.
+*   **Status:** Core integration complete. Ready for initial production testing.
+*   **Key Features:** Multi-LLM support (DeepSeek, Gemini, Grok, Mistral) with fallback, integrated production API keys, automated batch processing with Telegram feedback loop, metrics logging, release packaging.
+*   **Known Issues/Placeholders:**
+    *   `LUMA_API_KEY` not provided.
+    *   `TELEGRAM_CHAT_ID` requires manual configuration in `.env`.
+    *   Intelligent LLM routing is a placeholder.
+    *   Several older modules (`artist_builder`, etc.) need review/refactoring.
+    *   `Release Uploader` performs dummy uploads.
+    *   Database integration is optional and requires setup.
+*   **Next Steps:** Production testing, monitoring, addressing placeholders, refining evolution logic, implementing data pipelines.
 
-For a detailed overview of the project history and specific task blocks, see `docs/development/dev_diary.md`.
-
+For a detailed history, see `docs/development/dev_diary.md`.

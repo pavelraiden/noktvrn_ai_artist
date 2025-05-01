@@ -24,9 +24,9 @@ Maintaining synchronized documentation is crucial. Update the following document
 *   **Module `README.md` (e.g., `api_clients/README.md`):**
     *   **When:** When creating a new module or significantly modifying an existing one (changing its purpose, core functions, inputs/outputs, or dependencies).
     *   **Content:** Module purpose, key components/files, core functionality, usage examples, dependencies, configuration.
-*   **`/docs/` Subdirectories (e.g., `architecture/`, `modules/`, `llm/`):**
-    *   **When:** When implementing or changing specific architectural patterns, module designs, LLM prompts/flows, deployment strategies, etc.
-    *   **Content:** Detailed design documents, flow diagrams, API specifications, specific guides (e.g., `setup_guide.md`, `behavioral_rules.md`). Update relevant documents when the corresponding system aspect changes.
+*   **`/docs/` Subdirectories (e.g., `architecture/`, `modules/`, `llm/`, `system_state/`):**
+    *   **When:** When implementing or changing specific architectural patterns, module designs, LLM prompts/flows, deployment strategies, system state summaries, etc.
+    *   **Content:** Detailed design documents, flow diagrams, API specifications, specific guides (e.g., `setup_guide.md`, `behavioral_rules.md`), state summaries (`api_key_mapping.md`, `llm_support.md`). Update relevant documents when the corresponding system aspect changes.
 
 ## 3. Configuration and Secrets Management
 
@@ -36,27 +36,50 @@ Proper configuration and handling of secrets (API keys, tokens, passwords) are c
 *   **`.env` Files:** Environment variables should be loaded from `.env` files located in the relevant component's root directory (e.g., `noktvrn_ai_artist/.env`, `streamlit_app/.env`).
 *   **`.env.example` Files:** For each `.env` file, a corresponding `.env.example` file **must** exist in the repository. This file serves as a template, listing all required environment variables with placeholder values (e.g., `YOUR_API_KEY`) or default non-sensitive values.
 *   **`.gitignore`:** Ensure that `.env` files (containing real secrets) are listed in the root `.gitignore` file to prevent accidental commits.
-*   **Loading Variables:** Use libraries like `python-dotenv` to load variables from `.env` files into the application environment at runtime (as seen in `release_chain.py`, `batch_runner.py`, etc.).
+*   **Loading Variables:** Use libraries like `python-dotenv` to load variables from `.env` files into the application environment at runtime (as seen in `llm_orchestrator/orchestrator.py`).
 *   **Accessing Variables:** Access configuration values within the code using `os.getenv("VARIABLE_NAME", "default_value")`.
-*   **Documentation:** The purpose and usage of each environment variable should be documented within the `.env.example` file and potentially in relevant module READMEs or the `docs/deployment/configuration_guide.md`.
+*   **Documentation:** The purpose and usage of each environment variable should be documented within the `.env.example` file and potentially in relevant module READMEs or the `docs/system_state/api_key_mapping.md`.
 
 **Never commit `.env` files or hardcode secrets directly into the source code.**
 
-## 4. LLM Prompt Writing Rules
+## 4. LLM Integration and Usage
 
-*(Note: Specific rules depend heavily on the chosen model and its version. These are general guidelines. Assume placeholders until specific models are finalized.)*
+### 4.1 Multi-Provider Orchestration (`llm_orchestrator.py`)
 
-*   **Clarity and Specificity:** Be explicit about the desired output format, constraints, and context. Avoid ambiguity.
-*   **Role Definition:** Clearly define the AI's role (e.g., "You are a creative music analyst...").
-*   **Context Provision:** Provide sufficient background information, relevant data, and examples.
-*   **Output Formatting:** Specify the desired output structure (e.g., JSON schema, Markdown sections, specific fields).
-*   **Constraints and Guardrails:** Include instructions to avoid undesirable content, hallucinations, or biases. Define boundaries.
-*   **Model-Specific Syntax:** Adapt syntax for specific models (once chosen):
-    *   **GPT-4/Claude:** Use clear natural language, XML tags for structure/roles can be effective.
-    *   **Grok:** May require more conversational or persona-driven prompts.
-    *   **Qwen:** Refer to specific documentation for optimal prompting techniques.
-*   **Iterative Refinement:** Test and refine prompts based on actual outputs. Log prompt versions and performance.
-*   **Centralization (Future):** Aim to centralize core system prompts or templates in a dedicated `/docs/llm/prompts/` directory or configuration files, rather than hardcoding them deep within logic.
+The system utilizes a central `LLMOrchestrator` to manage interactions with multiple LLM providers (DeepSeek, Gemini, Grok, Mistral, OpenAI). This approach provides flexibility and resilience.
+
+*   **Initialization:** The orchestrator is configured with a primary model and a list of fallback models (e.g., primary `deepseek-chat`, fallbacks `["gemini-1.5-flash", "mistral-large-latest"]`).
+*   **Provider Support:** It dynamically loads API keys from `.env` and initializes clients for configured and available providers.
+*   **Refer to:** `docs/system_state/llm_support.md` for a detailed list of supported providers and current orchestration logic.
+
+### 4.2 Fallback System
+
+The `LLMOrchestrator` implements a robust fallback mechanism:
+
+1.  **Intra-Provider Retries:** Each call to a specific provider includes automatic retries with exponential backoff for transient errors (e.g., rate limits, temporary server issues).
+2.  **Inter-Provider Fallback:** If a request to the primary model fails (after exhausting internal retries), the orchestrator automatically attempts the *same* request with the next model specified in the `fallback_models` list.
+3.  **Sequential Attempts:** This process continues sequentially through the fallback list until a request succeeds or all configured providers have been attempted.
+4.  **Error Logging:** Failures at each step are logged, providing visibility into provider issues.
+
+When contributing code that uses the `LLMOrchestrator`, rely on this built-in resilience rather than implementing custom retry/fallback logic for LLM calls.
+
+### 4.3 Intelligent Routing (Future)
+
+A placeholder exists for intelligent model routing (`generate_text_intelligently`), aiming to select the optimal model based on task type, cost, or performance. Currently, it defaults to the standard primary/fallback sequence. Contributions enhancing this logic are welcome but require careful design and benchmarking.
+
+### 4.4 LLM Prompt Design Guidelines
+
+Effective prompting is crucial for consistent and high-quality LLM outputs.
+
+*   **Clarity and Specificity:** Be explicit about the desired task, output format, constraints, and context. Avoid ambiguity.
+*   **Role Definition:** Clearly define the AI's role or persona (e.g., "You are a music critic specializing in electronic genres...").
+*   **Context is Key:** Provide sufficient background information, relevant data snippets, and few-shot examples where appropriate.
+*   **Structured Output:** Request structured formats like JSON or Markdown when needed. Specify the exact schema or fields required.
+    *   *Example (JSON):* "Output your response as a JSON object with the following keys: 'artist_name', 'genre_tags' (list of strings), 'bio' (string)."
+*   **Constraints and Guardrails:** Include instructions to avoid undesirable content, stay within length limits, or focus on specific aspects.
+*   **Model-Specific Tuning:** While the orchestrator abstracts providers, be mindful that optimal prompt structure can vary slightly between models (e.g., Gemini vs. Mistral). Test prompts against the intended primary and fallback models.
+*   **Iterative Refinement:** Prompt engineering is iterative. Test prompts, analyze outputs, and refine the instructions. Log significant prompt changes in `dev_diary.md` or relevant module documentation.
+*   **Centralization:** Avoid hardcoding complex prompts directly in application logic. Consider using template files or a dedicated prompt management system/directory (e.g., `/docs/prompts/`) for reusable or complex prompts.
 
 ## 5. Naming Conventions
 
@@ -74,7 +97,7 @@ A task or feature is considered "Done" only when all the following criteria are 
 2.  **Tests Passed:** Unit tests and relevant integration tests are written and pass successfully.
 3.  **Documentation Updated:** All relevant documentation files (as per Section 2) are created or updated to reflect the changes accurately.
 4.  **Code Reviewed:** (If applicable in workflow) Code has been reviewed and approved.
-5.  **Dependencies Met:** Any external dependencies (libraries, APIs) are correctly integrated and configured (even if using placeholders initially).
+5.  **Dependencies Met:** Any external dependencies (libraries, APIs) are correctly integrated and configured.
 6.  **Repository Link:** (For agent context) The final state of the relevant code/documentation is accessible and potentially linked in the `dev_diary.md` or final report.
 
 Adhering to this DoD ensures that contributions are complete, verifiable, and maintainable.
