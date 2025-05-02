@@ -4,7 +4,7 @@
 
 ## Role
 
-Translates high-level artist profile characteristics and evolution directives into concrete, actionable parameters suitable for use by content generation APIs (Suno, Luma) and stock footage selection logic (Pexels).
+Translates high-level artist profile characteristics and evolution directives into concrete, actionable parameters suitable for use by content generation APIs (Suno) and stock footage selection logic (Pexels).
 
 ## Inputs
 
@@ -15,7 +15,6 @@ Translates high-level artist profile characteristics and evolution directives in
 
 *   `generation_params` (dict): A dictionary containing specific parameters ready for use by downstream services:
     *   `suno_params` (dict): Parameters for the Suno API client (e.g., prompt, style_of_music, tempo).
-    *   `luma_params` (dict): Parameters for the Luma API client (e.g., user_prompt, aspect_ratio).
     *   `pexels_params` (dict): Keywords or search parameters for the Pexels API client.
 
 ## Usage

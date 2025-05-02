@@ -19,11 +19,6 @@ This document outlines the external API keys required by the AI Artist Platform 
     *   **Usage:** Stock image/video retrieval (Implementation might be via a generic client or specific `pixabay_client.py` - currently uses Pexels client as primary).
     *   **Status:** Implemented (Placeholder/Secondary) and Key Provided.
 
-*   **`LUMA_API_KEY`**
-    *   **Service:** Luma AI (or alternative video generation)
-    *   **Usage:** Video generation (`api_clients/luma_client.py`).
-    *   **Status:** Implemented (Placeholder) - **Key Not Provided**.
-
 ## LLM Provider Keys
 
 These keys are used by the `llm_orchestrator/orchestrator.py` module for various text generation, analysis, and adaptation tasks throughout the system (e.g., `artist_builder`, `prompt_adaptation`).
@@ -48,9 +43,9 @@ These keys are used by the `llm_orchestrator/orchestrator.py` module for various
     *   **Service:** OpenAI API
     *   **Status:** Implemented (Optional) - Key Not Provided (Commented out in `.env`).
 
-*   **`ANTHROPIC_API_KEY`** (Future)
+*   **`ANTHROPIC_API_KEY`**
     *   **Service:** Anthropic Claude API
-    *   **Status:** Not Implemented - Requires library and orchestrator update.
+    *   **Status:** Implemented (Requires library install) - Key Not Provided (Add to `.env` if using Claude models).
 
 ## Integration Keys
 

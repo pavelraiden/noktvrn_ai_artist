@@ -18,9 +18,9 @@ For a detailed breakdown, refer to:
 
 1.  **Configuration:** Uses `.env` for API keys and settings.
 2.  **Artist Generation/Evolution:** `artist_builder` (or future refactored module) uses `LLMOrchestrator` to create/update profiles.
-3.  **LLM Orchestration:** `llm_orchestrator` interacts with DeepSeek, Gemini, Grok, Mistral, OpenAI (optional) using keys from `.env`, with retry and fallback logic.
+3.  **LLM Orchestration:** `llm_orchestrator` interacts with DeepSeek, Gemini, Grok, Mistral, Anthropic, OpenAI (optional) using keys from `.env`, with retry, fallback, and auto-discovery logic.
 4.  **Content Prompting:** `artist_flow/generators` create prompts for music/video.
-5.  **External APIs:** `api_clients` interact with Suno (music), Pexels (video assets), Luma (video gen - placeholder).
+5.  **External APIs:** `api_clients` interact with Suno (music) and Pexels (video assets).
 6.  **Batch Processing:** `batch_runner` automates generation cycles, sends Telegram previews (requires `TELEGRAM_BOT_TOKEN` & `TELEGRAM_CHAT_ID`), and processes feedback.
 7.  **Release Packaging:** `release_chain` prepares approved content runs.
 8.  **Metrics & Feedback:** `metrics` module logs performance and feedback.
@@ -41,10 +41,9 @@ graph TD
     end
 
     subgraph External Services
-        LLM_APIs["LLM APIs (DeepSeek, Gemini, Grok, Mistral, ...)"]
+        LLM_APIs["LLM APIs (DeepSeek, Gemini, Grok, Mistral, Anthropic, ...)"]
         Suno["Suno API (Music Gen)"]
         Pexels["Pexels API (Video Assets)"]
-        Luma["Luma API (Video Gen - Placeholder)"]
         Telegram["Telegram Bot API (Notifications, Feedback)"]
     end
 
@@ -57,7 +56,6 @@ graph TD
     Env --> BatchRunner
     Env --> Suno
     Env --> Pexels
-    Env --> Luma
     Env --> Telegram
 
     Builder -- LLM Tasks --> Orchestrator
@@ -69,7 +67,6 @@ graph TD
     BatchRunner -- Uses --> Orchestrator
     BatchRunner -- Uses --> Suno
     BatchRunner -- Uses --> Pexels
-    BatchRunner -- Uses --> Luma
     BatchRunner -- Sends Previews/Receives Feedback --> Telegram
     BatchRunner -- Logs --> Metrics
     BatchRunner -- Creates Releases --> ReleaseChain
@@ -90,7 +87,7 @@ noktvrn_ai_artist/
 ├── .env.example          # Environment variables template
 ├── .github/              # GitHub Actions workflows
 ├── .gitignore
-├── api_clients/          # Clients for external APIs (Suno, Luma, Pexels, Base)
+├── api_clients/          # Clients for external APIs (Suno, Pexels, Base)
 ├── analytics/            # Performance data handling (DB service, Stock Tracker)
 ├── artist_evolution/     # Artist profile evolution logic, style adaptation
 ├── batch_runner/         # Automated generation cycle runner
@@ -141,7 +138,7 @@ streamlit_app/            # Streamlit frontend application (Separate Deployment)
 *   Python 3.10+
 *   Docker & Docker Compose (Recommended for simplified setup)
 *   FFmpeg (Required for some audio/video operations, install system-wide)
-*   API keys/credentials for: Suno.ai, Pexels, DeepSeek, Gemini, Grok, Mistral, Telegram Bot. (Luma key optional/placeholder).
+*   API keys/credentials for: Suno.ai, Pexels, DeepSeek, Gemini, Grok, Mistral, Anthropic (optional), Telegram Bot.
 *   A specific Telegram Chat ID where the bot will operate.
 
 ### Environment Setup
@@ -193,7 +190,6 @@ Contributions are welcome! Please read our [Contribution Guide](CONTRIBUTION_GUI
 *   **Status:** Core integration complete. Ready for initial production testing.
 *   **Key Features:** Multi-LLM support (DeepSeek, Gemini, Grok, Mistral) with fallback, integrated production API keys, automated batch processing with Telegram feedback loop, metrics logging, release packaging.
 *   **Known Issues/Placeholders:**
-    *   `LUMA_API_KEY` not provided.
     *   `TELEGRAM_CHAT_ID` requires manual configuration in `.env`.
     *   Intelligent LLM routing is a placeholder.
     *   Several older modules (`artist_builder`, etc.) need review/refactoring.

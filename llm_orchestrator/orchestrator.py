@@ -1,9 +1,13 @@
+# llm_orchestrator/orchestrator.py Modification
+
 """
-Orchestrator Module - Multi-Provider Support with Fallback
+Orchestrator Module - Multi-Provider Support with Fallback & Auto-Discovery
 
 This module provides the core orchestration functionality for LLM interactions,
-supporting multiple providers (OpenAI, DeepSeek, Grok, Gemini, Mistral)
+supporting multiple providers (OpenAI, DeepSeek, Grok, Gemini, Mistral, Anthropic)
 and implementing inter-provider fallback logic.
+
+Includes basic auto-discovery of models listed in llm_registry.py.
 """
 
 import logging
@@ -61,6 +65,21 @@ except ImportError:
     ChatMessage = None
     print("Warning: mistralai library not found. Mistral functionality will be limited.")
 
+try:
+    from anthropic import AsyncAnthropic, APIError as AnthropicAPIError, RateLimitError as AnthropicRateLimitError
+except ImportError:
+    AsyncAnthropic = None
+    AnthropicAPIError = Exception
+    AnthropicRateLimitError = Exception
+    print("Warning: Anthropic library not found. Claude functionality will be limited.")
+
+# Import the registry
+try:
+    from llm_orchestrator.llm_registry import LLM_REGISTRY
+except ImportError:
+    LLM_REGISTRY = {}
+    print("Warning: llm_registry.py not found or LLM_REGISTRY not defined. Auto-discovery disabled.")
+
 # Configure logging
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO").upper(),
@@ -69,6 +88,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # --- Provider Configuration --- #
+# Enhanced PROVIDER_CONFIG to include Anthropic and check library presence
 PROVIDER_CONFIG = {
     "openai": {
         "api_key_env": "OPENAI_API_KEY",
@@ -91,7 +111,7 @@ PROVIDER_CONFIG = {
     "gemini": {
         "api_key_env": "GEMINI_API_KEY",
         "base_url": None,
-        "client_class": None,
+        "client_class": None, # Special handling
         "library_present": genai is not None
     },
     "mistral": {
@@ -100,13 +120,12 @@ PROVIDER_CONFIG = {
         "client_class": MistralAsyncClient,
         "library_present": MistralAsyncClient is not None
     },
-    # Add Claude support placeholder - requires Anthropic library
-    # "claude": {
-    #     "api_key_env": "ANTHROPIC_API_KEY",
-    #     "base_url": None,
-    #     "client_class": None, # Requires Anthropic client
-    #     "library_present": False # Requires installation and import check
-    # },
+    "anthropic": {
+        "api_key_env": "ANTHROPIC_API_KEY",
+        "base_url": None,
+        "client_class": AsyncAnthropic,
+        "library_present": AsyncAnthropic is not None
+    },
 }
 
 # --- Helper Function to Get Env Var ---
@@ -147,7 +166,7 @@ class LLMProviderInstance:
 class LLMOrchestrator:
     """
     Orchestrates interactions with multiple LLM providers.
-    Supports a primary model and a list of fallback models.
+    Supports a primary model, a list of fallback models, and auto-discovery from registry.
     Handles API key loading, client initialization, and API calls with retries and inter-provider fallback.
     """
 
@@ -156,14 +175,17 @@ class LLMOrchestrator:
         primary_model: str, # e.g., "deepseek-chat"
         fallback_models: Optional[List[str]] = None, # e.g., ["gemini-pro", "mistral-large-latest"]
         config: Optional[Dict[str, Any]] = None,
+        enable_auto_discovery: bool = True, # Flag to enable/disable discovery
     ):
         """
-        Initialize the orchestrator with primary and fallback models.
+        Initialize the orchestrator with primary, fallback, and potentially discovered models.
 
         Args:
-            primary_model: The preferred model to use first.
+            primary_model: The preferred model to use first (e.g., "deepseek:deepseek-chat").
             fallback_models: A list of model names to try in order if the primary fails.
             config: Additional configuration (e.g., temperature, max_retries, initial_delay).
+            enable_auto_discovery: If True, attempts to add models from LLM_REGISTRY
+                                     that are not already in primary/fallback.
         """
         self.config = config or {}
         self.max_retries_per_provider = self.config.get("max_retries", 3)
@@ -171,31 +193,52 @@ class LLMOrchestrator:
 
         self.providers: Dict[str, LLMProviderInstance] = {}
         self.model_preference: List[Tuple[str, str]] = [] # List of (provider, model_name)
+        self.initialized_models = set() # Keep track of (provider, model) tuples added
 
         # Initialize primary model
         self._add_provider(primary_model)
 
-        # Initialize fallback models
+        # Initialize explicit fallback models
         if fallback_models:
-            for model_name in fallback_models:
-                self._add_provider(model_name)
+            for model_identifier in fallback_models:
+                self._add_provider(model_identifier)
+
+        # Auto-discovery from registry
+        if enable_auto_discovery and LLM_REGISTRY:
+            logger.info("Attempting auto-discovery of models from registry...")
+            for provider, data in LLM_REGISTRY.items():
+                if provider in PROVIDER_CONFIG: # Only consider providers we know how to handle
+                    for model_name in data.get("models", []):
+                        if (provider, model_name) not in self.initialized_models:
+                            logger.debug(f"Registry Discovery: Attempting to add {provider}:{model_name}")
+                            # Use explicit provider:model format for clarity
+                            self._add_provider(f"{provider}:{model_name}")
+                else:
+                    logger.debug(f"Skipping registry provider \t{provider}\t: Not in PROVIDER_CONFIG")
 
         if not self.model_preference:
             raise ValueError("No valid LLM providers could be initialized.")
 
-        logger.info(f"LLM Orchestrator initialized. Preference: {self.model_preference}")
+        logger.info(f"LLM Orchestrator initialized. Final Preference Order: {self.model_preference}")
 
     def _infer_provider(self, model_name: str) -> str:
-        """Infers the provider based on common model name prefixes."""
+        """Infers the provider based on common model name prefixes or registry."""
         model_lower = model_name.lower()
-        # Add more specific checks if needed
+        # Check common prefixes first
         if model_lower.startswith("gpt-"): return "openai"
         if model_lower.startswith("deepseek-"): return "deepseek"
         if model_lower.startswith("grok-"): return "grok"
         if model_lower.startswith("gemini-") or model_lower.startswith("gemma-"): return "gemini"
         if model_lower.startswith("mistral-") or model_lower.startswith("open-mixtral-") or model_lower.startswith("codestral-"): return "mistral"
-        # if model_lower.startswith("claude-"): return "claude"
-        logger.warning(f"Could not infer provider for \'{model_name}\'. Specify provider if ambiguous (e.g., \'openai:gpt-3.5-turbo\'). Defaulting to openai.")
+        if model_lower.startswith("claude-"): return "anthropic"
+
+        # If no prefix match, check the registry
+        for provider, data in LLM_REGISTRY.items():
+            if model_name in data.get("models", []):
+                logger.debug(f"Inferred provider \t{provider}\t for model \t{model_name}\t from registry.")
+                return provider
+
+        logger.warning(f"Could not infer provider for \"{model_name}\". Specify provider if ambiguous (e.g., \"openai:gpt-3.5-turbo\"). Defaulting to openai.")
         return "openai"
 
     def _add_provider(self, model_identifier: str):
@@ -207,18 +250,26 @@ class LLMOrchestrator:
             model_name = model_identifier
             provider = self._infer_provider(model_name)
 
+        # Check if already processed this specific provider/model combination
+        if (provider, model_name) in self.initialized_models:
+            logger.debug(f"Skipping already initialized model: {provider}:{model_name}")
+            return
+
         if provider not in PROVIDER_CONFIG:
             logger.warning(f"Skipping unsupported provider: {provider}")
+            self.initialized_models.add((provider, model_name)) # Mark as processed even if skipped
             return
 
         provider_info = PROVIDER_CONFIG[provider]
         if not provider_info["library_present"]:
-            logger.warning(f"Skipping provider {provider}: Required library not installed.")
+            logger.warning(f"Skipping provider {provider} model {model_name}: Required library not installed.")
+            self.initialized_models.add((provider, model_name))
             return
 
         api_key = get_env_var(provider_info["api_key_env"])
         if not api_key:
-            logger.warning(f"Skipping provider {provider}: API key ({provider_info['api_key_env']}) not found in environment.")
+            logger.warning(f"Skipping provider {provider} model {model_name}: API key ({provider_info['api_key_env']}) not found in environment.")
+            self.initialized_models.add((provider, model_name))
             return
 
         # Use a unique key for the providers dictionary, e.g., provider:model_name
@@ -228,13 +279,17 @@ class LLMOrchestrator:
                 instance = LLMProviderInstance(provider, model_name, api_key, self.config)
                 self.providers[provider_key] = instance
                 self.model_preference.append((provider, model_name))
+                self.initialized_models.add((provider, model_name))
                 logger.info(f"Successfully added provider: {provider}, model: {model_name}")
             except (ImportError, ValueError, LLMOrchestratorError) as e:
                 logger.error(f"Failed to initialize provider {provider} model {model_name}: {e}")
+                self.initialized_models.add((provider, model_name)) # Mark as processed even if failed
         else:
-             # Already added, ensure it's in preference list if needed (e.g., primary specified again in fallback)
+             # Should not happen with the initialized_models check, but log if it does
+             logger.debug(f"Provider key {provider_key} already exists in self.providers, but was not in initialized_models. Adding to preference list.")
              if (provider, model_name) not in self.model_preference:
                  self.model_preference.append((provider, model_name))
+             self.initialized_models.add((provider, model_name))
 
 
     async def _call_provider_with_retry(
@@ -272,14 +327,20 @@ class LLMOrchestrator:
                     gen_config = genai.types.GenerationConfig(max_output_tokens=max_tokens, temperature=temperature)
                     safety = self.config.get("gemini_safety_settings", DEFAULT_GEMINI_SAFETY_SETTINGS)
                     response = await client.generate_content_async(prompt, generation_config=gen_config, safety_settings=safety)
-                    if not response.candidates: raise LLMOrchestratorError(f"Gemini blocked: {response.prompt_feedback.block_reason if response.prompt_feedback else 'Unknown'}")
+                    if not response.candidates:
+                        block_reason = response.prompt_feedback.block_reason if response.prompt_feedback else "Unknown"
+                        logger.warning(f"Gemini blocked prompt for model {model_name}. Reason: {block_reason}")
+                        raise LLMOrchestratorError(f"Gemini blocked: {block_reason}")
                     content = response.candidates[0].content.parts[0].text if response.candidates[0].content and response.candidates[0].content.parts else None
                     usage = response.usage_metadata
                     if content:
                         if usage: logger.info(f"Gemini API call successful. Usage: Prompt={usage.prompt_token_count}, Completion={usage.candidates_token_count}, Total={usage.total_token_count}")
                         else: logger.info("Gemini API call successful. Usage data unavailable.")
                         return content.strip()
-                    else: raise LLMOrchestratorError(f"Gemini empty response. Finish reason: {response.candidates[0].finish_reason if response.candidates else 'Unknown'}")
+                    else:
+                        finish_reason = response.candidates[0].finish_reason if response.candidates else "Unknown"
+                        logger.warning(f"Gemini returned empty content for model {model_name}. Finish reason: {finish_reason}")
+                        raise LLMOrchestratorError(f"Gemini empty response. Finish reason: {finish_reason}")
 
                 elif provider == "mistral":
                     if not MistralAsyncClient or not ChatMessage: raise ImportError("Mistral library required.")
@@ -293,22 +354,33 @@ class LLMOrchestrator:
                         return content.strip()
                     else: raise LLMOrchestratorError(f"Mistral response format invalid: {response}")
 
-                # Add Claude logic here if/when implemented
-                # elif provider == "claude":
-                #     # ... Claude API call logic ...
-                #     pass
+                elif provider == "anthropic":
+                    if not AsyncAnthropic: raise ImportError("Anthropic library required.")
+                    response = await client.messages.create(
+                        model=model_name,
+                        messages=[{"role": "user", "content": prompt}],
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                    )
+                    content = response.content[0].text if response.content else None
+                    usage = response.usage
+                    if content:
+                        if usage: logger.info(f"Anthropic API call successful. Usage: Input={usage.input_tokens}, Output={usage.output_tokens}")
+                        else: logger.info("Anthropic API call successful. Usage data unavailable.")
+                        return content.strip()
+                    else: raise LLMOrchestratorError(f"Anthropic response format invalid: {response}")
 
                 else:
                     # Should not be reached if provider config is correct
-                    raise LLMOrchestratorError(f"Provider '{provider}' logic not implemented.")
+                    raise LLMOrchestratorError(f"Provider \t{provider}\t logic not implemented.")
 
-            except RateLimitError as e:
+            except (RateLimitError, AnthropicRateLimitError) as e:
                 retries += 1
                 logger.warning(f"{provider} rate limit. Retrying in {delay:.1f}s... ({retries}/{self.max_retries_per_provider})")
                 last_exception = e
                 await asyncio.sleep(delay)
                 delay *= 2
-            except APIError as e:
+            except (APIError, AnthropicAPIError) as e:
                 retries += 1
                 logger.warning(f"{provider} API error: {e}. Retrying in {delay:.1f}s... ({retries}/{self.max_retries_per_provider})")
                 last_exception = e
@@ -333,124 +405,93 @@ class LLMOrchestrator:
                     await asyncio.sleep(delay)
                     delay *= 2
                 else:
-                    break # Break inner loop after one retry for unexpected
+                    break # Break inner loop after one retry for unexpected errors
 
-        # If loop finishes without returning, raise the last exception
-        raise LLMOrchestratorError(f"{provider} model {model_name} failed after {retries} retries.") from last_exception
+        # If loop finishes without returning, raise the last known exception or a generic error
+        if last_exception:
+            raise last_exception
+        else:
+            raise LLMOrchestratorError(f"Provider {provider} failed after {self.max_retries_per_provider} retries.")
 
-    async def generate_text(
-        self, prompt: str, max_tokens: int = 1024, temperature: float = 0.7
+    async def generate(
+        self,
+        prompt: str,
+        max_tokens: int = 1024,
+        temperature: float = 0.7,
+        # Add specific_model parameter if needed to target one model
+        # specific_model: Optional[str] = None
     ) -> str:
         """
-        Generates text using the preferred model, falling back to others if necessary.
+        Generates text using the configured LLM providers with fallback.
+
+        Iterates through the model_preference list, attempting to call each provider.
+        If a provider fails (after internal retries), it moves to the next in the list.
+
+        Args:
+            prompt: The input prompt for the LLM.
+            max_tokens: Maximum number of tokens to generate.
+            temperature: Sampling temperature.
+
+        Returns:
+            The generated text content.
+
+        Raises:
+            LLMOrchestratorError: If all configured providers fail.
         """
         last_error = None
         for provider, model_name in self.model_preference:
             provider_key = f"{provider}:{model_name}"
-            if provider_key not in self.providers:
-                logger.warning(f"Provider instance {provider_key} not found, skipping.")
-                continue
+            if provider_key in self.providers:
+                provider_instance = self.providers[provider_key]
+                try:
+                    logger.info(f"Attempting generation with: {provider}:{model_name}")
+                    result = await self._call_provider_with_retry(
+                        provider_instance,
+                        prompt=prompt,
+                        max_tokens=max_tokens,
+                        temperature=temperature
+                    )
+                    logger.info(f"Successfully generated content using {provider}:{model_name}")
+                    return result
+                except Exception as e:
+                    logger.warning(f"Generation failed with {provider}:{model_name}. Error: {e}. Trying next provider...")
+                    last_error = e
+            else:
+                # This should ideally not happen if initialization is correct
+                logger.error(f"Provider instance not found for {provider_key} during generation attempt.")
 
-            provider_instance = self.providers[provider_key]
-            logger.info(f"Attempting generation with: {provider} / {model_name}")
-            try:
-                result = await self._call_provider_with_retry(
-                    provider_instance, prompt, max_tokens, temperature
-                )
-                logger.info(f"Successfully generated text using {provider} / {model_name}.")
-                return result
-            except Exception as e:
-                logger.warning(f"Generation failed with {provider} / {model_name}: {e}. Trying next provider.")
-                last_error = e
-                # Optional: Add a small delay before trying the next provider
-                await asyncio.sleep(0.5)
-
-        # If all providers failed
-        error_msg = "All configured LLM providers failed to generate text."
-        logger.critical(error_msg)
+        # If loop completes without returning, all providers failed
+        logger.critical("All configured LLM providers failed.")
         if last_error:
-            raise LLMOrchestratorError(error_msg) from last_error
+            raise LLMOrchestratorError(f"All LLM providers failed. Last error: {last_error}") from last_error
         else:
-            raise LLMOrchestratorError(error_msg)
+            raise LLMOrchestratorError("All LLM providers failed. No providers were available or initialized correctly.")
 
-    # --- Placeholder for Intelligent Routing --- #
-    # This section requires significant future work: cost analysis, performance benchmarking,
-    # task-specific model selection logic, etc.
-    def _select_best_model_for_task(self, task_type: str, prompt_length: int) -> Tuple[str, str]:
-        """Placeholder for intelligent model selection based on task characteristics."""
-        logger.warning("Intelligent model routing not implemented. Using default preference order.")
-        # Basic example: maybe use a cheaper model for short summaries?
-        # if task_type == "summary" and prompt_length < 500:
-        #     # Try to find a specific model known to be cheap/fast for summaries
-        #     pass
-        # Default to the primary model in the preference list
-        if self.model_preference:
-            return self.model_preference[0]
-        else:
-            raise LLMOrchestratorError("No models available in preference list.")
-
-    async def generate_text_intelligently(
-        self, prompt: str, task_type: str = "general", max_tokens: int = 1024, temperature: float = 0.7
-    ) -> str:
-        """
-        Generates text, attempting intelligent model selection first (currently placeholder).
-        Falls back to the standard preference list if intelligent selection fails or isn't implemented.
-        """
-        try:
-            # Placeholder: Select best model (currently just returns the first preference)
-            best_provider, best_model = self._select_best_model_for_task(task_type, len(prompt))
-            provider_key = f"{best_provider}:{best_model}"
-            provider_instance = self.providers[provider_key]
-
-            logger.info(f"Intelligently selected: {best_provider} / {best_model} for task type '{task_type}'")
-            result = await self._call_provider_with_retry(
-                provider_instance, prompt, max_tokens, temperature
-            )
-            logger.info(f"Successfully generated text using intelligently selected {best_provider} / {best_model}.")
-            return result
-        except Exception as e:
-            logger.warning(f"Intelligent selection/generation failed: {e}. Falling back to standard preference list.")
-            # Fallback to the standard generate_text method which iterates through all preferences
-            return await self.generate_text(prompt, max_tokens, temperature)
-
-
-# --- Example Usage --- #
+# --- Example Usage ---
 async def main():
-    logging.basicConfig(level=logging.INFO)
-    logger.info("Starting LLM Orchestrator example...")
+    # Example: Prioritize DeepSeek, fallback to Gemini, then Mistral, auto-discover others
+    primary = "deepseek:deepseek-chat"
+    fallbacks = ["gemini:gemini-1.5-pro-latest", "mistral:mistral-large-latest"]
 
-    # Example: Use DeepSeek first, fallback to Gemini, then Mistral
-    # Ensure relevant API keys are in the .env file
+    # Ensure API keys are set in .env for the models you want to test
+    # e.g., DEEPSEEK_API_KEY, GEMINI_API_KEY, MISTRAL_API_KEY, ANTHROPIC_API_KEY etc.
+
     try:
-        orchestrator = LLMOrchestrator(
-            primary_model="deepseek-chat",
-            fallback_models=["gemini-1.5-flash", "mistral-large-latest"],
-            config={"max_retries": 2, "initial_delay": 0.5}
-        )
+        orchestrator = LLMOrchestrator(primary_model=primary, fallback_models=fallbacks, enable_auto_discovery=True)
+
+        test_prompt = "Write a short poem about a robot discovering music."
+        print(f"\n--- Generating with prompt: \"{test_prompt}\" ---")
+        generated_text = await orchestrator.generate(test_prompt, max_tokens=150)
+        print("\nGenerated Text:")
+        print(generated_text)
+
+    except ValueError as e:
+        print(f"Initialization Error: {e}")
+    except LLMOrchestratorError as e:
+        print(f"Generation Error: {e}")
     except Exception as e:
-        logger.error(f"Failed to initialize orchestrator: {e}")
-        return
-
-    prompt = "Write a short poem about a robot learning to dream."
-
-    logger.info("--- Testing Standard Generation (with fallback) ---")
-    try:
-        response = await orchestrator.generate_text(prompt, max_tokens=100)
-        logger.info(f"\nGenerated Text:\n{response}\n")
-    except LLMOrchestratorError as e:
-        logger.error(f"Standard generation failed: {e}")
-
-    logger.info("--- Testing Intelligent Generation (placeholder) ---")
-    try:
-        response_intelligent = await orchestrator.generate_text_intelligently(
-            prompt, task_type="creative_writing", max_tokens=100
-        )
-        logger.info(f"\nIntelligently Generated Text:\n{response_intelligent}\n")
-    except LLMOrchestratorError as e:
-        logger.error(f"Intelligent generation failed: {e}")
+        print(f"An unexpected error occurred: {e}")
 
 if __name__ == "__main__":
-    # Make sure API keys are set in .env file in the project root
-    # e.g., DEEPSEEK_API_KEY=..., GEMINI_API_KEY=..., MISTRAL_API_KEY=...
     asyncio.run(main())
 

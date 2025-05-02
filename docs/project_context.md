@@ -11,7 +11,7 @@ As of May 2025, the system has reached a "Production Ready v1.0" state, focusing
 
 ### Implemented Features & Capabilities
 - **Multi-Provider LLM Orchestration:** Centralized management (`llm_orchestrator.py`) of interactions with DeepSeek, Gemini, Grok, Mistral, and OpenAI (optional), featuring API key loading, client initialization, request retries, and inter-provider fallback.
-- **API Integration:** Clients for Suno (music), Pexels (video assets), and Luma (video gen - placeholder) are integrated, using production credentials loaded from `.env`.
+- **API Integration:** Clients for Suno (music) and Pexels (video assets) are integrated, using production credentials loaded from `.env`.
 - **Batch Processing:** Automated content generation cycles (`batch_runner.py`) with Telegram integration for previews and feedback (requires `TELEGRAM_CHAT_ID` configuration).
 - **Release Packaging:** `release_chain.py` prepares approved content runs for potential distribution.
 - **Metrics & Feedback:** Basic logging (`metrics/metrics_logger.py`) and Telegram feedback capture (`metrics/telegram_feedback_log.py`) are in place.
@@ -24,7 +24,7 @@ As of May 2025, the system has reached a "Production Ready v1.0" state, focusing
 ### Current Architecture
 The system follows a modular architecture. Key active components include:
 - **LLM Orchestrator**: Manages multi-provider LLM interactions with fallback.
-- **API Clients**: Standardized interfaces for Suno, Pexels, Luma (placeholder).
+- **API Clients**: Standardized interfaces for Suno, Pexels.
 - **Batch Runner**: Automates generation cycles and Telegram interaction.
 - **Release Chain**: Packages approved runs.
 - **Metrics**: Logs performance and feedback.

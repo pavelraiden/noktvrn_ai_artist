@@ -7,7 +7,6 @@ CREATE TABLE IF NOT EXISTS approved_releases (
     track_prompt TEXT,                 -- Prompt used for track generation
     video_prompt TEXT,                 -- Prompt used for video generation
     suno_clip_id VARCHAR(255),         -- ID from the Suno API
-    luma_generation_id VARCHAR(255),   -- ID from the Luma API
     track_url TEXT,                    -- URL of the approved track
     video_url TEXT,                    -- URL of the approved video
     approved_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,

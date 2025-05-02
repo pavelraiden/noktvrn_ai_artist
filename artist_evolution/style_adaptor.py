@@ -13,7 +13,7 @@ def adapt_generation_parameters(artist_profile: Dict[str, Any]) -> Dict[str, Any
 
     This function translates the high-level profile attributes (genres, keywords)
     into more concrete parameters that might be used by generation services
-    (like Suno prompt adjustments, Luma style references, etc.).
+    (like Suno prompt adjustments, stock video keywords, etc.).
 
     Args:
         artist_profile: The evolved artist profile dictionary.
@@ -21,12 +21,11 @@ def adapt_generation_parameters(artist_profile: Dict[str, Any]) -> Dict[str, Any
     Returns:
         A dictionary containing adapted parameters for content generation.
         The structure of this dictionary depends heavily on how the generation
-        services (Suno, Luma, etc.) are prompted or configured.
+        services (Suno, Pexels, etc.) are prompted or configured.
     """
     logger.info(f"Adapting generation parameters for artist ID: {artist_profile.get("id")}")
     adapted_params = {
         "suno_prompt_modifiers": [],
-        "luma_style_reference": None, # Placeholder for potential Luma style image/prompt
         "video_keywords": [] # Keywords for stock video search
     }
 
@@ -50,15 +49,6 @@ def adapt_generation_parameters(artist_profile: Dict[str, Any]) -> Dict[str, Any
         adapted_params["suno_prompt_modifiers"] = list(dict.fromkeys(prompt_parts))[:4] # Limit total modifiers
         logger.debug(f"Suno prompt modifiers: {adapted_params["suno_prompt_modifiers"]}")
 
-        # --- Luma Style Adaptation --- 
-        # Placeholder: Could involve selecting a reference image based on keywords
-        # or generating a specific style prompt for Luma.
-        if "cinematic" in keywords:
-            adapted_params["luma_style_reference"] = "cinematic lighting, high detail"
-        elif "retro" in keywords:
-             adapted_params["luma_style_reference"] = "80s film grain, neon glow"
-        logger.debug(f"Luma style reference: {adapted_params["luma_style_reference"]}")
-
         # --- Stock Video Keyword Adaptation --- 
         # Use genres and keywords for video search
         video_elements = keywords + genres
@@ -68,7 +58,6 @@ def adapt_generation_parameters(artist_profile: Dict[str, Any]) -> Dict[str, Any
         # --- TODO: Integration Point --- 
         # These adapted_params would then be passed to the respective service calls:
         # - track_service.generate_track(..., prompt_modifiers=adapted_params["suno_prompt_modifiers"])
-        # - video_service.generate_video(..., style_reference=adapted_params["luma_style_reference"])
         # - video_selector.select_stock_videos(..., query_keywords=adapted_params["video_keywords"])
 
         logger.info(f"Successfully adapted generation parameters for artist ID: {artist_profile.get("id")}")
@@ -81,7 +70,7 @@ def adapt_generation_parameters(artist_profile: Dict[str, Any]) -> Dict[str, Any
 # Example Usage (for testing purposes)
 if __name__ == "__main__":
     import json
-    logging.basicConfig(level=logging.DEBUG, format=	%(asctime)s - %(name)s - %(levelname)s - %(message)s	)
+    logging.basicConfig(level=logging.DEBUG, format=	'%(asctime)s - %(name)s - %(levelname)s - %(message)s	)
 
     # Example evolved profile (could come from artist_evolution_service)
     test_profile = {

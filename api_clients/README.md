@@ -6,7 +6,6 @@ This module contains clients for interacting with external APIs used by the AI A
 
 *   `base_client.py`: Provides a base class for API clients, handling common functionalities like request retries and error handling.
 *   `suno_client.py`: Client for interacting with the Suno API (for track generation).
-*   `luma_client.py`: Client for interacting with the Luma API (for video generation).
 
 ## New Clients (Production Phase)
 
@@ -19,7 +18,7 @@ This module contains clients for interacting with external APIs used by the AI A
 
 ## Usage
 
-1.  Obtain necessary API keys for each service (Suno, Luma, Pexels).
+1.  Obtain necessary API keys for each service (Suno, Pexels).
 2.  Set the API keys as environment variables (e.g., `PEXELS_API_KEY`).
 3.  Import the desired client (e.g., `from noktvrn_ai_artist.api_clients.pexels_client import PexelsClient`).
 4.  Instantiate the client: `pexels = PexelsClient()`.
