@@ -15,7 +15,7 @@ LLM_REGISTRY = {
             "gpt-4o",
             "gpt-4-turbo",
             "gpt-3.5-turbo",
-            "gpt-4o-mini", # Added as per instructions
+            "gpt-4o-mini",  # Added as per instructions
         ]
     },
     "deepseek": {
@@ -26,14 +26,14 @@ LLM_REGISTRY = {
     },
     "grok": {
         "models": [
-            "grok-1", # Added as per instructions (assuming Grok3 refers to this or similar)
+            "grok-1",  # Added as per instructions (assuming Grok3 refers to this or similar)
             # Add other Grok models if known, e.g., grok-1.5
         ]
     },
     "gemini": {
         "models": [
-            "gemini-1.5-pro-latest", # Added as per instructions
-            "gemini-pro", # Existing standard model
+            "gemini-1.5-pro-latest",  # Added as per instructions
+            "gemini-pro",  # Existing standard model
             "gemini-1.0-pro",
             "gemini-1.5-flash-latest",
         ]
@@ -47,15 +47,16 @@ LLM_REGISTRY = {
             "codestral-latest",
         ]
     },
-    "anthropic": { # Added provider for Claude
-         "models": [
-             "claude-3-opus-20240229", # Added as per instructions
-             "claude-3-sonnet-20240229",
-             "claude-3-haiku-20240307",
-         ]
-     }
+    "anthropic": {  # Added provider for Claude
+        "models": [
+            "claude-3-opus-20240229",  # Added as per instructions
+            "claude-3-sonnet-20240229",
+            "claude-3-haiku-20240307",
+        ]
+    },
     # Add other providers and their models as needed
 }
+
 
 # Function to potentially load/update this registry from a file or external source in the future
 def load_registry():
@@ -63,7 +64,8 @@ def load_registry():
     # In the future, this could load from a JSON/YAML file or query APIs.
     return LLM_REGISTRY
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     # Example of accessing the registry
     registry = load_registry()
     print("Available Providers and Models:")
@@ -71,4 +73,3 @@ if __name__ == '__main__':
         print(f"- {provider.capitalize()}:")
         for model in data.get("models", []):
             print(f"  - {model}")
-

@@ -33,6 +33,7 @@ class UpdateHistoryItem(BaseModel):
 
 class TrendAlignmentBehavior(str, Enum):
     """Enum for trend alignment behavior options."""
+
     STRICT = "strict"
     SOFT = "soft"
     EXPERIMENTAL = "experimental"
@@ -45,12 +46,12 @@ class BehaviorEvolutionSettings(BaseModel):
     allow_personality_shifts: bool = True
     safe_mode: bool = True
     evolution_speed: str = Field(
-        default="medium", 
-        description="How quickly the artist evolves: 'slow', 'medium', or 'fast'"
+        default="medium",
+        description="How quickly the artist evolves: 'slow', 'medium', or 'fast'",
     )
     preserve_core_identity: bool = Field(
         default=True,
-        description="Whether to maintain core identity elements during evolution"
+        description="Whether to maintain core identity elements during evolution",
     )
 
     @validator("evolution_speed")
@@ -119,20 +120,20 @@ class ReleaseStrategy(BaseModel):
 
 class SocialMediaPresence(BaseModel):
     """Social media presence configuration for the artist."""
-    
+
     platforms: List[str] = Field(
         default=["instagram", "tiktok", "twitter"],
-        description="Social media platforms where the artist is present"
+        description="Social media platforms where the artist is present",
     )
     posting_style: str = Field(
         default="casual",
-        description="Style of social media posts: 'casual', 'professional', or 'mysterious'"
+        description="Style of social media posts: 'casual', 'professional', or 'mysterious'",
     )
     engagement_strategy: str = Field(
         default="moderate",
-        description="How actively the artist engages: 'passive', 'moderate', or 'active'"
+        description="How actively the artist engages: 'passive', 'moderate', or 'active'",
     )
-    
+
     @validator("posting_style")
     def validate_posting_style(cls, v):
         """Validate that posting style is one of the allowed values."""
@@ -142,7 +143,7 @@ class SocialMediaPresence(BaseModel):
                 f"posting_style must be one of: {', '.join(allowed_values)}"
             )
         return v
-        
+
     @validator("engagement_strategy")
     def validate_engagement_strategy(cls, v):
         """Validate that engagement strategy is one of the allowed values."""
@@ -152,7 +153,7 @@ class SocialMediaPresence(BaseModel):
                 f"engagement_strategy must be one of: {', '.join(allowed_values)}"
             )
         return v
-    
+
     class Config:
         from_attributes = True
 
@@ -174,8 +175,7 @@ class ArtistProfileSettings(BaseModel):
         default_factory=SocialMediaPresence
     )
     performance_metrics_tracking: bool = Field(
-        default=True,
-        description="Whether to track performance metrics for this artist"
+        default=True, description="Whether to track performance metrics for this artist"
     )
 
     class Config:
@@ -207,26 +207,23 @@ class ArtistProfile(BaseModel):
     notes: Optional[str] = None
     settings: ArtistProfileSettings
     backstory: str = Field(
-        default="",
-        description="The artist's fictional backstory and history"
+        default="", description="The artist's fictional backstory and history"
     )
     influences: List[str] = Field(
-        default=[],
-        description="Artists or genres that influence this artist's style"
+        default=[], description="Artists or genres that influence this artist's style"
     )
-    
+
     # Database integration fields
     is_active: bool = Field(
-        default=True,
-        description="Whether the artist is currently active"
+        default=True, description="Whether the artist is currently active"
     )
     last_content_date: Optional[date] = None
     performance_rating: Optional[float] = None
-    
+
     # Content planning fields
     current_content_plan_id: Optional[str] = None
     content_plan_end_date: Optional[date] = None
-    
+
     # Additional fields for backward compatibility
     source_prompt: Optional[str] = None
     session_id: Optional[str] = None
@@ -271,16 +268,18 @@ class ArtistProfile(BaseModel):
         if not v:
             raise ValueError("At least one personality trait must be provided")
         return v
-        
-    @model_validator(mode='after')
+
+    @model_validator(mode="after")
     def check_content_plan_consistency(self):
         """Ensure content plan fields are consistent."""
         has_plan_id = self.current_content_plan_id is not None
         has_end_date = self.content_plan_end_date is not None
-        
+
         if has_plan_id != has_end_date:
-            raise ValueError("Both current_content_plan_id and content_plan_end_date must be provided together")
-            
+            raise ValueError(
+                "Both current_content_plan_id and content_plan_end_date must be provided together"
+            )
+
         return self
 
     class Config:
@@ -301,7 +300,7 @@ class ArtistProfile(BaseModel):
                 "video_prompt_generator": "retro_futuristic_video_template",
                 "creation_date": "2025-04-15",
                 "backstory": "Neon Horizon emerged from the digital underground in 2025, quickly gaining recognition for blending nostalgic synthwave elements with cutting-edge production techniques.",
-                "influences": ["Kavinsky", "The Midnight", "Gunship"]
+                "influences": ["Kavinsky", "The Midnight", "Gunship"],
             }
         }
 
@@ -335,55 +334,65 @@ def validate_artist_profile(profile_data: dict) -> tuple[bool, list[str]]:
 def create_database_model(profile: ArtistProfile) -> dict:
     """
     Convert a Pydantic ArtistProfile model to a format suitable for database storage.
-    
+
     Args:
         profile: The validated artist profile
-        
+
     Returns:
         dict: The profile in a format ready for database insertion
     """
     # Convert to dict with orm_mode enabled
     db_model = profile.model_dump()
-    
+
     # Ensure nested models are also converted properly
     db_model["settings"] = profile.settings.model_dump()
-    db_model["settings"]["release_strategy"] = profile.settings.release_strategy.model_dump()
-    db_model["settings"]["llm_assignments"] = profile.settings.llm_assignments.model_dump()
-    db_model["settings"]["behavior_evolution_settings"] = profile.settings.behavior_evolution_settings.model_dump()
-    db_model["settings"]["social_media_presence"] = profile.settings.social_media_presence.model_dump()
-    
+    db_model["settings"][
+        "release_strategy"
+    ] = profile.settings.release_strategy.model_dump()
+    db_model["settings"][
+        "llm_assignments"
+    ] = profile.settings.llm_assignments.model_dump()
+    db_model["settings"][
+        "behavior_evolution_settings"
+    ] = profile.settings.behavior_evolution_settings.model_dump()
+    db_model["settings"][
+        "social_media_presence"
+    ] = profile.settings.social_media_presence.model_dump()
+
     # Convert update history items
     db_model["update_history"] = [item.model_dump() for item in profile.update_history]
-    
+
     return db_model
 
 
 def update_artist_profile(profile: ArtistProfile, updates: dict) -> ArtistProfile:
     """
     Update an artist profile with new values and record the update in history.
-    
+
     Args:
         profile: The existing artist profile
         updates: Dictionary of fields to update
-        
+
     Returns:
         ArtistProfile: The updated profile
     """
     # Track which fields are being updated
     updated_fields = list(updates.keys())
-    
+
     # Create update history item
     update_item = UpdateHistoryItem(
         update_date=datetime.now().date(),
         updated_fields=updated_fields,
         update_reason=updates.pop("update_reason", None),
-        update_source=updates.pop("update_source", None)
+        update_source=updates.pop("update_source", None),
     )
-    
+
     # Add to update history
     profile_dict = profile.model_dump()
-    profile_dict["update_history"] = profile_dict.get("update_history", []) + [update_item.model_dump()]
-    
+    profile_dict["update_history"] = profile_dict.get("update_history", []) + [
+        update_item.model_dump()
+    ]
+
     # Apply updates
     for key, value in updates.items():
         if "." in key:
@@ -398,6 +407,6 @@ def update_artist_profile(profile: ArtistProfile, updates: dict) -> ArtistProfil
         else:
             # Handle top-level fields
             profile_dict[key] = value
-    
+
     # Create new profile with updates
     return ArtistProfile(**profile_dict)

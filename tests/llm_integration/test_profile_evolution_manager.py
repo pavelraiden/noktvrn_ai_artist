@@ -9,13 +9,17 @@ import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
 
 # Adjust import path based on test file location
-from ...ai_artist_system.noktvrn_ai_artist.artist_builder.profile_evolution.profile_evolution_manager import ProfileEvolutionManager
+from ...ai_artist_system.noktvrn_ai_artist.artist_builder.profile_evolution.profile_evolution_manager import (
+    ProfileEvolutionManager,
+)
+
 
 # Mock environment variables needed by LLMOrchestrator
 @pytest.fixture(autouse=True)
 def mock_env_vars(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "test_api_key")
     monkeypatch.setenv("OPENAI_MODEL_NAME", "gpt-test-model")
+
 
 @pytest.fixture
 def mock_db_manager():
@@ -25,7 +29,8 @@ def mock_db_manager():
     cur = AsyncMock()
     manager.get_connection.return_value.__aenter__.return_value = conn
     conn.cursor.return_value.__aenter__.return_value = cur
-    return manager, cur # Return manager and cursor for setting expectations
+    return manager, cur  # Return manager and cursor for setting expectations
+
 
 @pytest.fixture
 def mock_llm_orchestrator():
@@ -33,8 +38,11 @@ def mock_llm_orchestrator():
     orchestrator_instance = AsyncMock()
     return orchestrator_instance
 
+
 @pytest.fixture
-@patch("ai_artist_system.noktvrn_ai_artist.artist_builder.profile_evolution.profile_evolution_manager.LLMOrchestrator")
+@patch(
+    "ai_artist_system.noktvrn_ai_artist.artist_builder.profile_evolution.profile_evolution_manager.LLMOrchestrator"
+)
 def profile_evolver(MockLLMOrchestrator, mock_db_manager, mock_llm_orchestrator):
     """Provides an instance of ProfileEvolutionManager with mocked dependencies."""
     # Configure the mock LLMOrchestrator class to return our instance
@@ -42,8 +50,11 @@ def profile_evolver(MockLLMOrchestrator, mock_db_manager, mock_llm_orchestrator)
     db_manager, _ = mock_db_manager
     return ProfileEvolutionManager(db_manager=db_manager)
 
+
 @pytest.mark.asyncio
-async def test_evolve_description_success(profile_evolver, mock_db_manager, mock_llm_orchestrator):
+async def test_evolve_description_success(
+    profile_evolver, mock_db_manager, mock_llm_orchestrator
+):
     """Test successful description evolution including DB fetch and update."""
     db_manager, mock_cursor = mock_db_manager
     artist_id = "artist_test_1"
@@ -63,16 +74,16 @@ async def test_evolve_description_success(profile_evolver, mock_db_manager, mock
     assert result == evolved_desc
     # Verify DB fetch call
     mock_cursor.execute.assert_any_call(
-        "SELECT profile ->> 'description' FROM artist_profiles WHERE artist_id = %s;", 
-        (artist_id,)
+        "SELECT profile ->> 'description' FROM artist_profiles WHERE artist_id = %s;",
+        (artist_id,),
     )
     # Verify LLM call
     mock_llm_orchestrator.evolve_description.assert_awaited_once_with(
         current_description=current_desc,
         evolution_goal=goal,
-        context=None, # Assuming no context passed in this test
-        max_tokens=512, # Default value
-        temperature=0.8 # Default value
+        context=None,  # Assuming no context passed in this test
+        max_tokens=512,  # Default value
+        temperature=0.8,  # Default value
     )
     # Verify DB update call
     mock_cursor.execute.assert_any_call(
@@ -84,11 +95,14 @@ async def test_evolve_description_success(profile_evolver, mock_db_manager, mock
                                 	true) -- create_missing = true
         WHERE artist_id = %s;
         """,
-        (f'"{evolved_desc}"', artist_id)
+        (f'"{evolved_desc}"', artist_id),
     )
 
+
 @pytest.mark.asyncio
-async def test_evolve_description_fetch_fails(profile_evolver, mock_db_manager, mock_llm_orchestrator):
+async def test_evolve_description_fetch_fails(
+    profile_evolver, mock_db_manager, mock_llm_orchestrator
+):
     """Test evolution fails if fetching current description fails."""
     db_manager, mock_cursor = mock_db_manager
     artist_id = "artist_test_2"
@@ -100,10 +114,13 @@ async def test_evolve_description_fetch_fails(profile_evolver, mock_db_manager, 
     result = await profile_evolver.evolve_artist_profile_description(artist_id, goal)
 
     assert result is None
-    mock_llm_orchestrator.evolve_description.assert_not_awaited() # LLM should not be called
+    mock_llm_orchestrator.evolve_description.assert_not_awaited()  # LLM should not be called
+
 
 @pytest.mark.asyncio
-async def test_evolve_description_llm_fails(profile_evolver, mock_db_manager, mock_llm_orchestrator):
+async def test_evolve_description_llm_fails(
+    profile_evolver, mock_db_manager, mock_llm_orchestrator
+):
     """Test evolution fails if the LLM call fails."""
     db_manager, mock_cursor = mock_db_manager
     artist_id = "artist_test_3"
@@ -118,7 +135,7 @@ async def test_evolve_description_llm_fails(profile_evolver, mock_db_manager, mo
     result = await profile_evolver.evolve_artist_profile_description(artist_id, goal)
 
     assert result is None
-    mock_llm_orchestrator.evolve_description.assert_awaited_once() # LLM was called
+    mock_llm_orchestrator.evolve_description.assert_awaited_once()  # LLM was called
     # Verify DB update was NOT called
     update_call_found = False
     for call in mock_cursor.execute.call_args_list:
@@ -127,8 +144,11 @@ async def test_evolve_description_llm_fails(profile_evolver, mock_db_manager, mo
             break
     assert not update_call_found
 
+
 @pytest.mark.asyncio
-async def test_evolve_description_db_update_fails(profile_evolver, mock_db_manager, mock_llm_orchestrator):
+async def test_evolve_description_db_update_fails(
+    profile_evolver, mock_db_manager, mock_llm_orchestrator
+):
     """Test evolution returns description but logs error if DB update fails."""
     db_manager, mock_cursor = mock_db_manager
     artist_id = "artist_test_4"
@@ -142,15 +162,15 @@ async def test_evolve_description_db_update_fails(profile_evolver, mock_db_manag
     mock_llm_orchestrator.evolve_description.return_value = evolved_desc
     # Mock DB update failure (rowcount = 0)
     # Need to configure the cursor mock for the second execute call (update)
-    # One way is to use side_effect if execute calls differ significantly, 
+    # One way is to use side_effect if execute calls differ significantly,
     # or configure rowcount specifically after the fetch call simulation.
     # Simpler approach: set rowcount before the evolve call, assuming fetch doesn't check it.
-    mock_cursor.rowcount = 0 # Simulate no rows updated
+    mock_cursor.rowcount = 0  # Simulate no rows updated
 
     result = await profile_evolver.evolve_artist_profile_description(artist_id, goal)
 
     # Still returns the description, but an error should be logged (can't check logs easily here)
-    assert result == evolved_desc 
+    assert result == evolved_desc
     mock_llm_orchestrator.evolve_description.assert_awaited_once()
     # Verify DB update was attempted
     update_call_found = False
@@ -159,4 +179,3 @@ async def test_evolve_description_db_update_fails(profile_evolver, mock_db_manag
             update_call_found = True
             break
     assert update_call_found
-

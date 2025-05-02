@@ -2,22 +2,31 @@ import logging
 import os
 from typing import List, Dict, Any, Optional
 
-from ..database.connection_manager import get_db_cursor, init_connection_pool, close_connection_pool
+from ..database.connection_manager import (
+    get_db_cursor,
+    init_connection_pool,
+    close_connection_pool,
+)
 
 logger = logging.getLogger(__name__)
 
+
 class PerformanceDbError(Exception):
     """Custom exception for performance database operations."""
+
     pass
+
 
 def apply_schema():
     """Applies the content_performance.sql schema to the database."""
-    schema_file = os.path.join(os.path.dirname(__file__), '..', 'database', 'schema', 'content_performance.sql')
+    schema_file = os.path.join(
+        os.path.dirname(__file__), "..", "database", "schema", "content_performance.sql"
+    )
     logger.info(f"Attempting to apply schema from: {schema_file}")
     try:
-        with open(schema_file, 'r') as f:
+        with open(schema_file, "r") as f:
             sql_script = f.read()
-        
+
         with get_db_cursor(commit=True) as cursor:
             cursor.execute(sql_script)
         logger.info("Successfully applied content_performance schema.")
@@ -28,13 +37,14 @@ def apply_schema():
         logger.error(f"Error applying content_performance schema: {e}", exc_info=True)
         raise PerformanceDbError(f"Failed to apply schema: {e}")
 
+
 def add_performance_metric(
     release_id: int,
     platform: str,
     metric_type: str,
     metric_value: int,
     source_url: Optional[str] = None,
-    notes: Optional[str] = None
+    notes: Optional[str] = None,
 ) -> int:
     """Adds a new performance metric record to the database.
 
@@ -60,13 +70,22 @@ def add_performance_metric(
     """
     try:
         with get_db_cursor(commit=True) as cursor:
-            cursor.execute(sql, (release_id, platform, metric_type, metric_value, source_url, notes))
+            cursor.execute(
+                sql,
+                (release_id, platform, metric_type, metric_value, source_url, notes),
+            )
             record_id = cursor.fetchone()[0]
-            logger.info(f"Added performance metric record with ID: {record_id} for release_id: {release_id}")
+            logger.info(
+                f"Added performance metric record with ID: {record_id} for release_id: {release_id}"
+            )
             return record_id
     except Exception as e:
-        logger.error(f"Error adding performance metric for release_id {release_id}: {e}", exc_info=True)
+        logger.error(
+            f"Error adding performance metric for release_id {release_id}: {e}",
+            exc_info=True,
+        )
         raise PerformanceDbError(f"Failed to add performance metric: {e}")
+
 
 def get_performance_metrics_for_release(release_id: int) -> List[Dict[str, Any]]:
     """Retrieves all performance metrics for a specific release.
@@ -91,39 +110,61 @@ def get_performance_metrics_for_release(release_id: int) -> List[Dict[str, Any]]
             cursor.execute(sql, (release_id,))
             columns = [desc[0] for desc in cursor.description]
             results = [dict(zip(columns, row)) for row in cursor.fetchall()]
-            logger.info(f"Retrieved {len(results)} performance metrics for release_id: {release_id}")
+            logger.info(
+                f"Retrieved {len(results)} performance metrics for release_id: {release_id}"
+            )
             return results
     except Exception as e:
-        logger.error(f"Error retrieving performance metrics for release_id {release_id}: {e}", exc_info=True)
+        logger.error(
+            f"Error retrieving performance metrics for release_id {release_id}: {e}",
+            exc_info=True,
+        )
         raise PerformanceDbError(f"Failed to retrieve performance metrics: {e}")
+
 
 # Example Usage (for testing purposes)
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
+
     # Assumes DB connection details are in environment variables or defaults
     # Assumes approved_releases table exists and has an entry with id=1
-    TEST_RELEASE_ID = 1 
+    TEST_RELEASE_ID = 1
 
     try:
         init_connection_pool()
-        
+
         # Apply the schema first (idempotent thanks to IF NOT EXISTS)
         apply_schema()
 
         # Add some dummy metrics
         print("\n--- Adding Metrics ---")
-        metric_id_1 = add_performance_metric(TEST_RELEASE_ID, 'YouTube', 'views', 10500, source_url='http://youtube.com/watch?v=xyz')
-        metric_id_2 = add_performance_metric(TEST_RELEASE_ID, 'YouTube', 'likes', 320)
-        metric_id_3 = add_performance_metric(TEST_RELEASE_ID, 'Spotify', 'streams', 25000)
-        metric_id_4 = add_performance_metric(TEST_RELEASE_ID, 'TikTok', 'views', 150000, notes='Initial surge')
+        metric_id_1 = add_performance_metric(
+            TEST_RELEASE_ID,
+            "YouTube",
+            "views",
+            10500,
+            source_url="http://youtube.com/watch?v=xyz",
+        )
+        metric_id_2 = add_performance_metric(TEST_RELEASE_ID, "YouTube", "likes", 320)
+        metric_id_3 = add_performance_metric(
+            TEST_RELEASE_ID, "Spotify", "streams", 25000
+        )
+        metric_id_4 = add_performance_metric(
+            TEST_RELEASE_ID, "TikTok", "views", 150000, notes="Initial surge"
+        )
 
         # Retrieve metrics
         print("\n--- Retrieving Metrics --- ")
         all_metrics = get_performance_metrics_for_release(TEST_RELEASE_ID)
-        
+
         import json
-        print(json.dumps(all_metrics, indent=2, default=str)) # Use default=str for datetime objects
+
+        print(
+            json.dumps(all_metrics, indent=2, default=str)
+        )  # Use default=str for datetime objects
 
     except (PerformanceDbError, ConnectionError) as e:
         print(f"\nDatabase Operation Error: {e}")
@@ -131,4 +172,3 @@ if __name__ == "__main__":
         print(f"\nAn unexpected error occurred: {e}")
     finally:
         close_connection_pool()
-

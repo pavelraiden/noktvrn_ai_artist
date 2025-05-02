@@ -13,7 +13,7 @@ from .llm_collaboration import (
     LLMCollaborator,
     LLMCollaborationManager,
     LLMPeerReviewSystem,
-    LLMCollaborationError
+    LLMCollaborationError,
 )
 
 # Configure logging
@@ -32,21 +32,21 @@ class LLMCollaboration:
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """
         Initialize the LLM collaboration system.
-        
+
         Args:
             config: Optional configuration dictionary
         """
         self.config = config or {}
-        
+
         # Initialize components
         self.collaboration_manager = LLMCollaborationManager(
             self.config.get("collaboration_config")
         )
         self.peer_review_system = LLMPeerReviewSystem(
             collaboration_manager=self.collaboration_manager,
-            config=self.config.get("peer_review_config")
+            config=self.config.get("peer_review_config"),
         )
-        
+
         logger.info("Initialized LLM collaboration system")
 
     def create_collaboration_session(
@@ -54,17 +54,17 @@ class LLMCollaboration:
         session_name: str,
         collaborator_ids: Optional[List[str]] = None,
         roles: Optional[List[str]] = None,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Create a new collaboration session.
-        
+
         Args:
             session_name: Human-readable name for the session
             collaborator_ids: Optional list of specific collaborator IDs to include
             roles: Optional list of roles to include (will select one collaborator per role)
             context: Optional initial context for the session
-            
+
         Returns:
             Session ID
         """
@@ -72,7 +72,7 @@ class LLMCollaboration:
             session_name=session_name,
             collaborator_ids=collaborator_ids,
             roles=roles,
-            context=context
+            context=context,
         )
 
     def run_collaboration_round(
@@ -81,18 +81,18 @@ class LLMCollaboration:
         prompt: str,
         round_type: str = "sequential",
         max_iterations: int = 3,
-        callback: Optional[Callable] = None
+        callback: Optional[Callable] = None,
     ) -> Dict[str, Any]:
         """
         Run a round of collaboration in a session.
-        
+
         Args:
             session_id: ID of the session
             prompt: The initial prompt for the collaboration
             round_type: Type of collaboration round ('sequential', 'parallel', or 'debate')
             max_iterations: Maximum number of iterations for the round
             callback: Optional callback function for progress updates
-            
+
         Returns:
             Dictionary containing the results of the collaboration round
         """
@@ -101,7 +101,7 @@ class LLMCollaboration:
             prompt=prompt,
             round_type=round_type,
             max_iterations=max_iterations,
-            callback=callback
+            callback=callback,
         )
 
     def create_review_session(
@@ -110,18 +110,18 @@ class LLMCollaboration:
         content_type: str,
         artist_id: Optional[str] = None,
         reviewer_roles: Optional[List[str]] = None,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Create a new peer review session.
-        
+
         Args:
             content: The content to review
             content_type: Type of content (e.g., 'artist_profile', 'lyrics', 'prompt')
             artist_id: Optional ID of the artist associated with the content
             reviewer_roles: Optional list of reviewer roles to include
             context: Optional additional context for the review
-            
+
         Returns:
             Review session ID
         """
@@ -130,72 +130,64 @@ class LLMCollaboration:
             content_type=content_type,
             artist_id=artist_id,
             reviewer_roles=reviewer_roles,
-            context=context
+            context=context,
         )
 
     def run_peer_review(
-        self,
-        review_session_id: str,
-        callback: Optional[Callable] = None
+        self, review_session_id: str, callback: Optional[Callable] = None
     ) -> Dict[str, Any]:
         """
         Run a complete peer review process (individual reviews + consensus).
-        
+
         Args:
             review_session_id: ID of the review session
             callback: Optional callback function for progress updates
-            
+
         Returns:
             Dictionary containing the review results
         """
         # Run individual reviews
         individual_reviews = self.peer_review_system.run_individual_reviews(
-            review_session_id=review_session_id,
-            callback=callback
+            review_session_id=review_session_id, callback=callback
         )
-        
+
         # Generate consensus review
         consensus = self.peer_review_system.generate_consensus_review(
-            review_session_id=review_session_id,
-            callback=callback
+            review_session_id=review_session_id, callback=callback
         )
-        
+
         # Get complete review session
         review_session = self.peer_review_system.get_review_session(review_session_id)
-        
+
         return {
             "review_session_id": review_session_id,
             "content_type": review_session["content_type"],
             "individual_reviews": individual_reviews,
             "consensus": consensus,
-            "status": review_session["status"]
+            "status": review_session["status"],
         }
 
     def get_collaborator_performance(
-        self,
-        collaborator_id: Optional[str] = None
+        self, collaborator_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Get performance metrics for collaborators.
-        
+
         Args:
             collaborator_id: Optional ID of a specific collaborator
-            
+
         Returns:
             Dictionary of performance metrics
         """
         return self.collaboration_manager.get_collaborator_performance(collaborator_id)
 
-    def get_review_sessions_for_artist(
-        self,
-        artist_id: str
-    ) -> List[Dict[str, Any]]:
+    def get_review_sessions_for_artist(self, artist_id: str) -> List[Dict[str, Any]]:
         """
         Get all review sessions for an artist.
-        
+
         Args:
             artist_id: ID of the artist
-            
+
         Returns:
             List of review sessions
         """

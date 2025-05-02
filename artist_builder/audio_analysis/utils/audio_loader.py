@@ -33,17 +33,13 @@ def load_audio(file_path, sr=22050, mono=True, duration=None, offset=0.0):
     try:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Audio file not found: {file_path}")
-        
+
         y, sr = librosa.load(
-            file_path, 
-            sr=sr, 
-            mono=mono, 
-            duration=duration, 
-            offset=offset
+            file_path, sr=sr, mono=mono, duration=duration, offset=offset
         )
-        
+
         return y, sr
-    
+
     except FileNotFoundError as e:
         raise e
     except Exception as e:
@@ -65,10 +61,7 @@ def trim_silence(y, sr, threshold_db=20, frame_length=2048, hop_length=512):
         np.ndarray: Trimmed audio time series
     """
     return librosa.effects.trim(
-        y, 
-        top_db=threshold_db, 
-        frame_length=frame_length, 
-        hop_length=hop_length
+        y, top_db=threshold_db, frame_length=frame_length, hop_length=hop_length
     )[0]
 
 
@@ -119,10 +112,10 @@ def get_audio_duration(file_path):
     try:
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Audio file not found: {file_path}")
-        
+
         duration = librosa.get_duration(filename=file_path)
         return duration
-    
+
     except FileNotFoundError as e:
         raise e
     except Exception as e:
@@ -144,16 +137,16 @@ def split_into_segments(y, sr, segment_duration=30):
     segment_length = segment_duration * sr
     num_segments = int(np.ceil(len(y) / segment_length))
     segments = []
-    
+
     for i in range(num_segments):
         start = i * segment_length
         end = min(start + segment_length, len(y))
         segment = y[start:end]
-        
+
         # Pad the last segment if it's shorter than segment_length
         if len(segment) < segment_length:
-            segment = np.pad(segment, (0, segment_length - len(segment)), 'constant')
-        
+            segment = np.pad(segment, (0, segment_length - len(segment)), "constant")
+
         segments.append(segment)
-    
+
     return segments

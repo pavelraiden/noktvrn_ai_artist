@@ -1,12 +1,12 @@
-# AI Artist Platform - Production Ready v1.0
+# AI Artist Platform - Production Ready v1.1
 
 ## Project Description
 
 The AI Artist Platform is a comprehensive system designed to autonomously generate, manage, and evolve AI-powered virtual music artists. It creates unique artist identities, orchestrates content creation (music, visuals), analyzes performance, and adapts based on data-driven insights and feedback, aiming to explore the potential of autonomous creative systems in the music industry.
 
-## System Architecture (Phase 8 Final)
+## System Architecture (Phase 9 Final - v1.1)
 
-The system employs a modular architecture focused on a continuous evolution loop, enhanced with multi-provider LLM support, API integration, resilience mechanisms (retry/fallback), and feedback processing.
+The system employs a modular architecture focused on a continuous evolution loop, enhanced with multi-provider LLM support, API integration, resilience mechanisms (retry/fallback), feedback processing, and a basic frontend foundation.
 
 For a detailed breakdown, refer to:
 *   `/docs/system_state/architecture.md` (High-level overview)
@@ -20,11 +20,12 @@ For a detailed breakdown, refer to:
 2.  **Artist Generation/Evolution:** `artist_builder` (or future refactored module) uses `LLMOrchestrator` to create/update profiles.
 3.  **LLM Orchestration:** `llm_orchestrator` interacts with DeepSeek, Gemini, Grok, Mistral, Anthropic, OpenAI (optional) using keys from `.env`, with retry, fallback, and auto-discovery logic.
 4.  **Content Prompting:** `artist_flow/generators` create prompts for music/video.
-5.  **External APIs:** `api_clients` interact with Suno (music) and Pexels (video assets).
+5.  **External APIs:** `api_clients` interact with Suno (music) and Pexels (video assets). All clients consistently use environment variables for configuration.
 6.  **Batch Processing:** `batch_runner` automates generation cycles, sends Telegram previews (requires `TELEGRAM_BOT_TOKEN` & `TELEGRAM_CHAT_ID`), and processes feedback.
 7.  **Release Packaging:** `release_chain` prepares approved content runs.
 8.  **Metrics & Feedback:** `metrics` module logs performance and feedback.
 9.  **Evolution:** `artist_evolution` service analyzes data and adapts artists (partially implemented).
+10. **Frontend:** Basic Flask-based UI foundation in `frontend/` for future admin panel.
 
 ```mermaid
 graph TD
@@ -38,6 +39,7 @@ graph TD
         BatchRunner["Batch Runner (Automation, Telegram)"]
         ReleaseChain["Release Chain (Packaging)"]
         Metrics["Metrics & Feedback"]
+        Frontend["Frontend UI (Flask - Basic)"]
     end
 
     subgraph External Services
@@ -57,6 +59,7 @@ graph TD
     Env --> Suno
     Env --> Pexels
     Env --> Telegram
+    Env --> Frontend
 
     Builder -- LLM Tasks --> Orchestrator
     Orchestrator -- API Calls --> LLM_APIs
@@ -79,7 +82,7 @@ graph TD
     Builder -- (Optional) --> DB
 ```
 
-## Directory Structure (Phase 8 Final)
+## Directory Structure (Phase 9 Final - v1.1)
 
 ```
 noktvrn_ai_artist/
@@ -98,6 +101,11 @@ noktvrn_ai_artist/
 │   ├── development/
 │   ├── system_state/     # Current state docs (API Keys, LLM Support, Arch)
 │   └── ...
+├── frontend/             # Basic Flask frontend UI foundation
+│   ├── templates/
+│   ├── app.py
+│   ├── requirements.txt
+│   └── README.md
 ├── llm_orchestrator/     # Multi-provider LLM interaction handler
 ├── logs/                 # Log file output directory (if configured)
 ├── metrics/              # Metrics logging and feedback analysis
@@ -121,7 +129,7 @@ noktvrn_ai_artist/
 # video_gen_config/
 # --------------------------------------------------------------
 
-streamlit_app/            # Streamlit frontend application (Separate Deployment)
+streamlit_app/            # Streamlit frontend application (Separate Deployment - Potentially Deprecated)
 ├── .env                  # Environment variables for Streamlit (DO NOT COMMIT)
 ├── .env.example          # Streamlit environment variables template
 ├── requirements.txt      # Streamlit dependencies
@@ -135,7 +143,7 @@ streamlit_app/            # Streamlit frontend application (Separate Deployment)
 
 ### Prerequisites
 
-*   Python 3.10+
+*   Python 3.11 (Required for running scripts directly)
 *   Docker & Docker Compose (Recommended for simplified setup)
 *   FFmpeg (Required for some audio/video operations, install system-wide)
 *   API keys/credentials for: Suno.ai, Pexels, DeepSeek, Gemini, Grok, Mistral, Anthropic (optional), Telegram Bot.
@@ -148,13 +156,13 @@ streamlit_app/            # Streamlit frontend application (Separate Deployment)
 3.  **Configure `.env`:**
     *   Copy `noktvrn_ai_artist/.env.example` to `noktvrn_ai_artist/.env`.
     *   Fill in **all** required credentials (API keys, `TELEGRAM_CHAT_ID`, `OUTPUT_BASE_DIR`).
-    *   If using the Streamlit app, also copy `streamlit_app/.env.example` to `streamlit_app/.env` and fill in credentials.
 4.  **Install Dependencies (if not using Docker):**
     ```bash
-    python -m venv venv
+    # Ensure Python 3.11 is available
+    python3.11 -m venv venv
     source venv/bin/activate # or venv\Scripts\activate on Windows
-    pip install -r requirements.txt
-    # If using Streamlit app: pip install -r streamlit_app/requirements.txt
+    python3.11 -m pip install -r requirements.txt
+    # If using the new frontend: python3.11 -m pip install -r frontend/requirements.txt
     # Ensure ffmpeg is installed and in your system PATH
     ```
 
@@ -163,38 +171,40 @@ streamlit_app/            # Streamlit frontend application (Separate Deployment)
 **Option 1: Docker Compose (Recommended)**
 
 1.  Ensure Docker and Docker Compose are installed and running.
-2.  Ensure `noktvrn_ai_artist/.env` (and `streamlit_app/.env` if used) are correctly populated.
+2.  Ensure `noktvrn_ai_artist/.env` is correctly populated.
 3.  From the `noktvrn_ai_artist` directory, run:
     ```bash
     docker-compose up --build -d
     ```
-4.  This typically starts the main application components and the Streamlit UI.
-5.  Access Streamlit UI (usually `http://localhost:8501`).
-6.  Monitor logs: `docker-compose logs -f`
+4.  This typically starts the main application components. (Frontend UI might require separate setup/run).
+5.  Monitor logs: `docker-compose logs -f`
 
 **Option 2: Manual Execution (Example: Batch Runner)**
 
-1.  Ensure dependencies are installed and the virtual environment is active.
+1.  Ensure dependencies are installed for Python 3.11 and the virtual environment is active.
 2.  Ensure `noktvrn_ai_artist/.env` is correctly populated.
 3.  Run a specific component, e.g., the batch runner:
     ```bash
-    python batch_runner/artist_batch_runner.py
+    python3.11 batch_runner/artist_batch_runner.py
     ```
 
 ## Contribution Guide
 
 Contributions are welcome! Please read our [Contribution Guide](CONTRIBUTION_GUIDE.md) for details on code standards, development workflow, testing, documentation, and the core principle of building a self-evolving system.
 
-## Project Status (Phase 8 Final - Production Ready v1.0)
+## Project Status (Phase 9 Final - Production Ready v1.1)
 
-*   **Status:** Core integration complete. Ready for initial production testing.
-*   **Key Features:** Multi-LLM support (DeepSeek, Gemini, Grok, Mistral) with fallback, integrated production API keys, automated batch processing with Telegram feedback loop, metrics logging, release packaging.
+*   **Status:** Production patch applied. Ready for continued production testing and monitoring.
+*   **Key Features:** Multi-LLM support (DeepSeek, Gemini, Grok, Mistral, Anthropic) with fallback and auto-discovery, integrated production API keys, automated batch processing with Telegram feedback loop, metrics logging, release packaging, CI formatting compliance, consistent environment variable usage, basic frontend UI foundation.
 *   **Known Issues/Placeholders:**
     *   `TELEGRAM_CHAT_ID` requires manual configuration in `.env`.
+    *   Suno API endpoint (`/generate`) currently returns 404 (external issue).
     *   Intelligent LLM routing is a placeholder.
     *   Several older modules (`artist_builder`, etc.) need review/refactoring.
     *   `Release Uploader` performs dummy uploads.
     *   Database integration is optional and requires setup.
-*   **Next Steps:** Production testing, monitoring, addressing placeholders, refining evolution logic, implementing data pipelines.
+    *   Frontend UI is a basic placeholder.
+*   **Next Steps:** Monitor production stability, address external API issues (Suno), refine evolution logic, implement data pipelines, develop frontend UI.
 
 For a detailed history, see `docs/development/dev_diary.md`.
+

@@ -1,76 +1,68 @@
-# AI Artist Platform - Final Production Sync & Structural Evolution Todo
+# AI Artist Platform - Phase 9: Final Production Patch Todo
 
-This checklist outlines the tasks required for the final production synchronization and structural evolution of the AI Artist Platform, aiming for Production v1.0 readiness.
+This checklist outlines the tasks for the final production patch (Phase 9).
 
-## 1. Full Structure Review
+## 1. GitHub CI Fix
 
-- [x] Recursively check EVERY folder and subfolder in `/home/ubuntu/ai_artist_system_clone`.
-- [x] For each directory:
-    - [ ] Read `README.md`, `docs/*.md`, or `.txt` files.
-    - [ ] Verify content matches actual code in the folder.
-    - [ ] Write missing documentation (READMEs, etc.).
-    - [ ] Identify and handle unused/outdated code (archive or delete).
-    - [ ] Rename unclear files/folders for clarity.
+- [x] Identify the specific Black formatting error from the failed CI run (requires checking GitHub Actions logs - may need user input or browser access if not locally reproducible).
+- [x] Run Black locally on the codebase: `black .` in the repo root.
+- [x] Stage the reformatted files.
+- [x] Commit the formatting fix: `git commit -m "fix: Apply Black formatting"`.
+- [x] Push the fix to GitHub: `git push origin main`.
+- [x] Verify the CI workflow now passes on GitHub.
 
-## 2. Documentation Rebuild
+## 2. API Key & Environment Sync
 
-- [ ] Rewrite `docs/project_context.md` to reflect active modules and roles (Phase 1–8.3), using clear formatting (sections, lists, tables).
-- [ ] Update `docs/development/dev_diary.md` with a log entry for this phase (mentioning review of past 13 chat cycles).
-- [ ] Rewrite or create missing `README.md` in each core directory (e.g., `api_clients`, `artist_evolution`, `batch_runner`, `database`, `llm_orchestrator`, `release_chain`, `scripts`, `video_processing`).
-- [ ] Add a visual table to `CONTRIBUTION_GUIDE.md` detailing LLM roles, logging, and fallback/rotation mechanisms.
+- [x] Re-verify `.env` file contains the correct production keys provided for Phase 9 (Suno, Pexels, Pixabay, DeepSeek, Gemini, Grok, Mistral, Telegram Bot, Telegram Chat ID).
+- [x] Confirm no dummy/placeholder keys remain in `.env`.
+- [x] Re-verify `.env.example` accurately reflects all required keys with appropriate placeholders (including optional ANTHROPIC_API_KEY).
+- [x] Double-check that all Luma-related keys (`LUMA_API_KEY`) and logic are completely removed from both `.env` and `.env.example`.
+- [x] Briefly review key loading logic in major components (`llm_orchestrator`, `api_clients`) to ensure they still correctly use `dotenv`.
 
-## 3. Remove Luma + Insert Real API Keys
+## 3. Full Repo Review & Architecture Cleanup
 
-- [x] Remove all references to Luma API from the codebase (e.g., `api_clients/luma_client.py`, any import statements, related logic).
-- [x] Update `.env` with the provided production API keys:
-    - [ ] SUNO: `6434df466fc04e16bc1b56eb763bfe6e`
-    - [ ] PEXELS: `vvQucvzlZ6vLo6RDbrCahvI4gdsW8mgWTVGXyFvPtiI8YAarPK2LFtcm`
-    - [ ] PIXABAY: `49941633-74bb08eeab74756d08e7ba75a`
-    - [ ] DEEPSEEK: `sk-efc74f32e9a04b68a785d28c6466f385`
-    - [ ] GEMINI: `AIzaSyDwkubOj3JEl4P8BK_f-HDoebzO-LCokXI`
-    - [ ] GROK: `xai-dc9ri9l823T1BbpwZYCJEuV46KBEhXW1cJGEmEMFzc4hz5nbOjl66QhjFGDqoE856rqpIp5ENhxxbhpW`
-    - [ ] MISTRAL: `hOIujZigJdrr4qKEOrm0rYX8Ddej39ww`
-    - [ ] TELEGRAM_BOT_TOKEN: `7806913313:AAGO_SUlQCVDQLlW7_lLcUb2gDW2MCIFASY`
-    - [ ] TELEGRAM_CHAT_ID: `446260424`
-- [x] Update `.env.example` to reflect the required keys (use placeholder values like `YOUR_SUNO_API_KEY`).
-- [x] Ensure relevant files (e.g., API clients, orchestrator) correctly load and use these keys from the environment.
+- [ ] Systematically review every folder and file in `/home/ubuntu/ai_artist_system_clone`.
+- [ ] Ensure essential documentation (`README.md` or similar) exists in each core module directory.
+- [ ] Update any outdated instructions, comments, or documentation identified during the review.
+- [ ] Identify and remove any remaining deprecated files or unused code snippets.
+- [ ] Improve code formatting, naming consistency, and file structure where necessary for clarity and production readiness.
+- [ ] Pay special attention to logging configurations, path handling, and configuration loading mechanisms for consistency.
 
-## 4. LLM System Checkup
+## 4. Documentation Finalization
 
-- [ ] Review LLM role logic (author, helper, validator, diarist, etc.) in `llm_orchestrator` and related modules.
-- [ ] Verify each role writes logs appropriately (e.g., to `artist_diary` or specific log files).
-- [ ] Ensure consistent style/voice handling when switching between LLMs (e.g., DeepSeek, Gemini, Grok, Mistral, OpenAI).
-- [ ] Confirm compatibility of roles with different LLM provider APIs.
+- [ ] Update main `README.md` to reflect the final Production-Ready v1.1 state and architecture.
+- [ ] Update `docs/project_context.md` to finalize the production vision and system overview.
+- [ ] Add a detailed entry to `docs/development/dev_diary.md` logging the actions taken during Phase 9.
+- [ ] Update `CONTRIBUTION_GUIDE.md` with notes on the LLM auto-discovery mechanism and role handling.
+- [ ] Review and update documentation within `docs/modules/` or individual module READMEs as needed based on the repo review.
 
-## 5. Trend, Video, Social Flow Validation
+## 5. Frontend UI Foundation
 
-- [ ] Review trend fetching and analysis logic (e.g., `data_pipelines/spotify_charts_pipeline.py`).
-- [x] Validate lyrics/video creation logic alignment with trends.
-- [ ] Validate stock video cutting and filtering logic (e.g., `scripts/video_gen/ffmpeg_controller.py`, `video_processing`).
-- [ ] Validate video/music/emotion matching logic.
-- [ ] Create/Update `docs/video_flow.md` documenting the video generation process.
-- [ ] Create/Update `docs/trend_flow.md` documenting the trend analysis process.
+- [ ] Create the `/home/ubuntu/ai_artist_system_clone/frontend/` directory.
+- [ ] Create a basic `frontend/README.md` explaining the purpose (admin panel) and future plans (Spotify-like styling).
+- [ ] Create placeholder files/structure for a simple web UI (e.g., using Flask or Streamlit, depending on desired stack - choose Flask for now for a simple structure):
+    - `frontend/app.py` (basic Flask app setup)
+    - `frontend/requirements.txt` (add `Flask`)
+    - `frontend/templates/` directory
+    - `frontend/templates/index.html` (placeholder dashboard)
+    - `frontend/templates/artists.html` (placeholder artist list)
+    - `frontend/templates/stats.html` (placeholder stats view)
+- [ ] Update the main `README.md` to mention the new `frontend` directory and its purpose.
 
-## 6. Auto LLM API Evolution
+## 6. Final GitHub Synchronization
 
-- [x] Design mechanism to detect new LLM models (e.g., check provider APIs or a central registry).
-- [x] Implement `llm_registry.py` (or similar) to store known/new LLM endpoints/identifiers.
-- [x] Implement logic to automatically test new LLMs in fallback/spare roles within the `llm_orchestrator`.
-- [x] Create `docs/llm_adaptation.md` documenting this auto-evolution feature.
-
-## 7. Finalize & Push to GitHub
-
-- [x] Configure Git with the provided token: `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`.
-- [ ] Stage all changes.
+- [ ] Verify Git is configured with the correct token: `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`.
+- [ ] Stage all changes (`git add .`).
 - [ ] Perform a final check:
-    - [ ] No dummy API keys remain in committed code (check `.env.example` carefully).
-    - [ ] No placeholder files remain.
-    - [ ] `README.md`, `docs/project_context.md`, `docs/development/dev_diary.md`, and `.env.example` are valid and up-to-date.
-- [ ] Commit changes with a descriptive message.
+    - [ ] No dummy API keys in committed code (check `.env.example`).
+    - [ ] No major placeholder files/logic remain (except intentional UI placeholders).
+    - [ ] Key documentation (`README.md`, `dev_diary.md`, `.env.example`) is up-to-date.
+- [ ] Commit changes with a message indicating Phase 9 finalization and Production-Ready v1.1 status (e.g., `chore: Final production patch (Phase 9), repo cleanup, UI bootstrap. Production Ready v1.1`).
 - [ ] Push changes to the `main` branch on GitHub.
-- [ ] Verify the push was successful on GitHub.
+- [ ] Verify the push was successful and check CI status on GitHub again.
 
-## 8. Final Reporting
+## 7. Final Reporting
 
-- [ ] Create a final completion report summarizing the actions taken and the final state of the repository.
-- [ ] Notify the user of completion, attaching the report and key updated documents.
+- [ ] Create a final completion report (`phase_9_completion_report.md`) summarizing all actions taken in Phase 9.
+- [ ] Notify the user of completion, attaching the report and confirming Production-Ready v1.1 status.
+

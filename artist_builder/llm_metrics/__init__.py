@@ -9,7 +9,11 @@ import logging
 from typing import Dict, Any, List, Optional, Union
 from datetime import datetime
 
-from .llm_efficiency_metrics import LLMEfficiencyTracker, LLMMetricsDatabase, LLMMetricsError
+from .llm_efficiency_metrics import (
+    LLMEfficiencyTracker,
+    LLMMetricsDatabase,
+    LLMMetricsError,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -27,16 +31,16 @@ class LLMMetrics:
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """
         Initialize the LLM metrics system.
-        
+
         Args:
             config: Optional configuration dictionary
         """
         self.config = config or {}
-        
+
         # Initialize components
         self.tracker = LLMEfficiencyTracker(self.config.get("tracker_config"))
         self.db = self.tracker.db  # Share the same database instance
-        
+
         logger.info("Initialized LLM metrics system")
 
     def track_llm_interaction(
@@ -50,11 +54,11 @@ class LLMMetrics:
         success: bool,
         cost: Optional[float] = None,
         artist_id: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Track an LLM interaction.
-        
+
         Args:
             module: The module that initiated the interaction
             operation: The specific operation performed
@@ -66,7 +70,7 @@ class LLMMetrics:
             cost: Optional cost of the interaction (calculated if not provided)
             artist_id: Optional ID of the artist being processed
             metadata: Optional additional metadata
-            
+
         Returns:
             Dictionary of recorded metrics
         """
@@ -80,7 +84,7 @@ class LLMMetrics:
             success=success,
             cost=cost,
             artist_id=artist_id,
-            metadata=metadata
+            metadata=metadata,
         )
 
     def start_tracking(
@@ -88,25 +92,22 @@ class LLMMetrics:
         module: str,
         operation: str,
         artist_id: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Start tracking an LLM interaction.
-        
+
         Args:
             module: The module initiating the interaction
             operation: The specific operation being performed
             artist_id: Optional ID of the artist being processed
             metadata: Optional additional metadata
-            
+
         Returns:
             Tracking ID for the interaction
         """
         return self.tracker.start_tracking(
-            module=module,
-            operation=operation,
-            artist_id=artist_id,
-            metadata=metadata
+            module=module, operation=operation, artist_id=artist_id, metadata=metadata
         )
 
     def end_tracking(
@@ -117,11 +118,11 @@ class LLMMetrics:
         completion_tokens: int,
         success: bool,
         cost: Optional[float] = None,
-        additional_metadata: Optional[Dict[str, Any]] = None
+        additional_metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         End tracking an LLM interaction and record metrics.
-        
+
         Args:
             tracking_id: The tracking ID returned by start_tracking
             model: The LLM model used
@@ -130,7 +131,7 @@ class LLMMetrics:
             success: Whether the interaction was successful
             cost: Optional cost of the interaction (calculated if not provided)
             additional_metadata: Optional additional metadata to merge
-            
+
         Returns:
             Dictionary of recorded metrics
         """
@@ -141,7 +142,7 @@ class LLMMetrics:
             completion_tokens=completion_tokens,
             success=success,
             cost=cost,
-            additional_metadata=additional_metadata
+            additional_metadata=additional_metadata,
         )
 
     def record_optimization(
@@ -152,11 +153,11 @@ class LLMMetrics:
         before_value: Optional[float] = None,
         after_value: Optional[float] = None,
         applied: bool = False,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Record an LLM optimization.
-        
+
         Args:
             module: The module being optimized
             operation: The specific operation being optimized
@@ -165,7 +166,7 @@ class LLMMetrics:
             after_value: Value after optimization
             applied: Whether the optimization was applied
             metadata: Optional additional metadata
-            
+
         Returns:
             ID of the recorded optimization
         """
@@ -176,7 +177,7 @@ class LLMMetrics:
             before_value=before_value,
             after_value=after_value,
             applied=applied,
-            metadata=metadata
+            metadata=metadata,
         )
 
     def get_efficiency_report(
@@ -185,18 +186,18 @@ class LLMMetrics:
         end_time: Optional[Union[str, datetime]] = None,
         module: Optional[str] = None,
         operation: Optional[str] = None,
-        artist_id: Optional[str] = None
+        artist_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Generate an efficiency report for a time period.
-        
+
         Args:
             start_time: Optional start time for the report
             end_time: Optional end time for the report
             module: Optional filter by module
             operation: Optional filter by operation
             artist_id: Optional filter by artist ID
-            
+
         Returns:
             Dictionary containing the efficiency report
         """
@@ -205,30 +206,28 @@ class LLMMetrics:
             end_time=end_time,
             module=module,
             operation=operation,
-            artist_id=artist_id
+            artist_id=artist_id,
         )
 
     def get_artist_efficiency_metrics(
         self,
         artist_id: str,
         start_time: Optional[Union[str, datetime]] = None,
-        end_time: Optional[Union[str, datetime]] = None
+        end_time: Optional[Union[str, datetime]] = None,
     ) -> Dict[str, Any]:
         """
         Get efficiency metrics for a specific artist.
-        
+
         Args:
             artist_id: ID of the artist
             start_time: Optional start time for the metrics
             end_time: Optional end time for the metrics
-            
+
         Returns:
             Dictionary containing artist-specific efficiency metrics
         """
         return self.tracker.get_artist_efficiency_metrics(
-            artist_id=artist_id,
-            start_time=start_time,
-            end_time=end_time
+            artist_id=artist_id, start_time=start_time, end_time=end_time
         )
 
     def get_interactions(
@@ -238,11 +237,11 @@ class LLMMetrics:
         artist_id: Optional[str] = None,
         start_time: Optional[Union[str, datetime]] = None,
         end_time: Optional[Union[str, datetime]] = None,
-        limit: int = 100
+        limit: int = 100,
     ) -> List[Dict[str, Any]]:
         """
         Get LLM interactions from the database.
-        
+
         Args:
             module: Optional filter by module
             operation: Optional filter by operation
@@ -250,7 +249,7 @@ class LLMMetrics:
             start_time: Optional filter by start time
             end_time: Optional filter by end time
             limit: Maximum number of results to return
-            
+
         Returns:
             List of interaction records
         """
@@ -260,7 +259,7 @@ class LLMMetrics:
             artist_id=artist_id,
             start_time=start_time,
             end_time=end_time,
-            limit=limit
+            limit=limit,
         )
 
     def get_optimizations(
@@ -271,11 +270,11 @@ class LLMMetrics:
         applied: Optional[bool] = None,
         start_time: Optional[Union[str, datetime]] = None,
         end_time: Optional[Union[str, datetime]] = None,
-        limit: int = 100
+        limit: int = 100,
     ) -> List[Dict[str, Any]]:
         """
         Get optimizations from the database.
-        
+
         Args:
             module: Optional filter by module
             operation: Optional filter by operation
@@ -284,7 +283,7 @@ class LLMMetrics:
             start_time: Optional filter by start time
             end_time: Optional filter by end time
             limit: Maximum number of results to return
-            
+
         Returns:
             List of optimization records
         """
@@ -295,28 +294,26 @@ class LLMMetrics:
             applied=applied,
             start_time=start_time,
             end_time=end_time,
-            limit=limit
+            limit=limit,
         )
 
     def calculate_aggregate_metrics(
         self,
         start_time: Union[str, datetime],
         end_time: Union[str, datetime],
-        time_period: str = "daily"
+        time_period: str = "daily",
     ) -> Dict[str, Any]:
         """
         Calculate aggregate metrics for a time period.
-        
+
         Args:
             start_time: Start time of the period
             end_time: End time of the period
             time_period: Time period type (e.g., 'daily', 'weekly', 'monthly')
-            
+
         Returns:
             Dictionary of calculated metrics
         """
         return self.db.calculate_aggregate_metrics(
-            start_time=start_time,
-            end_time=end_time,
-            time_period=time_period
+            start_time=start_time, end_time=end_time, time_period=time_period
         )

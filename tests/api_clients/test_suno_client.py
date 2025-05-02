@@ -4,7 +4,9 @@ import sys
 import os
 
 # Add relevant paths to sys.path to allow imports
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+project_root = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "..")
+)
 sys.path.insert(0, project_root)
 streamlit_app_root = os.path.abspath(os.path.join(project_root, "..", "streamlit_app"))
 sys.path.insert(0, streamlit_app_root)
@@ -17,6 +19,7 @@ from config import settings
 
 # Mock settings for testing
 settings.SUNO_API_KEY = "TEST_SUNO_KEY"
+
 
 class TestSunoApiClient(unittest.TestCase):
 
@@ -40,19 +43,19 @@ class TestSunoApiClient(unittest.TestCase):
         mock_request.return_value = mock_response
 
         response = self.client.start_audio_generation(
-            prompt="A test song",
-            make_instrumental=False,
-            wait_audio=False
+            prompt="A test song", make_instrumental=False, wait_audio=False
         )
 
         mock_request.assert_called_once()
         args, kwargs = mock_request.call_args
-        self.assertEqual(args[0], "POST") # Check method
-        self.assertEqual(args[1], f"{self.client.base_url}/generate") # Check URL
+        self.assertEqual(args[0], "POST")  # Check method
+        self.assertEqual(args[1], f"{self.client.base_url}/generate")  # Check URL
         self.assertIn("prompt", kwargs["json"])
         self.assertEqual(kwargs["json"]["prompt"], "A test song")
         self.assertIn("Authorization", kwargs["headers"])
-        self.assertEqual(kwargs["headers"]["Authorization"], f"Bearer {settings.SUNO_API_KEY}")
+        self.assertEqual(
+            kwargs["headers"]["Authorization"], f"Bearer {settings.SUNO_API_KEY}"
+        )
 
         self.assertIsInstance(response, list)
         self.assertEqual(response[0]["id"], "clip_123")
@@ -64,7 +67,9 @@ class TestSunoApiClient(unittest.TestCase):
         mock_response = MagicMock()
         mock_response.status_code = 400
         mock_response.json.return_value = {"detail": "Invalid input"}
-        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("Bad Request")
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
+            "Bad Request"
+        )
         mock_request.return_value = mock_response
 
         with self.assertRaises(SunoApiError) as cm:
@@ -93,8 +98,8 @@ class TestSunoApiClient(unittest.TestCase):
 
         mock_request.assert_called_once()
         args, kwargs = mock_request.call_args
-        self.assertEqual(args[0], "GET") # Check method
-        self.assertEqual(args[1], f"{self.client.base_url}/feed") # Check URL
+        self.assertEqual(args[0], "GET")  # Check method
+        self.assertEqual(args[1], f"{self.client.base_url}/feed")  # Check URL
         self.assertEqual(kwargs["params"], {"ids": ",".join(clip_ids)})
         self.assertIn("Authorization", kwargs["headers"])
 
@@ -109,7 +114,9 @@ class TestSunoApiClient(unittest.TestCase):
         mock_response = MagicMock()
         mock_response.status_code = 404
         mock_response.json.return_value = {"detail": "Not Found"}
-        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("Not Found")
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
+            "Not Found"
+        )
         mock_request.return_value = mock_response
 
         with self.assertRaises(SunoApiError) as cm:
@@ -124,8 +131,8 @@ class TestSunoApiClient(unittest.TestCase):
         with self.assertRaises(ValueError) as cm:
             SunoApiClient()
         self.assertIn("Suno API Key must be provided", str(cm.exception))
-        settings.SUNO_API_KEY = original_key # Restore for other tests
+        settings.SUNO_API_KEY = original_key  # Restore for other tests
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main(argv=["first-arg-is-ignored"], exit=False)
-
