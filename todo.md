@@ -1,55 +1,43 @@
-# Todo List - Phase 10.2: Production Server Deployment (Vultr Execution)
+# Todo List - Phase 11: Enhancement Pass
 
-This list outlines the execution steps for deploying the AI Artist Platform directly onto the Vultr production server (136.244.94.146).
+This list outlines the steps for implementing and documenting enhancements for the AI Artist Platform.
 
-**Server Setup & Security:**
-- [X] 001 Provision Vultr server (4 vCPU, 16GB RAM, SSD, Ubuntu 24.04) via API in Frankfurt region. (Deviation: Ubuntu 24.04 used instead of 22.04)
-- [X] 002 Configure Vultr firewall rules (SSH, HTTP, HTTPS) via API.
-- [ ] 003 Establish SSH connection to the server (136.244.94.146) using provided credentials.
-- [ ] 004 Perform initial server setup: update packages, set hostname/timezone (if needed).
-- [ ] 005 Install Python 3.11 globally.
-- [ ] 006 Install security tools: `fail2ban`, `ufw`.
-- [ ] 007 Configure `ufw` firewall rules (allow SSH, HTTP, HTTPS, potentially PostgreSQL if needed remotely).
-- [ ] 008 Harden SSH: disable root login, enable key-based auth (requires user key), configure `fail2ban` for SSH.
+**I. Setup & Review**
+- [X] 001 Create `todo.md` for Enhancement Pass. (This step)
+- [X] 002 Review repository structure and identify target modules for enhancements.
+- [X] 003 Double-check for any remaining Luma references in code or documentation.
+- [X] 004 Review existing architecture (`docs/architecture/`, `README.md`) for potential flaws or areas needing updates based on enhancements.
 
-**Database Setup:**
-- [ ] 009 Install and configure PostgreSQL server.
-- [ ] 010 Create production database (`ai_artist_db`) and user (`ai_artist_user`) with a strong password.
-- [ ] 011 Secure PostgreSQL configuration (e.g., restrict remote access if not needed).
+**II. Core Enhancements (Data & LLM Focused)**
+- [ ] 005 Implement Real-time Trend Scoring mechanism (e.g., in `analytics` or `artist_evolution`).
+- [ ] 006 Implement Cross-step Trend Injection (e.g., modifying prompts in `artist_flow/generators` or `llm_orchestrator` based on trends).
+- [ ] 007 Implement Persistent Memory per Role (e.g., storing role-specific context/history, potentially using files or DB integration via `database` module).
+- [ ] 008 Implement Auto-reflection for LLMs during artist cycle (e.g., adding a reflection step in `batch_runner` or `llm_orchestrator`).
+- [ ] 009 Implement LLM Prompt A/B Testing System (design and implement mechanism to test, track, and rank prompt performance).
 
-**Application Deployment:**
-- [ ] 012 Install Git and clone the `noktvrn_ai_artist` repository.
-- [ ] 013 Set up Python virtual environment and install project dependencies (`requirements.txt`).
-- [ ] 014 Create and populate the production `.env` file with provided API keys and DB credentials. Ensure no placeholders remain.
-- [ ] 015 Install Nginx and Gunicorn.
-- [ ] 016 Configure Gunicorn to serve the Flask frontend application.
-- [ ] 017 Configure Nginx as a reverse proxy for Gunicorn, handling static files and proxying requests.
-- [ ] 018 Set up HTTPS using Let's Encrypt (Certbot) or a self-signed certificate.
-- [ ] 019 Configure Systemd or Supervisor to manage Gunicorn (frontend) and the backend orchestrator/batch runner process for auto-start on boot.
+**III. Feature Enhancements & Integration**
+- [ ] 010 Implement Stable Video Editing & Stock Slicing Pipeline (refine/enhance `video_processing` module).
+- [ ] 011 Finalize Artist Lifecycle Control (Start/Pause) in Admin Interface (verify/complete frontend (`deployment/dashboard.js`, `deployment/admin_dashboard.html`) and backend (`frontend/src/routes/artist.py`) integration from Phase 10.2).
 
-**Functionality & Testing:**
-- [ ] 020 Implement/Verify Artist Start/Pause logic integration in the Flask frontend UI and backend API.
-- [ ] 021 Enable and test Telegram preview functionality (using provided bot token and chat ID).
-- [ ] 022 Test the core LLM chain functionality.
-- [ ] 023 Run a full test cycle for one artist and verify output (media generation, DB updates, logs).
-- [ ] 024 Verify trend analysis and auto-role selection mechanisms.
-- [ ] 025 Verify analytics layer support for 100-300 artists.
-- [ ] 026 Verify admin panel functionality (artist cards, stats, start/pause, output summary).
+**IV. Testing & Validation**
+- [ ] 012 Test Trend Scoring and Injection functionality.
+- [ ] 013 Test Persistent Memory implementation.
+- [ ] 014 Test Auto-reflection mechanism.
+- [ ] 015 Test Prompt A/B Testing system.
+- [ ] 016 Test Video Editing Pipeline outputs.
+- [ ] 017 Test Admin Lifecycle Control (Start/Pause buttons).
+- [ ] 018 Perform end-to-end pipeline validation with all enhancements integrated.
 
-**Logging & Monitoring:**
-- [ ] 027 Configure application logging to `/var/log/ai_artist/`.
-- [ ] 028 Set up log rotation for application logs.
-- [ ] 029 Ensure error logging and traceability for failed processes.
-
-**Finalization & Documentation:**
-- [ ] 030 Perform production hardening: remove dev scripts, secure sensitive files (`.env`, `.ssh`, logs).
-- [ ] 031 Review architecture and fix any identified flaws.
-- [ ] 032 Ensure Luma references are completely removed.
-- [ ] 033 Create/Update deployment scripts or configurations in the local `/deployment/` directory based on the server setup.
-- [ ] 034 Commit and push final deployment configurations and any necessary code changes to GitHub.
-- [ ] 035 Update documentation (`README.md`, `infra_setup.md`, `dev_diary.md`, `project_context.md`, `CONTRIBUTION_GUIDE.md`) with final server details, deployment steps, access URL, and operational procedures.
-- [ ] 036 Confirm system is live, accessible via the public URL, and services are running correctly.
-- [ ] 037 Perform self-evaluation: Is the system production-grade?
-- [ ] 038 Prepare final report summarizing the deployment process, server details, access URL, status, and self-evaluation.
-- [ ] 039 Send final report and deliverables to the user.
+**V. Documentation & Finalization**
+- [ ] 019 Update `.env.example` with any new configuration variables introduced by enhancements.
+- [ ] 020 Update main `README.md` to reflect v1.2 (or similar) status and new features.
+- [ ] 021 Update `CONTRIBUTION_GUIDE.md` with any new development principles or workflows.
+- [ ] 022 Update `docs/development/dev_diary.md` with a summary of the Enhancement Pass.
+- [ ] 023 Update module READMEs and documentation in `/docs/modules/` for components modified during this phase.
+- [ ] 024 Create/Update documentation detailing the implemented enhancements (e.g., `docs/features/enhancements_v1_2.md`).
+- [ ] 025 Review and update GitHub Actions workflows (`.github/workflows/ci.yml`) if necessary (e.g., new tests, dependencies).
+- [ ] 026 Perform final code review and cleanup.
+- [ ] 027 Commit and push all changes to GitHub (`main` branch) using the provided token.
+- [ ] 028 Prepare final report summarizing the Enhancement Pass, implemented features, and system status.
+- [ ] 029 Send final report and confirmation (`✅ Enhancement Pass complete. Git synced. Repo is clean and production-ready.`) to the user.
 

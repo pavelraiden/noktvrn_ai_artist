@@ -27,14 +27,14 @@ The system is designed around principles of modularity, scalability, and self-ev
     *   See `docs/system_state/llm_support.md` for details.
 
 4.  **API Clients (`api_clients/`):**
-    *   Provides standardized interfaces for interacting with external APIs (Suno, Pexels, Luma - placeholder, etc.).
+    *   Provides standardized interfaces for interacting with external APIs (Suno, Pexels, etc.).
     *   See `docs/system_state/api_key_mapping.md` for details.
 
 5.  **Artist Flow / Content Generation (`artist_flow/` & `scripts/`):
     *   **Prompt Generators (`artist_flow/generators/`):** Creates prompts for music (Suno), images/videos based on the artist profile.
     *   **Asset Fetching (`scripts/video_gen/fetch_assets.py`):** Uses API clients (e.g., Pexels) to retrieve stock footage.
     *   **Music Generation:** Interacts with Suno API via `suno_client.py`.
-    *   **Video Generation:** Placeholder/Basic implementation using FFmpeg (`scripts/video_gen/ffmpeg_controller.py`) or potentially Luma AI (`luma_client.py`).
+    *   **Video Generation:** Placeholder/Basic implementation using FFmpeg (`scripts/video_gen/ffmpeg_controller.py`).
 
 6.  **Artist Evolution (`artist_evolution/`):**
     *   **Evolution Service (`artist_evolution_service.py`):** Manages the adaptation and progression of artists over time based on feedback and performance.

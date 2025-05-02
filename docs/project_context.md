@@ -63,7 +63,7 @@ Refer to `docs/system_state/llm_support.md` for detailed information.
 ## Development Status (End of Phase 8)
 - **Core Integration Complete:** Key components (LLM, APIs, Batch Runner, Release Chain, Metrics) are integrated and use production credentials (where provided).
 - **Production Ready v1.0:** The system is considered ready for initial production testing and operation, acknowledging known limitations.
-- **Known Issues/Gaps:** See `README.md` for a list, including placeholder API keys (`LUMA_API_KEY`), required manual configuration (`TELEGRAM_CHAT_ID`), placeholder intelligent routing, stale modules needing refactoring, and incomplete database/data pipeline integration.
+- **Known Issues/Gaps:** See `README.md` for a list, including required manual configuration (`TELEGRAM_CHAT_ID`), placeholder intelligent routing, stale modules needing refactoring, and incomplete database/data pipeline integration.
 
 ## Future Roadmap
 Key future directions include:

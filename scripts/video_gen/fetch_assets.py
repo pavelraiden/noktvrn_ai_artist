@@ -21,8 +21,8 @@ logging.basicConfig(
 logger = logging.getLogger("video_assets")
 
 # Load API keys from environment
-PIXABAY_API_KEY = os.getenv("PIXABAY_KEY")
-PEXELS_API_KEY = os.getenv("PEXELS_KEY")
+PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
+PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
 
 # Validate API keys
 if not PIXABAY_API_KEY:

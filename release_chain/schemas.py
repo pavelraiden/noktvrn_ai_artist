@@ -42,7 +42,7 @@ class ReleaseMetadata(BaseModel):
         description="Textual summary of the track structure (e.g., intro, verse, chorus). Placeholder for now.",
     )
     visuals_source: Optional[str] = Field(
-        None, description="Source of the visuals used (e.g., pexels, luma)."
+        None, description="Source of the visuals used (e.g., pexels)."
     )
     llm_summary: Optional[str] = Field(
         None, description="Summary of the LLM chain or process used (placeholder)."

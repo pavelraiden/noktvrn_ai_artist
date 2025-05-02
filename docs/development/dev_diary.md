@@ -153,7 +153,7 @@ Implemented the initial version of the Artist Batch Runner system (`batch_runner
 *   Further testing requires setting up a functional webhook server to handle Telegram callbacks and update status files, as well as replacing placeholder functions with actual module integrations.
 
 ### Next Steps
-*   Replace placeholder functions with calls to actual modules (Suno, Pexels, Luma, Artist Evolution, etc.).
+*   Replace placeholder functions with calls to actual modules (Suno, Pexels, Artist Evolution, etc.).
 *   Implement the webhook server logic to update run status files based on Telegram callbacks.
 *   Refine artist selection and parameter adaptation logic.
 *   Implement the actual release logic (`trigger_release_logic`).
@@ -497,7 +497,7 @@ Implemented the initial version of the Artist Batch Runner system (`batch_runner
 *   Add monitoring/logging for API success rates, latency, and token costs per provider.
 *   Enhance error handling for specific failure types (e.g., content filtering, specific HTTP error codes).
 *   Complete integration for desired providers like Claude.
-*   Integrate the Luma client if video generation is required in the main pipeline.
+*   Integrate external clients (Suno, Pexels) if video/audio generation is required in the main pipeline.
 *   Add specific unit tests for the inter-provider fallback logic within the orchestrator.
 
 **Conclusion:** The LLM ecosystem is functional and reasonably stable due to the multi-provider fallback. However, significant improvements can be made in routing intelligence, error handling nuance, and monitoring for true production optimization.

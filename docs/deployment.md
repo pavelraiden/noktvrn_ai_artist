@@ -1,17 +1,17 @@
-# AI Artist Platform - Production Deployment Guide (Vultr)
+# AI Artist Platform - Production Deployment Guide (Vultr - v1.2)
 
-This guide details the steps to manually deploy the AI Artist Platform onto a Vultr server running Ubuntu 24.04 LTS.
+This guide details the steps to manually deploy the AI Artist Platform (v1.2 - Batch Runner focus) onto a Vultr server running Ubuntu 24.04 LTS.
 
 **Target Server:**
-*   **IP Address:** 136.244.94.146
-*   **OS:** Ubuntu 24.04 LTS (Note: Original plan specified 22.04, but 24.04 was used due to Vultr availability)
-*   **Specs:** 4 vCPU, 16GB RAM, 80GB SSD (Vultr Plan: `voc-g-4c-16gb-80s-amd`)
-*   **Region:** Frankfurt (fra)
+*   **IP Address:** 136.244.94.146 (Example - Use your actual server IP)
+*   **OS:** Ubuntu 24.04 LTS (or closest LTS)
+*   **Specs:** 4 vCPU, 16GB RAM, SSD storage (e.g., Vultr Plan: `voc-g-4c-16gb-80s-amd`)
+*   **Region:** Frankfurt (fra) or preferred European region
 
 **Prerequisites:**
-*   SSH access to the server (136.244.94.146) as the `root` user (initial password: `mR#6r]JZqcU2({.v`). **It is critical to change this password or set up SSH key authentication immediately.**
-*   The deployment scripts and configuration files generated in the `/deployment/` directory of the `noktvrn_ai_artist` repository.
-*   A domain name pointed to the server IP (optional, for Let's Encrypt SSL).
+*   SSH access to the server as the `root` user or a user with `sudo` privileges.
+*   A GitHub Personal Access Token (PAT) with repo access if the repository is private.
+*   API keys and credentials as listed in `.env.example`.
 
 ## Deployment Steps
 
@@ -19,168 +19,173 @@ Execute these steps sequentially on the Vultr server via SSH.
 
 **1. Initial Server Setup & Python Installation**
 
-*   Copy the `deployment/01_initial_setup_python.sh` script to the server.
-*   Make it executable: `chmod +x 01_initial_setup_python.sh`
-*   Run the script: `sudo ./01_initial_setup_python.sh`
-*   This script updates the system, installs Python 3.11, pip, venv, and Git.
+*   Connect to the server via SSH.
+*   Run the following commands:
+    ```bash
+    sudo apt-get update && sudo apt-get upgrade -y
+    sudo apt-get install -y python3.11 python3.11-venv python3-pip git ffmpeg
+    # Verify installations
+    python3.11 --version
+    pip3 --version
+    git --version
+    ffmpeg -version
+    ```
 
 **2. Security Hardening**
 
-*   **IMPORTANT:** Before running the hardening script, ensure you have set up SSH key-based authentication if you intend to disable password authentication. Test key-based login in a separate terminal session first.
-*   Copy the `deployment/03_security_hardening.sh` script to the server.
-*   Make it executable: `chmod +x 03_security_hardening.sh`
-*   Review the script, especially the SSH hardening section (PasswordAuthentication).
-*   Run the script: `sudo ./03_security_hardening.sh`
-*   This script installs and configures UFW (firewall), Fail2ban (brute-force protection), and hardens SSH settings (disables root login).
-*   Verify UFW status (`sudo ufw status verbose`) and Fail2ban status (`sudo fail2ban-client status sshd`).
+*   **IMPORTANT:** Set up SSH key-based authentication and disable password authentication for enhanced security.
+*   Install and configure UFW (firewall):
+    ```bash
+    sudo apt-get install -y ufw
+    sudo ufw default deny incoming
+    sudo ufw default allow outgoing
+    sudo ufw allow ssh # Or your custom SSH port
+    # Add other rules if needed (e.g., for monitoring)
+    sudo ufw enable
+    sudo ufw status verbose
+    ```
+*   Install Fail2ban (brute-force protection):
+    ```bash
+    sudo apt-get install -y fail2ban
+    sudo systemctl enable fail2ban
+    sudo systemctl start fail2ban
+    sudo fail2ban-client status sshd
+    ```
+*   Disable root login via SSH (edit `/etc/ssh/sshd_config` and set `PermitRootLogin no`, then `sudo systemctl restart sshd`). Ensure you have another user with `sudo` access first!
 
 **3. Create Application User**
 
-*   Create a dedicated user to run the application services (replace `ai_artist_user` if desired).
+*   Create a dedicated user to run the application:
     ```bash
-    sudo adduser ai_artist_user
-    # Add user to sudo group if needed for specific tasks, otherwise avoid
-    # sudo usermod -aG sudo ai_artist_user
-    # Add user to www-data group to allow Gunicorn/Nginx interaction if needed
-    sudo usermod -aG www-data ai_artist_user
+    sudo adduser ai_artist_app
+    # Grant sudo privileges if necessary (use with caution)
+    # sudo usermod -aG sudo ai_artist_app
     ```
 
-**4. PostgreSQL Installation & Configuration**
+**4. Clone Application Repository**
 
-*   Copy the `deployment/02_install_configure_postgres.sh` script to the server.
-*   **Edit the script:** Replace `YourStrongPasswordHere` with a strong, unique password for the `ai_artist_user` database user. Record this password securely.
-*   Make the script executable: `chmod +x 02_install_configure_postgres.sh`
-*   Run the script: `sudo ./02_install_configure_postgres.sh`
-*   This script installs PostgreSQL, creates the `ai_artist_db` database and `ai_artist_user`, grants privileges, and sets up a daily backup cron job.
-
-**5. Clone Application Repository**
-
-*   Log in as the `ai_artist_user` (or switch user: `su - ai_artist_user`).
-*   Clone the repository into the user's home directory (or another chosen location, e.g., `/srv/ai_artist`). Remember to adjust paths in subsequent steps if you change the location.
+*   Log in as the `ai_artist_app` user: `su - ai_artist_app`
+*   Clone the repository (use PAT for private repos):
     ```bash
     cd ~
-    # Use the provided GitHub PAT for cloning private repo
-    git clone https://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@github.com/pavelraiden/noktvrn_ai_artist.git
+    # Replace <YOUR_PAT> with your GitHub Personal Access Token
+    # git clone https://<YOUR_PAT>@github.com/pavelraiden/noktvrn_ai_artist.git
+    # Or for public repo:
+    git clone https://github.com/pavelraiden/noktvrn_ai_artist.git
     cd noktvrn_ai_artist
     APP_DIR=$(pwd) # Store the application directory path
     echo "Application cloned to: $APP_DIR"
     ```
 
-**6. Set Up Python Virtual Environment & Dependencies**
+**5. Set Up Python Virtual Environment & Dependencies**
 
 *   Navigate to the application directory (`cd $APP_DIR`).
-*   Create a virtual environment using the installed Python 3.11:
+*   Create and activate the virtual environment:
     ```bash
     python3.11 -m venv venv
-    ```
-*   Activate the virtual environment:
-    ```bash
     source venv/bin/activate
     ```
-*   Install dependencies:
+*   Install dependencies (including `moviepy` for video editing):
     ```bash
     pip install -r requirements.txt
     ```
 
-**7. Configure Production Environment (.env)**
+**6. Configure Production Environment (.env)**
 
-*   Copy the template: `cp deployment/env.production.template .env`
-*   **Edit the `.env` file:**
-    *   Replace `YourStrongPasswordHere` in `DATABASE_URL` with the actual PostgreSQL password you set.
-    *   Replace `generate_a_strong_random_secret_key_here` for `FLASK_SECRET_KEY` with a newly generated strong secret key (e.g., using `openssl rand -hex 32`).
-    *   Adjust `OUTPUT_BASE_DIR`, `RELEASE_LOG_FILE`, `RELEASE_QUEUE_FILE` paths to match the deployment structure (e.g., `$APP_DIR/output`).
-    *   Verify all API keys are correct.
+*   Copy the template:
+    ```bash
+    cp .env.example .env
+    ```
+*   **Edit the `.env` file** using a text editor (like `nano .env`):
+    *   Fill in **all** required API keys (Suno, Pexels, LLMs, Telegram Bot Token).
+    *   Set the correct `TELEGRAM_CHAT_ID`.
+    *   Adjust `OUTPUT_BASE_DIR` if needed (default is `$APP_DIR/output`).
+    *   Configure `LOG_LEVEL` (e.g., `INFO`, `DEBUG`).
+    *   Configure A/B testing: Set `AB_TESTING_ENABLED=True` or `False`.
+    *   Verify all other settings.
 *   Secure the `.env` file:
     ```bash
     chmod 600 .env
     ```
 
-**8. Install & Configure Nginx and Gunicorn**
+**7. Prepare Data and Log Directories**
 
-*   Install Nginx and Gunicorn (outside the venv, globally):
+*   Ensure the necessary directories exist and have correct permissions. The `artist_db_service.py` and `batch_runner.py` attempt to create these, but manual setup ensures correct ownership.
     ```bash
-    sudo apt-get update
-    sudo apt-get install -y nginx gunicorn
+    mkdir -p $APP_DIR/data
+    mkdir -p $APP_DIR/logs
+    mkdir -p $APP_DIR/output/run_status
+    mkdir -p $APP_DIR/output/approved
+    # Ensure the app user owns these directories
+    # (Should be owned by ai_artist_app if created after su - ai_artist_app)
+    # sudo chown -R ai_artist_app:ai_artist_app $APP_DIR/data $APP_DIR/logs $APP_DIR/output
     ```
-*   Copy the Nginx configuration:
-    *   Edit `deployment/nginx_ai_artist.conf`: Replace `your_domain_or_ip` with the server's IP (136.244.94.146) or your domain name. Adjust `alias` and `proxy_pass` paths to match `$APP_DIR`.
-    *   Copy to Nginx sites-available: `sudo cp deployment/nginx_ai_artist.conf /etc/nginx/sites-available/ai_artist`
-    *   Enable the site: `sudo ln -s /etc/nginx/sites-available/ai_artist /etc/nginx/sites-enabled/`
-    *   Remove the default site if it exists: `sudo rm /etc/nginx/sites-enabled/default`
-    *   Test Nginx configuration: `sudo nginx -t`
-*   Create SSL directory and generate self-signed certificate (or use Let's Encrypt later):
-    ```bash
-    sudo mkdir -p /etc/nginx/ssl
-    sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/nginx/ssl/ai_artist_selfsigned.key -out /etc/nginx/ssl/ai_artist_selfsigned.crt
-    # Answer the prompts for the certificate details
-    sudo chmod 600 /etc/nginx/ssl/ai_artist_selfsigned.key
-    ```
-*   Restart Nginx: `sudo systemctl restart nginx`
-*   Create Gunicorn log directory:
-    ```bash
-    sudo mkdir -p /var/log/gunicorn
-    sudo chown ai_artist_user:www-data /var/log/gunicorn # Adjust user/group as needed
-    sudo chmod 775 /var/log/gunicorn
-    ```
+*   The SQLite database (`$APP_DIR/data/artists.db`) will be created automatically when the batch runner starts if it doesn't exist.
 
-**9. Configure Systemd Services**
+**8. Configure Systemd Service for Batch Runner**
 
-*   Copy the Gunicorn configuration:
-    *   Edit `deployment/gunicorn_config.py`: Adjust `bind` (socket path), `user`, `group`, and `chdir` paths to match `$APP_DIR` and the `ai_artist_user`.
-*   Copy the Systemd service files:
-    *   Edit `deployment/ai_artist_frontend.service`: Adjust `User`, `Group`, `WorkingDirectory`, `EnvironmentFile` (if used), and `ExecStart` paths to match `$APP_DIR`, the virtual environment (`$APP_DIR/venv`), and the Gunicorn config path.
-    *   Edit `deployment/ai_artist_backend.service`: Adjust `User`, `Group`, `WorkingDirectory`, `EnvironmentFile`, and `ExecStart` paths to match `$APP_DIR` and the virtual environment.
-    *   Copy to Systemd: `sudo cp deployment/ai_artist_frontend.service deployment/ai_artist_backend.service /etc/systemd/system/`
-*   Reload Systemd, enable, and start the services:
+*   Create a systemd service file to manage the batch runner process.
+*   As root or using `sudo`, create the file `/etc/systemd/system/ai_artist_batch_runner.service`:
+    ```ini
+    [Unit]
+    Description=AI Artist Batch Runner Service
+    After=network.target
+
+    [Service]
+    User=ai_artist_app
+    Group=ai_artist_app
+    WorkingDirectory=/home/ai_artist_app/noktvrn_ai_artist # Adjust if cloned elsewhere
+    EnvironmentFile=/home/ai_artist_app/noktvrn_ai_artist/.env # Adjust path
+    ExecStart=/home/ai_artist_app/noktvrn_ai_artist/venv/bin/python /home/ai_artist_app/noktvrn_ai_artist/batch_runner/artist_batch_runner.py # Adjust paths
+    Restart=always
+    RestartSec=10
+    StandardOutput=append:/home/ai_artist_app/noktvrn_ai_artist/logs/batch_runner_stdout.log # Adjust path
+    StandardError=append:/home/ai_artist_app/noktvrn_ai_artist/logs/batch_runner_stderr.log # Adjust path
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
+*   **Important:** Adjust all paths in the service file (`WorkingDirectory`, `EnvironmentFile`, `ExecStart`, `StandardOutput`, `StandardError`) to match your actual application directory and user home.
+*   Reload Systemd, enable, and start the service:
     ```bash
     sudo systemctl daemon-reload
-    sudo systemctl enable ai_artist_frontend.service
-    sudo systemctl start ai_artist_frontend.service
-    sudo systemctl enable ai_artist_backend.service
-    sudo systemctl start ai_artist_backend.service
+    sudo systemctl enable ai_artist_batch_runner.service
+    sudo systemctl start ai_artist_batch_runner.service
     ```
-*   Check service status:
+
+**9. Verify Service Status and Logs**
+
+*   Check the service status:
     ```bash
-    sudo systemctl status ai_artist_frontend.service
-    sudo systemctl status ai_artist_backend.service
+    sudo systemctl status ai_artist_batch_runner.service
     ```
-
-**10. Set Up Logging Directory**
-
-*   Copy `deployment/04_logging_setup.sh` to the server.
-*   Edit the script: Ensure `APP_USER` and `APP_GROUP` match the user running the services (`ai_artist_user`).
-*   Make it executable: `chmod +x 04_logging_setup.sh`
-*   Run the script: `sudo ./04_logging_setup.sh`
-*   This creates `/var/log/ai_artist` and configures logrotate.
-
-**11. Testing and Validation**
-
-*   Copy `deployment/05_testing_validation.sh` to the server.
-*   Review the script and adjust any paths (`APP_DIR`).
-*   Execute the tests outlined in the script, monitoring logs closely:
-    *   `sudo tail -f /var/log/nginx/ai-artist-ssl-access.log`
-    *   `sudo tail -f /var/log/nginx/ai-artist-ssl-error.log`
-    *   `sudo tail -f /var/log/gunicorn/ai-artist-error.log`
-    *   `sudo tail -f /var/log/ai_artist/backend-stdout.log`
-    *   `sudo tail -f /var/log/ai_artist/backend-stderr.log`
-*   Access the dashboard via `https://136.244.94.146` (accept the self-signed certificate warning).
-*   Perform tests for API keys, Telegram, LLM chain, Start/Pause, and a full artist cycle.
-
-**12. (Optional) Let's Encrypt SSL**
-
-*   If you have a domain name pointed to the server IP:
+*   Monitor the logs:
     ```bash
-    sudo apt-get install certbot python3-certbot-nginx
-    sudo certbot --nginx -d your_domain_name.com # Replace with your domain
-    # Follow prompts. Certbot will modify Nginx config automatically.
-    sudo systemctl restart nginx
+    tail -f /home/ai_artist_app/noktvrn_ai_artist/logs/batch_runner.log
+    tail -f /home/ai_artist_app/noktvrn_ai_artist/logs/batch_runner_stdout.log
+    tail -f /home/ai_artist_app/noktvrn_ai_artist/logs/batch_runner_stderr.log
     ```
+*   Check for the creation of the SQLite database: `ls -l $APP_DIR/data/artists.db`
+*   Check the `output/run_status` directory for run files.
+*   Check Telegram for messages from the bot.
+
+## Updating the Deployment
+
+1.  Log in as `ai_artist_app`.
+2.  Navigate to the application directory: `cd $APP_DIR`
+3.  Stop the service: `sudo systemctl stop ai_artist_batch_runner.service`
+4.  Pull the latest code: `git pull origin main` (or your branch)
+5.  Activate the virtual environment: `source venv/bin/activate`
+6.  Update dependencies: `pip install -r requirements.txt`
+7.  Apply any necessary configuration changes (e.g., to `.env`).
+8.  Restart the service: `sudo systemctl start ai_artist_batch_runner.service`
+9.  Monitor logs.
 
 ## Post-Deployment
 
-*   Monitor logs regularly.
-*   Ensure backups are running (`ls -l /var/backups/postgres`).
+*   Monitor logs regularly for errors.
 *   Keep the system updated (`sudo apt-get update && sudo apt-get upgrade -y`).
+*   Consider setting up more robust monitoring and alerting.
 
-This completes the manual deployment process. The AI Artist Platform should now be running on the Vultr server.
+This completes the manual deployment process for the AI Artist Batch Runner (v1.2) on the Vultr server.
 
