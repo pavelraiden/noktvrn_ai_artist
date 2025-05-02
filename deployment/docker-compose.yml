@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: ai_artist_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_DB: ${DB_NAME:-ai_artist_db}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-ai_artist_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ..
+      dockerfile: deployment/backend.Dockerfile
+    container_name: ai_artist_backend
+    restart: always
+    env_file:
+      - ../.env
+    volumes:
+      # Mount output and logs for persistence/inspection if needed outside container
+      - ../output:/home/ubuntu/ai_artist_system_clone/output
+      - ../logs:/home/ubuntu/ai_artist_system_clone/logs
+      # Mount the whole project for development/testing (adjust for production)
+      # - ..:/home/ubuntu/ai_artist_system_clone
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+    # Define the command to run your main backend process
+    # Example: Assuming batch runner is the main entry point
+    command: ["python3.11", "batch_runner/artist_batch_runner.py"]
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: ../deployment/frontend.Dockerfile
+    container_name: ai_artist_frontend
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      # Pass necessary env vars if frontend needs them (e.g., API endpoints)
+      FLASK_ENV: production
+      # Example: If frontend needs DB connection (less ideal, prefer API)
+      # DB_USERNAME: ${DB_USERNAME:-postgres}
+      # DB_PASSWORD: ${DB_PASSWORD:-password}
+      # DB_HOST: db # Service name in docker-compose
+      # DB_PORT: 5432
+      # DB_NAME: ${DB_NAME:-ai_artist_db}
+    depends_on:
+      - backend # If frontend calls backend API
+      - db      # If frontend connects directly to DB
+    networks:
+      - app-network
+    command: ["gunicorn", "--workers", "4", "--bind", "0.0.0.0:5000", "src.main:app"]
+
+volumes:
+  pgdata:
+
+networks:
+  app-network:
+    driver: bridge
+
