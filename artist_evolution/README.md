@@ -9,7 +9,7 @@ This module is responsible for adapting the AI artist's profile and generation p
     *   `apply_evolution_rules()`: Modifies the artist's profile (e.g., adds/removes keywords) based on the identified trends. Contains example rules.
     *   `evolve_artist()`: Main function that fetches the artist profile, retrieves performance data for their releases, analyzes trends, applies rules, updates the profile (via placeholder `artist_profile_manager`), and logs the change using `artist_progression_db_service`.
 *   `style_adaptor.py`: Translates the evolved artist profile into concrete parameters for content generation.
-    *   `adapt_generation_parameters()`: Takes the artist profile and generates specific modifiers for Suno prompts, Luma style references, and stock video search keywords.
+    *   `adapt_generation_parameters()`: Takes the artist profile and generates specific modifiers for Suno prompts and stock video search keywords.
 *   `artist_progression_db_service.py`: Manages the logging of evolution events to the database.
     *   `apply_progression_schema()`: Applies the `artist_progression_log.sql` schema.
     *   `add_progression_log_entry()`: Inserts a record detailing the evolution event, the trigger (performance summary), and a snapshot of the profile after the change.
@@ -22,7 +22,7 @@ This module is responsible for adapting the AI artist's profile and generation p
 2.  Ensure performance data is being collected for releases.
 3.  Periodically call `artist_evolution_service.evolve_artist(artist_id)` for each active artist.
 4.  The `evolve_artist` function will update the artist's profile and log the change.
-5.  When generating new content for an artist, fetch their latest profile and use `style_adaptor.adapt_generation_parameters(profile)` to get tailored parameters for the generation services (Suno, Luma, Pexels via `video_selector`).
+5.  When generating new content for an artist, fetch their latest profile and use `style_adaptor.adapt_generation_parameters(profile)` to get tailored parameters for the generation services (Suno, Pexels via `video_selector`).
 
 ## Dependencies
 

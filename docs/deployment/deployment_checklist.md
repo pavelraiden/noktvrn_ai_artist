@@ -24,7 +24,6 @@ Ensure `.env` files exist in relevant directories (`noktvrn_ai_artist/`, `batch_
 *   **API Keys (Placeholders):**
     *   [ ] `PEXELS_API_KEY`: **Required for `pexels_client.py`.**
     *   [ ] `SUNO_API_KEY`: **Required for actual Suno integration (currently placeholder).**
-    *   [ ] `LUMA_API_KEY`: **Required for actual Luma integration (currently placeholder).**
     *   [ ] `TELEGRAM_BOT_TOKEN`: **Required for `telegram_service.py` and batch runner feedback.**
     *   [ ] `TELEGRAM_CHAT_ID`: **Required for Telegram notifications.**
     *   [ ] `TUNECORE_API_KEY`: **Required for actual TuneCore upload (currently placeholder).**
@@ -59,7 +58,7 @@ Ensure `.env` files exist in relevant directories (`noktvrn_ai_artist/`, `batch_
 Confirm understanding of which components are placeholders:
 *   [ ] **LLM Integration:** Currently placeholder/mock. Needs real implementation.
 *   [ ] **Audio Generation (Suno):** Client exists, but generation logic is placeholder.
-*   [ ] **Video Generation (Luma):** Client exists, but generation logic is placeholder.
+*   [ ] **Video Generation:** Placeholder/Basic implementation using FFmpeg (`scripts/video_gen/ffmpeg_controller.py`).
 *   [ ] **Release Upload (TuneCore, Web3):** Upload functions are placeholders.
 *   [ ] **Artist Selection/Parameter Adaptation:** Logic in `batch_runner` is placeholder.
 *   [ ] **Feedback Mechanism:** Telegram polling requires an external webhook server to update status files based on button clicks.

@@ -42,7 +42,7 @@ The engine operates in a continuous or periodic loop:
 
 5.  **Parameter Adaptation:**
     *   **Module:** `Style Adaptor`.
-    *   **Action:** Takes the updated high-level artist profile and translates the changes into concrete, usable parameters for the content generation pipeline (e.g., specific prompts for Suno/Luma, keyword adjustments for Pexels, tempo ranges).
+    *   **Action:** Takes the updated high-level artist profile and translates the changes into concrete, usable parameters for the content generation pipeline (e.g., specific prompts for Suno, keyword adjustments for Pexels).
     *   **Output:** Adapted generation parameters.
 
 6.  **Feedback to Generation:**

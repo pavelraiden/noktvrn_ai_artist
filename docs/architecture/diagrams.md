@@ -4,7 +4,7 @@ This file contains visual representations (using Mermaid.js syntax) of key archi
 
 ## 1. Artist Content Generation Pipeline
 
-This diagram illustrates the process from triggering content creation to storing an approved release in the database. It involves music generation (Suno), video selection/generation (Pexels/Luma), an approval workflow (Telegram), and database interaction.
+This diagram illustrates the process from triggering content creation to storing an approved release in the database. It involves music generation (Suno), video selection (Pexels), an approval workflow (Telegram), and database interaction.
 
 ```mermaid
 graph TD
@@ -16,8 +16,6 @@ graph TD
     F -- Keywords/Source Prefs --> G[Pexels API Client];
     G -- Stock Video URLs --> F;
     F -- Selected Video URL --> H{Approval Workflow};
-    D -- Track URL/Visual Prompt --> I[Luma API Client];
-    I -- Generated Video URL --> H;
     H -- Track & Video URLs --> J[Telegram Service];
     J -- Approval Request --> K[Human Reviewer];
     K -- Approve/Reject --> L[Telegram Callback];
