@@ -1,0 +1,31 @@
+[Unit]
+Description=Gunicorn instance to serve AI Artist Platform Frontend
+After=network.target
+
+[Service]
+# Replace with the user/group you want Gunicorn to run as
+# Ensure this user exists and has permissions to the app directory and socket file
+User=ai_artist_user # <<< ADJUST OR CREATE THIS USER
+Group=www-data      # <<< ADJUST OR CREATE THIS GROUP
+
+# Set the working directory to the frontend source code
+WorkingDirectory=/path/to/your/ai_artist_system_clone/frontend # <<< ADJUST THIS PATH
+
+# Load environment variables from .env file (if needed by Flask app directly)
+# EnvironmentFile=/path/to/your/ai_artist_system_clone/.env # <<< ADJUST THIS PATH
+
+# Command to start Gunicorn
+# Assumes virtual environment is at /path/to/your/ai_artist_system_clone/venv
+# Assumes gunicorn_config.py is in the deployment directory
+ExecStart=/path/to/your/ai_artist_system_clone/venv/bin/gunicorn --config /path/to/your/ai_artist_system_clone/deployment/gunicorn_config.py wsgi_app=src.main:app # <<< ADJUST PATHS
+
+# Restart policy
+Restart=always
+
+# Standard output and error logging (can also be handled by Gunicorn config)
+StandardOutput=append:/var/log/gunicorn/ai-artist-frontend-stdout.log
+StandardError=append:/var/log/gunicorn/ai-artist-frontend-stderr.log
+
+[Install]
+WantedBy=multi-user.target
+
