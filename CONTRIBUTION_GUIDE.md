@@ -7,13 +7,14 @@ This guide outlines the standards and practices for contributing to the AI Artis
 *   **Self-Learning Focus:** Every contribution must aim to improve the AI Artist System's ability to self-learn, self-adapt, and self-optimize over time based on performance data and feedback.
 *   **Production Readiness:** Prioritize scalability, robustness, monitoring, testing, and security in all development efforts.
 *   **Documentation Discipline:** Maintain accurate, up-to-date documentation alongside code changes.
+*   **Modular Design:** Utilize the `services/` directory for self-contained, reusable logic components (e.g., database interaction, external API clients, specific processing tasks).
 
 ## 2. Documentation Update Cadence
 
 Maintaining synchronized documentation is crucial. Update the following documents as described:
 
 *   **`README.md` (Main Project):**
-    *   **When:** After significant architectural changes, addition/removal of core modules, changes to setup/installation, or updates to the overall system overview.
+    *   **When:** After significant architectural changes, addition/removal of core modules (especially in `services/`), changes to setup/installation, or updates to the overall system overview.
     *   **Content:** High-level project description, core features, architecture overview, setup instructions, module list (including status: active/stale/mock), entry points, LLM system overview, artist lifecycle.
 *   **`docs/project_context.md`:**
     *   **When:** At the beginning of a new major phase or task block, or when the overall project goals, scope, or key decisions change.
@@ -21,11 +22,11 @@ Maintaining synchronized documentation is crucial. Update the following document
 *   **`docs/dev_diary.md`:**
     *   **When:** Continuously throughout a task block. Add entries *after* completing significant steps or encountering important issues/learnings.
     *   **Content:** Chronological log of development activities, decisions made, problems encountered, solutions implemented, links to relevant code/commits, verification steps, audit logs, self-repair logs.
-*   **Module `README.md` (e.g., `api_clients/README.md`):**
-    *   **When:** When creating a new module or significantly modifying an existing one (changing its purpose, core functions, inputs/outputs, or dependencies).
-    *   **Content:** Module purpose, key components/files, core functionality, usage examples, dependencies, configuration.
-*   **`/docs/` Subdirectories (e.g., `architecture/`, `modules/`, `llm/`, `system_state/`):**
-    *   **When:** When implementing or changing specific architectural patterns, module designs, LLM prompts/flows, deployment strategies, system state summaries, etc.
+*   **Module Documentation (`docs/modules/`):**
+    *   **When:** When creating a new service in the `services/` directory or significantly modifying an existing one (changing its purpose, core functions, inputs/outputs, or dependencies).
+    *   **Content:** Detailed description of the service's purpose, key functions/classes, usage examples, dependencies, configuration requirements.
+*   **`/docs/` Subdirectories (e.g., `architecture/`, `llm/`, `system_state/`):**
+    *   **When:** When implementing or changing specific architectural patterns, LLM prompts/flows, deployment strategies, system state summaries, etc.
     *   **Content:** Detailed design documents, flow diagrams, API specifications, specific guides (e.g., `setup_guide.md`, `behavioral_rules.md`), state summaries (`api_key_mapping.md`, `llm_support.md`). Update relevant documents when the corresponding system aspect changes.
 
 ## 3. Configuration and Secrets Management
@@ -33,12 +34,12 @@ Maintaining synchronized documentation is crucial. Update the following document
 Proper configuration and handling of secrets (API keys, tokens, passwords) are critical for security and deployment flexibility.
 
 *   **Environment Variables:** All configuration values that differ between environments (development, staging, production) or contain sensitive information **must** be managed using environment variables.
-*   **`.env` Files:** Environment variables should be loaded from `.env` files located in the relevant component's root directory (e.g., `noktvrn_ai_artist/.env`, `streamlit_app/.env`).
-*   **`.env.example` Files:** For each `.env` file, a corresponding `.env.example` file **must** exist in the repository. This file serves as a template, listing all required environment variables with placeholder values (e.g., `YOUR_API_KEY`) or default non-sensitive values.
+*   **`.env` Files:** Environment variables should be loaded from `.env` files located in the project root (`noktvrn_ai_artist/.env`). Component-specific `.env` files are discouraged to centralize configuration.
+*   **`.env.example` File:** A corresponding `.env.example` file **must** exist in the repository root. This file serves as a template, listing all required environment variables with placeholder values (e.g., `YOUR_API_KEY`) or default non-sensitive values.
 *   **`.gitignore`:** Ensure that `.env` files (containing real secrets) are listed in the root `.gitignore` file to prevent accidental commits.
-*   **Loading Variables:** Use libraries like `python-dotenv` to load variables from `.env` files into the application environment at runtime (as seen in `llm_orchestrator/orchestrator.py`).
+*   **Loading Variables:** Use libraries like `python-dotenv` to load variables from the root `.env` file into the application environment at runtime.
 *   **Accessing Variables:** Access configuration values within the code using `os.getenv("VARIABLE_NAME", "default_value")`.
-*   **Documentation:** The purpose and usage of each environment variable should be documented within the `.env.example` file and potentially in relevant module READMEs or the `docs/system_state/api_key_mapping.md`.
+*   **Documentation:** The purpose and usage of each environment variable should be documented within the `.env.example` file and potentially in relevant module documentation or `docs/system_state/api_key_mapping.md`.
 
 **Never commit `.env` files or hardcode secrets directly into the source code.**
 
@@ -46,7 +47,7 @@ Proper configuration and handling of secrets (API keys, tokens, passwords) are c
 
 ### 4.1 Multi-Provider Orchestration (`llm_orchestrator.py`)
 
-The system utilizes a central `LLMOrchestrator` to manage interactions with multiple LLM providers (DeepSeek, Gemini, Grok, Mistral, OpenAI). This approach provides flexibility and resilience.
+The system utilizes a central `LLMOrchestrator` to manage interactions with multiple LLM providers (DeepSeek, Gemini, Grok, Mistral, OpenAI, Anthropic). This approach provides flexibility and resilience.
 
 *   **Initialization:** The orchestrator is configured with a primary model and a list of fallback models (e.g., primary `deepseek-chat`, fallbacks `["gemini-1.5-flash", "mistral-large-latest"]`).
 *   **Provider Support:** It dynamically loads API keys from `.env` and initializes clients for configured and available providers.
@@ -83,9 +84,9 @@ Effective prompting is crucial for consistent and high-quality LLM outputs.
 
 ## 5. Naming Conventions
 
-*   **Files/Directories:** Use `snake_case` (e.g., `video_selector.py`, `api_clients/`).
+*   **Files/Directories:** Use `snake_case` (e.g., `video_selector.py`, `api_clients/`, `services/`).
 *   **Python Variables/Functions:** Use `snake_case` (e.g., `artist_id`, `calculate_score`).
-*   **Python Classes:** Use `PascalCase` (e.g., `ArtistProfile`, `PexelsClient`).
+*   **Python Classes:** Use `PascalCase` (e.g., `ArtistProfile`, `PexelsClient`, `ArtistDBService`).
 *   **Constants:** Use `UPPER_SNAKE_CASE` (e.g., `API_TIMEOUT = 30`).
 *   **Commit Messages:** Follow Conventional Commits format (e.g., `feat: add stock video tracking`, `fix: correct database index syntax`, `docs: update main README`). Use imperative mood (e.g., "add" not "added"). Include issue tracker references if applicable.
 

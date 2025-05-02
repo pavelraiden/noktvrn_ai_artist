@@ -95,6 +95,15 @@ except ImportError:
         "Warning: llm_registry.py not found or LLM_REGISTRY not defined. Auto-discovery disabled."
     )
 
+# Import Telegram Service for notifications
+try:
+    from services.telegram_service import send_notification
+except ImportError:
+    logger.warning("Telegram service not found, fallback notifications disabled.")
+    async def send_notification(message: str):
+        logger.debug(f"Telegram notification skipped (service unavailable): {message}")
+        await asyncio.sleep(0) # No-op awaitable
+
 # Configure logging
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO").upper(),
@@ -194,16 +203,18 @@ class LLMOrchestrator:
     Orchestrates interactions with multiple LLM providers.
     Supports a primary model, a list of fallback models, and auto-discovery from registry.
     Handles API key loading, client initialization, and API calls with retries and inter-provider fallback.
+    Includes Telegram notifications for fallback events.
     """
 
     def __init__(
         self,
-        primary_model: str,  # e.g., "deepseek-chat"
+        primary_model: str,  # e.g., "deepseek:deepseek-chat"
         fallback_models: Optional[
             List[str]
         ] = None,  # e.g., ["gemini-pro", "mistral-large-latest"]
         config: Optional[Dict[str, Any]] = None,
         enable_auto_discovery: bool = True,  # Flag to enable/disable discovery
+        enable_fallback_notifications: bool = True, # Flag to enable/disable Telegram notifications
     ):
         """
         Initialize the orchestrator with primary, fallback, and potentially discovered models.
@@ -214,10 +225,12 @@ class LLMOrchestrator:
             config: Additional configuration (e.g., temperature, max_retries, initial_delay).
             enable_auto_discovery: If True, attempts to add models from LLM_REGISTRY
                                      that are not already in primary/fallback.
+            enable_fallback_notifications: If True, send Telegram notifications on fallback events.
         """
         self.config = config or {}
         self.max_retries_per_provider = self.config.get("max_retries", 3)
         self.initial_delay = self.config.get("initial_delay", 1.0)
+        self.enable_fallback_notifications = enable_fallback_notifications
 
         self.providers: Dict[str, LLMProviderInstance] = {}
         self.model_preference: List[Tuple[str, str]] = (
@@ -586,10 +599,11 @@ class LLMOrchestrator:
         # specific_model: Optional[str] = None
     ) -> str:
         """
-        Generates text using the configured LLM providers with fallback.
+        Generates text using the configured LLM providers with fallback and notifications.
 
         Iterates through the model_preference list, attempting to call each provider.
-        If a provider fails (after internal retries), it moves to the next in the list.
+        If a provider fails (after internal retries), it sends a notification (if enabled)
+        and moves to the next in the list.
 
         Args:
             prompt: The input prompt for the LLM.
@@ -603,12 +617,14 @@ class LLMOrchestrator:
             LLMOrchestratorError: If all configured providers fail.
         """
         last_error = None
-        for provider, model_name in self.model_preference:
+        attempted_models = []
+        for i, (provider, model_name) in enumerate(self.model_preference):
             provider_key = f"{provider}:{model_name}"
+            attempted_models.append(provider_key)
             if provider_key in self.providers:
                 provider_instance = self.providers[provider_key]
                 try:
-                    logger.info(f"Attempting generation with: {provider}:{model_name}")
+                    logger.info(f"Attempting generation with: {provider_key}")
                     result = await self._call_provider_with_retry(
                         provider_instance,
                         prompt=prompt,
@@ -616,59 +632,93 @@ class LLMOrchestrator:
                         temperature=temperature,
                     )
                     logger.info(
-                        f"Successfully generated content using {provider}:{model_name}"
+                        f"Successfully generated content using {provider_key}"
                     )
                     return result
                 except Exception as e:
                     logger.warning(
-                        f"Generation failed with {provider}:{model_name}. Error: {e}. Trying next provider..."
+                        f"Generation failed with {provider_key}. Error: {e}."
                     )
                     last_error = e
+                    # Send notification if enabled and not the last model
+                    if self.enable_fallback_notifications and i < len(self.model_preference) - 1:
+                        next_provider, next_model = self.model_preference[i + 1]
+                        next_key = f"{next_provider}:{next_model}"
+                        message = f"LLM Fallback Alert: Failed with {provider_key} (Error: {type(e).__name__}). Falling back to {next_key}."
+                        logger.info(f"Sending fallback notification: {message}")
+                        try:
+                            # Fire and forget notification
+                            asyncio.create_task(send_notification(message))
+                        except Exception as notify_err:
+                            logger.error(f"Failed to send Telegram notification: {notify_err}")
+                    logger.info("Trying next provider...")
+
             else:
                 # This should ideally not happen if initialization is correct
                 logger.error(
                     f"Provider instance not found for {provider_key} during generation attempt."
                 )
+                last_error = LLMOrchestratorError(f"Provider instance {provider_key} not found.")
 
         # If loop completes without returning, all providers failed
         logger.critical("All configured LLM providers failed.")
+        error_message = f"All LLM providers failed. Attempted: {', '.join(attempted_models)}."
         if last_error:
-            raise LLMOrchestratorError(
-                f"All LLM providers failed. Last error: {last_error}"
-            ) from last_error
+            error_message += f" Last error: {type(last_error).__name__}: {last_error}"
+            # Send final failure notification if enabled
+            if self.enable_fallback_notifications:
+                 final_message = f"LLM Critical Failure: All providers failed. Attempted: {', '.join(attempted_models)}. Last error: {type(last_error).__name__}"
+                 logger.info(f"Sending final failure notification: {final_message}")
+                 try:
+                     # Fire and forget notification
+                     asyncio.create_task(send_notification(final_message))
+                 except Exception as notify_err:
+                     logger.error(f"Failed to send final Telegram notification: {notify_err}")
+            raise LLMOrchestratorError(error_message) from last_error
         else:
-            raise LLMOrchestratorError(
-                "All LLM providers failed. No providers were available or initialized correctly."
-            )
+            final_message = f"LLM Critical Failure: No providers were available or initialized correctly. Attempted models based on preference: {', '.join(attempted_models)}."
+            if self.enable_fallback_notifications:
+                logger.info(f"Sending final failure notification: {final_message}")
+                try:
+                    asyncio.create_task(send_notification(final_message))
+                except Exception as notify_err:
+                    logger.error(f"Failed to send final Telegram notification: {notify_err}")
+            raise LLMOrchestratorError(error_message)
 
 
 # --- Example Usage ---
 async def main():
     # Example: Prioritize DeepSeek, fallback to Gemini, then Mistral, auto-discover others
     primary = "deepseek:deepseek-chat"
-    fallbacks = ["gemini:gemini-1.5-pro-latest", "mistral:mistral-large-latest"]
+    fallbacks = ["gemini:gemini-1.5-pro-latest", "mistral:mistral-large-latest", "anthropic:claude-3-haiku-20240307"]
 
     # Ensure API keys are set in .env for the models you want to test
     # e.g., DEEPSEEK_API_KEY, GEMINI_API_KEY, MISTRAL_API_KEY, ANTHROPIC_API_KEY etc.
 
     try:
-        orchestrator = LLMOrchestrator(
-            primary_model=primary, fallback_models=fallbacks, enable_auto_discovery=True
-        )
+        # Initialize with fallback notifications enabled (default)
+        orchestrator = LLMOrchestrator(primary_model=primary, fallback_models=fallbacks)
 
-        test_prompt = "Write a short poem about a robot discovering music."
-        print(f'\n--- Generating with prompt: "{test_prompt}" ---')
-        generated_text = await orchestrator.generate(test_prompt, max_tokens=150)
-        print("\nGenerated Text:")
-        print(generated_text)
+        test_prompt = "Write a short story about a robot who learns to paint."
+        print(f"\n--- Generating with prompt: '{test_prompt}' ---")
+        response = await orchestrator.generate(test_prompt, max_tokens=150)
+        print(f"\n--- Generated Response --- ")
+        print(response)
+        print("-------------------------")
 
     except ValueError as e:
-        print(f"Initialization Error: {e}")
+        logger.error(f"Initialization Error: {e}")
     except LLMOrchestratorError as e:
-        print(f"Generation Error: {e}")
+        logger.error(f"Generation Error: {e}")
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-
+        logger.error(f"An unexpected error occurred: {e}", exc_info=True)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    # Check if running in an asyncio event loop
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(main())
+    except RuntimeError:
+        # No running loop, run using asyncio.run()
+        asyncio.run(main())
+
