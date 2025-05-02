@@ -6,7 +6,7 @@ The AI Artist Platform is a comprehensive system designed to autonomously genera
 
 ## System Architecture (Phase 9 Final - v1.1)
 
-The system employs a modular architecture focused on a continuous evolution loop, enhanced with multi-provider LLM support, API integration, resilience mechanisms (retry/fallback), feedback processing, and a basic frontend foundation.
+The system employs a modular architecture focused on a continuous evolution loop, enhanced with multi-provider LLM support, API integration, resilience mechanisms (retry/fallback), feedback processing, and a basic frontend foundation. This version (v1.1) represents a production-ready state with enhanced stability, security, and documentation.
 
 For a detailed breakdown, refer to:
 *   `/docs/system_state/architecture.md` (High-level overview)
@@ -88,7 +88,7 @@ graph TD
 noktvrn_ai_artist/
 ├── .env                  # Local environment variables (DO NOT COMMIT)
 ├── .env.example          # Environment variables template
-├── .github/              # GitHub Actions workflows
+├── .github/              # GitHub Actions workflows (CI checks)
 ├── .gitignore
 ├── api_clients/          # Clients for external APIs (Suno, Pexels, Base)
 ├── analytics/            # Performance data handling (DB service, Stock Tracker)
@@ -112,7 +112,7 @@ noktvrn_ai_artist/
 ├── output/               # Default dir for generated outputs (run status, releases, etc.)
 ├── release_chain/        # Logic for packaging approved runs into releases
 ├── release_uploader/     # Logic for preparing releases for upload/deployment (Placeholder)
-├── requirements.txt      # Python dependencies
+├── requirements.txt      # Python dependencies for core system
 ├── scripts/              # Utility & operational scripts
 ├── tests/                # Unit and integration tests
 ├── utils/                # Common utilities (retry decorator, health checker)
