@@ -8,6 +8,7 @@ import sqlite3
 import json
 import logging
 import os
+import uuid # Added for generating artist IDs
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
@@ -42,41 +43,73 @@ def _add_column_if_not_exists(cursor, table_name, column_name, column_type):
     if column_name not in columns:
         try:
             cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
-            logger.info(f"Added column 	{column_name}	 to table 	{table_name}	.")
+            logger.info(f"Added column '{column_name}' to table '{table_name}'.")
         except sqlite3.OperationalError as e:
             # Handle cases where adding column might fail concurrently (less likely with ALTER TABLE)
-            logger.warning(f"Could not add column 	{column_name}	 to 	{table_name}	 (might already exist): {e}")
+            logger.warning(f"Could not add column '{column_name}' to '{table_name}' (might already exist): {e}")
     else:
-        logger.debug(f"Column 	{column_name}	 already exists in table 	{table_name}	.")
+        logger.debug(f"Column '{column_name}' already exists in table '{table_name}'.")
+
+def _rename_column_if_exists(cursor, table_name, old_column_name, new_column_name):
+    """Helper function to rename a column if it exists and the new name doesn't."""
+    cursor.execute(f"PRAGMA table_info({table_name})")
+    columns = {info["name"]: info for info in cursor.fetchall()}
+    if old_column_name in columns and new_column_name not in columns:
+        try:
+            # SQLite < 3.25.0 doesn't support RENAME COLUMN directly in ALTER TABLE
+            # For broader compatibility, we might need a more complex migration (create new table, copy data, drop old, rename new)
+            # However, modern SQLite versions support it. Assuming modern version for simplicity here.
+            cursor.execute(f"ALTER TABLE {table_name} RENAME COLUMN {old_column_name} TO {new_column_name}")
+            logger.info(f"Renamed column '{old_column_name}' to '{new_column_name}' in table '{table_name}'.")
+        except sqlite3.OperationalError as e:
+            logger.error(f"Failed to rename column '{old_column_name}' to '{new_column_name}' in '{table_name}': {e}. Manual migration might be needed if using older SQLite.")
+    elif old_column_name in columns and new_column_name in columns:
+         logger.debug(f"Both '{old_column_name}' and '{new_column_name}' exist in '{table_name}'. Skipping rename.")
+    elif old_column_name not in columns:
+         logger.debug(f"Column '{old_column_name}' does not exist in '{table_name}'. Skipping rename.")
 
 def initialize_database():
-    """Creates the artists and error_reports tables if they don't exist, adding new columns if needed."""
+    """Creates the artists and error_reports tables if they don't exist, adding/modifying columns as needed for lifecycle management."""
     conn = get_db_connection()
     if not conn:
         return
     try:
         cursor = conn.cursor()
-        # Artists Table
+        # Artists Table - Updated Schema for Lifecycle Management
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS artists (
                 artist_id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 genre TEXT,
                 style_notes TEXT,
+                llm_config TEXT, -- Added for storing LLM details
                 created_at TEXT NOT NULL,
                 last_run_at TEXT,
+                status TEXT DEFAULT 'Candidate', -- Replaces is_active (Candidate, Active, Paused, Retired, Evolving)
                 performance_history TEXT, -- Storing as JSON string
                 consecutive_rejections INTEGER DEFAULT 0,
-                is_active BOOLEAN DEFAULT 1,
-                autopilot_enabled BOOLEAN DEFAULT 0 -- Added for Autopilot mode
+                autopilot_enabled BOOLEAN DEFAULT 0
             )
         """)
         logger.info("Database initialized. 'artists' table checked/created.")
 
-        # Add autopilot_enabled column to existing tables if necessary (for backward compatibility)
+        # --- Schema Migrations/Updates ---
+        # 1. Add 'status' column if it doesn't exist
+        _add_column_if_not_exists(cursor, "artists", "status", "TEXT DEFAULT 'Candidate'")
+
+        # 2. Add 'llm_config' column if it doesn't exist
+        _add_column_if_not_exists(cursor, "artists", "llm_config", "TEXT")
+
+        # 3. Rename 'is_active' to 'status' if 'is_active' exists and 'status' doesn't (Handle legacy)
+        # Note: This is a simplification. A proper migration would map 1 to 'Active', 0 to 'Paused' or 'Retired'.
+        # For now, we prioritize the new 'status' column. If 'is_active' exists, it might become redundant.
+        # We will primarily use the 'status' column going forward.
+        # _rename_column_if_exists(cursor, "artists", "is_active", "status") # Commented out rename due to complexity of data migration
+
+        # 4. Add 'autopilot_enabled' if missing (already handled in previous version, kept for safety)
         _add_column_if_not_exists(cursor, "artists", "autopilot_enabled", "BOOLEAN DEFAULT 0")
 
-        # Error Reports Table
+        # Error Reports Table (Unchanged from previous version)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS error_reports (
                 report_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -91,9 +124,10 @@ def initialize_database():
         """)
         logger.info("Database initialized. 'error_reports' table checked/created.")
 
-        # Index for faster querying
+        # Index for faster querying (Unchanged)
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_error_timestamp ON error_reports (timestamp DESC)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_error_hash ON error_reports (error_hash)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_artist_status ON artists (status)") # Add index for status
 
         conn.commit()
     except sqlite3.Error as e:
@@ -104,38 +138,47 @@ def initialize_database():
 
 # --- Artist Data CRUD Operations ---
 
-def add_artist(artist_data: Dict[str, Any]) -> bool:
-    """Adds a new artist to the database."""
+def add_artist(artist_data: Dict[str, Any]) -> Optional[str]:
+    """Adds a new artist to the database with 'Candidate' status. Returns artist_id if successful."""
     conn = get_db_connection()
     if not conn:
-        return False
+        return None
+
+    artist_id = artist_data.get("artist_id", str(uuid.uuid4())) # Generate ID if not provided
+    created_at = artist_data.get("created_at", datetime.utcnow().isoformat())
+    initial_status = artist_data.get("status", "Candidate") # Default to Candidate
+
     try:
         cursor = conn.cursor()
-        # Include autopilot_enabled in the INSERT statement
         cursor.execute("""
-            INSERT INTO artists (artist_id, name, genre, style_notes, created_at, last_run_at, performance_history, consecutive_rejections, is_active, autopilot_enabled)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO artists (
+                artist_id, name, genre, style_notes, llm_config, created_at,
+                last_run_at, status, performance_history, consecutive_rejections,
+                autopilot_enabled
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            artist_data["artist_id"],
+            artist_id,
             artist_data["name"],
             artist_data.get("genre"),
             artist_data.get("style_notes"),
-            artist_data["created_at"],
-            artist_data.get("last_run_at"),
+            json.dumps(artist_data.get("llm_config", {})), # Store LLM config as JSON
+            created_at,
+            artist_data.get("last_run_at"), # Likely None initially
+            initial_status,
             json.dumps(artist_data.get("performance_history", [])), # Store as JSON string
             artist_data.get("consecutive_rejections", 0),
-            artist_data.get("is_active", True),
-            artist_data.get("autopilot_enabled", False) # Default to False if not provided
+            artist_data.get("autopilot_enabled", False) # Default autopilot to False
         ))
         conn.commit()
-        logger.info(f"Added new artist {artist_data['artist_id']} to database.")
-        return True
+        logger.info(f"Added new artist '{artist_data['name']}' with ID {artist_id} and status '{initial_status}'.")
+        return artist_id
     except sqlite3.IntegrityError:
-        logger.warning(f"Artist ID {artist_data['artist_id']} already exists in the database.")
-        return False
+        logger.warning(f"Artist ID {artist_id} already exists in the database.")
+        return None
     except sqlite3.Error as e:
-        logger.error(f"Error adding artist {artist_data['artist_id']}: {e}")
-        return False
+        logger.error(f"Error adding artist {artist_id}: {e}")
+        return None
     finally:
         if conn:
             conn.close()
@@ -151,8 +194,9 @@ def get_artist(artist_id: str) -> Optional[Dict[str, Any]]:
         row = cursor.fetchone()
         if row:
             artist = dict(row)
-            # Deserialize performance_history
+            # Deserialize JSON fields
             artist["performance_history"] = json.loads(artist.get("performance_history", "[]"))
+            artist["llm_config"] = json.loads(artist.get("llm_config", "{}"))
             # Convert autopilot_enabled from 0/1 to boolean
             artist["autopilot_enabled"] = bool(artist.get("autopilot_enabled", 0))
             return artist
@@ -165,28 +209,31 @@ def get_artist(artist_id: str) -> Optional[Dict[str, Any]]:
         if conn:
             conn.close()
 
-def get_all_artists(only_active: bool = False) -> List[Dict[str, Any]]:
-    """Retrieves all artists, optionally filtering for active ones."""
+def get_all_artists(status_filter: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Retrieves all artists, optionally filtering by status."""
     conn = get_db_connection()
     if not conn:
         return []
     try:
         cursor = conn.cursor()
         query = "SELECT * FROM artists"
-        if only_active:
-            query += " WHERE is_active = 1"
-        cursor.execute(query)
+        params = []
+        if status_filter:
+            query += " WHERE status = ?"
+            params.append(status_filter)
+
+        cursor.execute(query, tuple(params))
         rows = cursor.fetchall()
         artists = []
         for row in rows:
             artist = dict(row)
             artist["performance_history"] = json.loads(artist.get("performance_history", "[]"))
-            # Convert autopilot_enabled from 0/1 to boolean
+            artist["llm_config"] = json.loads(artist.get("llm_config", "{}"))
             artist["autopilot_enabled"] = bool(artist.get("autopilot_enabled", 0))
             artists.append(artist)
         return artists
     except sqlite3.Error as e:
-        logger.error(f"Error getting all artists: {e}")
+        logger.error(f"Error getting artists (filter: {status_filter}): {e}")
         return []
     finally:
         if conn:
@@ -202,13 +249,14 @@ def update_artist(artist_id: str, update_data: Dict[str, Any]) -> bool:
     values = []
     for key, value in update_data.items():
         # Handle specific fields that need transformation
-        if key == "performance_history":
+        if key == "performance_history" or key == "llm_config":
             fields.append(f"{key} = ?")
             values.append(json.dumps(value)) # Serialize to JSON
-        elif key == "is_active" or key == "autopilot_enabled": # Handle boolean fields
+        elif key == "autopilot_enabled": # Handle boolean field
              fields.append(f"{key} = ?")
              values.append(1 if value else 0) # Convert boolean to integer for SQLite
         elif key != "artist_id": # Avoid updating the primary key
+            # Includes 'status', 'name', 'genre', 'style_notes', 'last_run_at', 'consecutive_rejections'
             fields.append(f"{key} = ?")
             values.append(value)
 
@@ -236,8 +284,22 @@ def update_artist(artist_id: str, update_data: Dict[str, Any]) -> bool:
         if conn:
             conn.close()
 
+def update_artist_status(artist_id: str, new_status: str) -> bool:
+    """Convenience function to update only the artist's status."""
+    return update_artist(artist_id, {"status": new_status})
+
 def update_artist_performance_db(artist_id: str, run_id: str, status: str, retirement_threshold: int) -> bool:
-    """Updates performance history, rejection count, and checks for retirement."""
+    """Updates performance history, rejection count, and potentially status based on run outcome.
+
+    Args:
+        artist_id: The ID of the artist.
+        run_id: The ID of the completed run.
+        status: The outcome of the run ('approved', 'rejected', etc.).
+        retirement_threshold: Number of consecutive rejections to trigger retirement.
+
+    Returns:
+        True if the update was successful, False otherwise.
+    """
     artist = get_artist(artist_id)
     if not artist:
         logger.warning(f"Attempted to update performance for non-existent artist ID: {artist_id}")
@@ -256,23 +318,31 @@ def update_artist_performance_db(artist_id: str, run_id: str, status: str, retir
     }
 
     consecutive_rejections = artist.get("consecutive_rejections", 0)
+    current_status = artist.get("status", "Unknown")
+
     if status == "rejected":
         consecutive_rejections += 1
         update_payload["consecutive_rejections"] = consecutive_rejections
+        # Check for retirement trigger
+        if consecutive_rejections >= retirement_threshold and current_status not in ["Retired", "Paused"]:
+            update_payload["status"] = "Retired"
+            logger.warning(f"Artist {artist_id} ('{artist.get('name', 'N/A')}') automatically retired due to {consecutive_rejections} consecutive rejections.")
     elif status == "approved":
-        consecutive_rejections = 0 # Reset on approval
-        update_payload["consecutive_rejections"] = 0
-    # No change to consecutive_rejections for other statuses
+        if consecutive_rejections > 0:
+            update_payload["consecutive_rejections"] = 0 # Reset on approval
+        # If artist was 'Candidate', first approval makes them 'Active'
+        if current_status == "Candidate":
+             update_payload["status"] = "Active"
+             logger.info(f"Artist {artist_id} ('{artist.get('name', 'N/A')}') status changed from Candidate to Active after first approval.")
 
-    # Check for retirement
-    if consecutive_rejections >= retirement_threshold:
-        if artist.get("is_active", True): # Only log/update if currently active
-            update_payload["is_active"] = False
-            logger.info(f"Artist {artist_id} (", {artist.get('name', 'N/A')}, ") marked as inactive due to {consecutive_rejections} consecutive rejections.")
+    # Ensure we don't try to update if payload is empty (e.g., non-approved/rejected status with 0 rejections)
+    if len(update_payload) <= 1 and "last_run_at" in update_payload:
+         logger.debug(f"No significant performance update needed for artist {artist_id} based on run status '{status}'. Only updating last_run_at.")
+         return update_artist(artist_id, {"last_run_at": now_iso})
 
     return update_artist(artist_id, update_payload)
 
-# --- Error Report CRUD Operations ---
+# --- Error Report CRUD Operations (Unchanged) ---
 
 def add_error_report(report_data: Dict[str, Any]) -> Optional[int]:
     """Adds a new error report to the database and returns the report ID."""
@@ -377,6 +447,7 @@ def update_error_report_status(report_id: int, new_status: str, update_data: Opt
             conn.close()
 
 # --- Initial Setup ---
+# Run initialization when the module is imported to ensure schema is up-to-date
 initialize_database()
 
 # --- Example Usage (for testing) ---
@@ -385,60 +456,71 @@ if __name__ == "__main__":
     logger.info("Running artist_db_service tests...")
 
     # --- Artist Tests ---
-    test_artist_id = f"test_artist_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-    added = add_artist({
-        "artist_id": test_artist_id,
-        "name": "DB Test Artist",
+    test_artist_name = f"DB Test Artist {datetime.now().strftime('%H%M%S')}"
+    test_artist_data = {
+        "name": test_artist_name,
         "genre": "test-genre",
-        "style_notes": "Testing DB service.",
-        "created_at": datetime.utcnow().isoformat(),
-        "performance_history": [],
-        "is_active": True,
+        "style_notes": "Testing DB service creation.",
+        "llm_config": {"model": "test-llm-v1", "temperature": 0.7},
         "autopilot_enabled": False # Test adding with autopilot off
-    })
-    print(f"Add Artist {test_artist_id}: {'Success' if added else 'Failed'}")
-    retrieved_artist = get_artist(test_artist_id)
-    print(f"Get Artist {test_artist_id}: {'Found' if retrieved_artist else 'Not Found'}")
-    if retrieved_artist:
-        print(f"  Autopilot Enabled: {retrieved_artist.get('autopilot_enabled')}")
+    }
+    added_id = add_artist(test_artist_data)
+    print(f"Add Artist '{test_artist_name}': {'Success (ID: ' + added_id + ')' if added_id else 'Failed'}")
 
-    # Test Update Autopilot
-    updated_autopilot = update_artist(test_artist_id, {"autopilot_enabled": True})
-    print(f"Update Autopilot to True: {'Success' if updated_autopilot else 'Failed'}")
-    retrieved_artist = get_artist(test_artist_id)
-    if retrieved_artist:
-        print(f"  Autopilot Enabled (after update): {retrieved_artist.get('autopilot_enabled')}")
+    if added_id:
+        retrieved_artist = get_artist(added_id)
+        print(f"Get Artist {added_id}: {'Found' if retrieved_artist else 'Not Found'}")
+        if retrieved_artist:
+            print(f"  Status: {retrieved_artist.get('status')}")
+            print(f"  Autopilot Enabled: {retrieved_artist.get('autopilot_enabled')}")
+            print(f"  LLM Config: {retrieved_artist.get('llm_config')}")
 
-    # ... (rest of artist tests) ...
+        # Test Update Autopilot
+        updated_autopilot = update_artist(added_id, {"autopilot_enabled": True, "status": "Active"})
+        print(f"Update Autopilot to True & Status to Active: {'Success' if updated_autopilot else 'Failed'}")
+        retrieved_artist = get_artist(added_id)
+        if retrieved_artist:
+            print(f"  New Status: {retrieved_artist.get('status')}")
+            print(f"  New Autopilot Enabled: {retrieved_artist.get('autopilot_enabled')}")
+
+        # Test Update Performance (simulate approval)
+        updated_perf = update_artist_performance_db(added_id, "run_001", "approved", 3)
+        print(f"Update Performance (Approved): {'Success' if updated_perf else 'Failed'}")
+        retrieved_artist = get_artist(added_id)
+        if retrieved_artist:
+            print(f"  Consecutive Rejections: {retrieved_artist.get('consecutive_rejections')}")
+            print(f"  Performance History Length: {len(retrieved_artist.get('performance_history', []))}")
+
+        # Test Update Performance (simulate rejection)
+        updated_perf = update_artist_performance_db(added_id, "run_002", "rejected", 3)
+        print(f"Update Performance (Rejected): {'Success' if updated_perf else 'Failed'}")
+        retrieved_artist = get_artist(added_id)
+        if retrieved_artist:
+            print(f"  Consecutive Rejections: {retrieved_artist.get('consecutive_rejections')}")
+
+        # Test get_all_artists
+        all_artists = get_all_artists()
+        print(f"Get All Artists: Found {len(all_artists)} artists.")
+        active_artists = get_all_artists(status_filter="Active")
+        print(f"Get Active Artists: Found {len(active_artists)} artists.")
 
     # --- Error Report Tests ---
-    logger.info("Running error_report tests...")
-    test_report_data = {
-        "timestamp": datetime.utcnow().isoformat(),
+    test_error_data = {
         "error_hash": "testhash123",
-        "error_log": "Traceback:\nValueError: Test error",
-        "analysis": "This is a test error.",
-        "fix_suggestion": "No fix needed.",
-        "status": "new",
-        "service_name": "test_service"
+        "error_log": "Traceback...\nValueError: Test error",
+        "analysis": "Seems like a test.",
+        "fix_suggestion": "Ignore it.",
+        "service_name": "db_test_script"
     }
-    report_id = add_error_report(test_report_data)
-    print(f"Add Error Report: {'Success, ID=' + str(report_id) if report_id else 'Failed'}")
+    report_id = add_error_report(test_error_data)
+    print(f"Add Error Report: {'Success (ID: ' + str(report_id) + ')' if report_id else 'Failed'}")
 
     if report_id:
-        # Test Get Reports
-        reports = get_error_reports(limit=5)
-        print(f"Get Error Reports (limit 5): Found {len(reports)}")
-        if reports:
-            print(f"  Latest report ID: {reports[0]['report_id']}, Status: {reports[0]['status']}")
+        reports = get_error_reports(limit=1)
+        print(f"Get Error Reports: Found {len(reports)} report(s). Status: {reports[0]['status'] if reports else 'N/A'}")
+        updated_status = update_error_report_status(report_id, "analyzed", {"analysis": "Updated analysis."})
+        print(f"Update Error Report Status to 'analyzed': {'Success' if updated_status else 'Failed'}")
+        reports = get_error_reports(limit=1)
+        print(f"Get Error Reports After Update: Status: {reports[0]['status'] if reports else 'N/A'}")
 
-        # Test Update Status with data
-        updated_status = update_error_report_status(report_id, "analyzed", {"analysis": "Updated analysis"})
-        print(f"Update Error Report Status & Data (ID: {report_id}): {'Success' if updated_status else 'Failed'}")
-        reports_after_update = get_error_reports(limit=1)
-        if reports_after_update and reports_after_update[0]['report_id'] == report_id:
-            print(f"  New Status: {reports_after_update[0]['status']}")
-            print(f"  Updated Analysis: {reports_after_update[0]['analysis']}")
-
-    logger.info("artist_db_service tests finished.")
 

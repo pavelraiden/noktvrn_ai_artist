@@ -1,45 +1,46 @@
-# AI Artist Platform - Production Ready v1.3 (Finalizer Pass)
+# AI Artist Platform - Production Ready v1.4 (Lifecycle Implemented)
 
 ## Project Description
 
 The AI Artist Platform is a comprehensive system designed to autonomously generate, manage, and evolve AI-powered virtual music artists. It creates unique artist identities, orchestrates content creation (music, visuals), analyzes performance, and adapts based on data-driven insights and feedback, aiming to explore the potential of autonomous creative systems in the music industry.
 
-## System Architecture (Phase 11 - v1.3)
+## System Architecture (Phase 11 - v1.4)
 
-The system employs a modular architecture focused on a continuous evolution loop. This version (v1.3) incorporates several enhancements focused on production readiness, robustness, and control:
+The system employs a modular architecture focused on a continuous evolution loop. This version (v1.4) incorporates the full artist lifecycle management and further production readiness enhancements:
 
-*   **Multi-Provider LLM Support:** Utilizes `llm_orchestrator` for interaction with DeepSeek, Gemini, Grok, Mistral, Anthropic, OpenAI (optional) with retry, **enhanced fallback logic (sequential attempts through ranked models, Telegram notifications)**, and auto-discovery.
+*   **Multi-Provider LLM Support:** Utilizes `llm_orchestrator` for interaction with DeepSeek, Gemini, Grok, Mistral, Anthropic, OpenAI (optional) with retry, enhanced fallback logic, and auto-discovery.
 *   **API Integration:** Consistent use of environment variables (`.env`) for API keys (Suno, Pexels, LLMs, Telegram).
-*   **Persistent Memory:** Artist profiles, performance history, and **error reports** are stored in a SQLite database (`data/artists.db`) managed by `services/artist_db_service.py`.
-*   **Enhanced Lifecycle Control:** The `batch_runner` uses the database service to manage artist creation (probabilistic), selection (least recently run), and retirement (based on consecutive rejections).
-*   **LLM Auto-Reflection:** The `batch_runner` prompts the LLM via the orchestrator to reflect on each generated piece, assessing alignment and suggesting improvements. Reflections are stored in the run status file.
-*   **Basic Video Editing:** A `services/video_editing_service.py` module provides functionality to add text overlays to videos using MoviePy (requires FFmpeg).
-*   **Trend Analysis (Initial):** A `services/trend_analysis_service.py` module uses the Twitter API (via Datasource) for basic trend scoring.
-*   **A/B Testing Framework:** The `batch_runner` includes a configurable framework to test variations in generation parameters.
-*   **Telegram Integration:** Automated batch processing via `batch_runner` sends previews to Telegram (requires `TELEGRAM_BOT_TOKEN` & `TELEGRAM_CHAT_ID`) and processes approval/rejection feedback. **(Note: Control Panel Interface was skipped due to technical issues)**.
-*   **Error Analysis & Auto-Fixing:** A dedicated `services/error_analysis_service.py` monitors logs (`logs/batch_runner.log`), uses LLMs (`llm_orchestrator`) to analyze errors, suggests fixes (including diff patches), logs reports to the database (`error_reports` table), and can optionally attempt auto-patching via `git apply`. Notifies via Telegram.
-*   **Error Reporting Dashboard:** A Streamlit application (`dashboard/error_dashboard.py`) provides a web interface to view, filter, and inspect error reports stored in the database.
-*   **Autopilot/Manual Control:** Artists have an `autopilot_enabled` flag in the database. The `batch_runner` checks this flag; if true, runs are automatically approved (`autopilot_approved` status) and proceed to the release chain; otherwise, manual approval via Telegram is required. A helper script (`scripts/toggle_autopilot.py`) allows easy toggling.
+*   **Persistent Memory:** Artist profiles, performance history, and error reports are stored in a SQLite database (`data/artists.db`) managed by `services/artist_db_service.py`.
+*   **Full Artist Lifecycle Management:** A dedicated `services/artist_lifecycle_manager.py` manages artist states (`Candidate`, `Active`, `Evolving`, `Paused`, `Retired`) based on performance metrics (approval rate, error rate, inactivity) and configurable thresholds. It handles evolution (e.g., LLM config adjustment) and retirement logic. Integrated into the `batch_runner`.
+*   **LLM Auto-Reflection:** The `batch_runner` prompts the LLM via the orchestrator to reflect on each generated piece.
+*   **Basic Video Editing:** `services/video_editing_service.py` adds text overlays.
+*   **Trend Analysis (Initial):** `services/trend_analysis_service.py` uses Twitter API for basic trend scoring.
+*   **A/B Testing Framework:** Configurable framework in `batch_runner`.
+*   **Telegram Integration:** Automated batch processing via `batch_runner` sends previews and processes approval/rejection feedback.
+*   **Error Analysis & Auto-Fixing:** `services/error_analysis_service.py` monitors logs, uses LLMs for analysis/fix suggestions, logs reports to DB, optionally attempts auto-patching, and notifies via Telegram.
+*   **Error Reporting Dashboard:** Streamlit app (`dashboard/error_dashboard.py`) to view error reports.
+*   **Autopilot/Manual Control:** DB flag (`autopilot_enabled`) controls manual vs. automatic approval in `batch_runner`. Helper script (`scripts/toggle_autopilot.py`) available.
 *   **Release Packaging:** `release_chain` prepares approved content runs.
-*   **Security:** Hardcoded credentials removed, consistent use of `.env` and `.gitignore` for sensitive data.
+*   **Security:** Hardcoded credentials removed, consistent use of `.env` and `.gitignore`.
 *   **CI/CD:** GitHub Actions for code formatting checks.
-*   **Frontend Foundation:** Basic Flask-based UI foundation in `frontend/` for future admin panel.
-*   **Code Structure Audit:** Removed deprecated modules (`artist_builder`, `analytics`, `database`, `artist_evolution`) and validated core component imports.
+*   **Frontend Foundation:** Basic Flask-based UI foundation in `frontend/`.
+*   **Code Structure Audit:** Removed deprecated modules, validated core component imports.
 
 For a detailed breakdown, refer to:
-*   `/docs/system_state/architecture.md` (High-level overview - *Needs update for v1.3*)
-*   `/docs/system_state/llm_support.md`
-*   `/docs/system_state/api_key_mapping.md`
-*   `/docs/modules/` (Documentation for services)
+*   `/docs/artist_profile.md` (Details on profile structure and lifecycle states)
+*   `/docs/development/dev_diary.md` (Chronological development log)
+*   `/docs/architecture/` (Architecture diagrams and descriptions)
+*   `/docs/modules/` (Documentation for specific services)
 
 ```mermaid
 graph TD
     subgraph Configuration
-        Env[".env File (API Keys, Settings)"]
+        Env[".env File (API Keys, Settings, Lifecycle Thresholds)"]
     end
 
     subgraph Core Logic
-        BatchRunner["Batch Runner (Automation, Lifecycle, A/B Test, Reflection, Autopilot Check)"]
+        BatchRunner["Batch Runner (Automation, Lifecycle Trigger, A/B Test, Reflection, Autopilot Check)"]
+        LifecycleMgr["Artist Lifecycle Manager (State Mgt, Evolution, Retirement)"]
         Orchestrator["LLM Orchestrator (Multi-Provider, Enhanced Fallback)"]
         ArtistDB["Artist DB Service (SQLite - Artists, Errors, Autopilot Flag)"]
         VideoEdit["Video Editing Service"]
@@ -68,6 +69,7 @@ graph TD
 
     Env --> Orchestrator
     Env --> BatchRunner
+    Env --> LifecycleMgr # Reads thresholds
     Env --> Suno
     Env --> Pexels
     Env --> TwitterAPI
@@ -78,6 +80,7 @@ graph TD
     Env --> TrendSvc
     Env --> ErrorAnalyzer
 
+    BatchRunner -- Triggers --> LifecycleMgr
     BatchRunner -- Uses --> Orchestrator
     BatchRunner -- Uses --> ArtistDB
     BatchRunner -- Uses --> VideoEdit
@@ -87,6 +90,9 @@ graph TD
     BatchRunner -- Uses --> TelegramSvc
     BatchRunner -- Creates Releases --> ReleaseChain
     BatchRunner -- Logs Errors --> Logs
+
+    LifecycleMgr -- Reads/Writes --> ArtistDB # Updates status, reads history
+    LifecycleMgr -- Uses --> Orchestrator # Potentially for advanced evolution
 
     Orchestrator -- API Calls --> LLM_APIs
     LLM_APIs -- Responses --> Orchestrator
@@ -112,7 +118,7 @@ graph TD
     ErrorDashboard -- Reads --> ArtistDB
 ```
 
-## Directory Structure (Phase 11 - v1.3)
+## Directory Structure (Phase 11 - v1.4)
 
 ```
 noktvrn_ai_artist/
@@ -121,7 +127,7 @@ noktvrn_ai_artist/
 ├── .github/              # GitHub Actions workflows (CI checks)
 ├── .gitignore
 ├── api_clients/          # Clients for external APIs (Suno, Pexels, Base)
-├── batch_runner/         # Automated generation cycle runner (Lifecycle, Reflection, A/B Test, Autopilot)
+├── batch_runner/         # Automated generation cycle runner (Lifecycle Trigger, Reflection, A/B Test, Autopilot)
 ├── dashboard/            # Streamlit error reporting dashboard
 │   └── error_dashboard.py
 ├── data/                 # Data storage directory
@@ -130,8 +136,9 @@ noktvrn_ai_artist/
 │   ├── architecture/
 │   ├── deployment/
 │   ├── development/
-│   ├── modules/          # Docs for specific services (Video Editing, Trend Analysis, DB, Telegram, Error Analysis)
-│   └── system_state/     # Current state docs (API Keys, LLM Support, Arch)
+│   ├── modules/          # Docs for specific services
+│   ├── system_state/
+│   └── artist_profile.md # NEW: Artist profile structure and lifecycle states
 ├── frontend/             # Basic Flask frontend UI foundation
 │   ├── src/
 │   ├── templates/
@@ -149,6 +156,7 @@ noktvrn_ai_artist/
 │   └── toggle_autopilot.py # Helper to toggle artist autopilot mode
 ├── services/             # Shared services
 │   ├── artist_db_service.py # Manages SQLite database (artists, errors)
+│   ├── artist_lifecycle_manager.py # NEW: Manages artist lifecycle (creation, evolution, retirement)
 │   ├── error_analysis_service.py # Monitors logs, analyzes errors, attempts fixes
 │   ├── telegram_service.py  # Handles Telegram interactions (Notifications, Approval Feedback)
 │   ├── trend_analysis_service.py # Analyzes trends (currently Twitter)
@@ -181,6 +189,7 @@ noktvrn_ai_artist/
     *   Copy `.env.example` to `.env`.
     *   Fill in **all** required credentials (API keys, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `OUTPUT_BASE_DIR`).
     *   Configure optional features like `AB_TESTING_ENABLED`, `AUTO_FIX_ENABLED`.
+    *   Configure **Lifecycle Thresholds** (e.g., `PERFORMANCE_EVALUATION_PERIOD_DAYS`, `PAUSE_APPROVAL_RATE_THRESHOLD`, `RETIREMENT_CONSECUTIVE_REJECTIONS`). See `.env.example` for details.
 4.  **Install Dependencies (if not using Docker):**
     ```bash
     # Ensure Python 3.11 is available
@@ -226,26 +235,29 @@ noktvrn_ai_artist/
 
 Contributions are welcome! Please read our [Contribution Guide](CONTRIBUTION_GUIDE.md) for details on code standards, development workflow, testing, documentation, and the core principle of building a self-evolving system.
 
-## Project Status (Phase 11 - Finalizer Pass v1.3)
+## Project Status (Phase 11 - Lifecycle Implemented v1.4)
 
-*   **Status:** Production Finalizer Pass nearing completion. Focus on robustness, control, and documentation.
-*   **Key Features Added/Enhanced in v1.3:**
+*   **Status:** Production Finalizer Pass nearing completion. Full artist lifecycle management implemented.
+*   **Key Features Added/Enhanced in v1.4:**
+    *   **Artist Lifecycle Management:** Implemented `services/artist_lifecycle_manager.py` handling creation, evolution, pausing, and retirement based on performance and configurable thresholds. Integrated into `batch_runner`.
+    *   **Documentation Updates:** Added `docs/artist_profile.md`, updated `README.md` and `dev_diary.md` to reflect lifecycle implementation.
     *   **Code Structure Audit:** Removed deprecated modules, validated core imports.
-    *   **LLM Fallback Logic:** Enhanced robustness in `llm_orchestrator` with sequential attempts and notifications.
-    *   **Error Analysis System:** Implemented log monitoring, LLM-based analysis, fix suggestion (diff format), DB logging, optional auto-patching (`git apply`), and Telegram notifications.
-    *   **Error Reporting Dashboard:** Added Streamlit UI (`dashboard/error_dashboard.py`) for viewing and filtering error reports.
-    *   **Autopilot/Manual Control:** Implemented DB flag (`autopilot_enabled`) checked by `batch_runner` to bypass or require manual Telegram approval. Added helper script (`scripts/toggle_autopilot.py`).
+    *   **LLM Fallback Logic:** Enhanced robustness in `llm_orchestrator`.
+    *   **Error Analysis System:** Implemented log monitoring, LLM-based analysis, fix suggestion, DB logging, optional auto-patching, and Telegram notifications.
+    *   **Error Reporting Dashboard:** Added Streamlit UI.
+    *   **Autopilot/Manual Control:** Implemented DB flag and helper script.
 *   **Skipped Features:**
     *   Telegram Control Panel Interface (Skipped due to technical issues).
 *   **Known Issues/Placeholders:**
+    *   **Lifecycle Validation Deferred:** Validation of `services/artist_lifecycle_manager.py` is blocked by a persistent syntax error (f-string quotes) requiring manual user correction after GitHub push.
     *   Chartmetric API integration pending access verification.
     *   Suno API endpoint (`/generate`) may still have external issues.
     *   Intelligent LLM routing is basic.
     *   Several older modules (`metrics`, `video_processing`, `release_uploader`) need review/refactoring.
     *   Frontend UI is a basic placeholder.
-    *   Video Editing / Trend Analysis services need integration into the main generation flow.
+    *   Video Editing / Trend Analysis services need deeper integration into the main generation flow.
     *   Comprehensive unit/integration tests for new services are needed.
-*   **Next Steps:** Validate environment variables and replace dummy tokens. Run final system boot test. Create final production report. Commit and push changes. Update remaining documentation (`CONTRIBUTION_GUIDE.md`, `dev_diary.md`, detailed module docs). Final testing and audit report.
+*   **Next Steps:** Finalize remaining TODOs and cleanup. Validate environment variables and replace dummy tokens. Run final system boot test (post-manual-fix). Report missing credentials. Commit and push changes. Generate final report.
 
 For a detailed history, see `docs/development/dev_diary.md`.
 

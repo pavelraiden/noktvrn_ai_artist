@@ -37,6 +37,8 @@ try:
         update_artist_performance_db,
         initialize_database as initialize_artist_db
     )
+    # Import the lifecycle manager
+    from services.artist_lifecycle_manager import ArtistLifecycleManager
     # from services.trend_analysis_service import TrendAnalysisService
 except ImportError as e:
     logging.error(f"Failed to import core modules, release_chain, orchestrator, or services: {e}. Exiting.")
@@ -53,21 +55,21 @@ REFLECTION_LLM_PRIMARY = os.getenv("REFLECTION_LLM_PRIMARY", "deepseek:deepseek-
 REFLECTION_LLM_FALLBACKS = os.getenv("REFLECTION_LLM_FALLBACKS", "gemini:gemini-pro").split(",")
 REFLECTION_MAX_TOKENS = int(os.getenv("REFLECTION_MAX_TOKENS", 500))
 REFLECTION_TEMPERATURE = float(os.getenv("REFLECTION_TEMPERATURE", 0.6))
-ARTIST_RETIREMENT_THRESHOLD = int(os.getenv("ARTIST_RETIREMENT_THRESHOLD", 5))
-ARTIST_CREATION_PROBABILITY = float(os.getenv("ARTIST_CREATION_PROBABILITY", 0.1))
+# ARTIST_RETIREMENT_THRESHOLD is now primarily handled by lifecycle manager config, but keep for performance update function
+ARTIST_RETIREMENT_THRESHOLD = int(os.getenv("RETIREMENT_CONSECUTIVE_REJECTIONS", 5))
+ARTIST_CREATION_PROBABILITY = float(os.getenv("ARTIST_CREATION_PROBABILITY", 0.05)) # Reduced probability slightly
+LIFECYCLE_CHECK_INTERVAL_MINUTES = int(os.getenv("LIFECYCLE_CHECK_INTERVAL_MINUTES", 60 * 6)) # Check every 6 hours
 
 # --- A/B Testing Configuration ---
 AB_TESTING_ENABLED = os.getenv("AB_TESTING_ENABLED", "False").lower() == "true"
-# Example: Define variations for suno_prompt prefix
 AB_TEST_VARIATIONS = {
     "suno_prompt_prefix": [
         "A dreamy {genre} track", # Control (Variation A)
         "An experimental {genre} piece", # Variation B
         "A high-energy {genre} anthem" # Variation C
     ]
-    # Add more parameter variations here as needed
 }
-AB_TEST_PARAMETER = "suno_prompt_prefix" # Parameter to test
+AB_TEST_PARAMETER = "suno_prompt_prefix"
 
 # Ensure directories exist
 os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
@@ -98,6 +100,7 @@ logger.info(f"Reflection LLM Primary: {REFLECTION_LLM_PRIMARY}")
 logger.info(f"Reflection LLM Fallbacks: {REFLECTION_LLM_FALLBACKS}")
 logger.info(f"Artist Retirement Threshold (Consecutive Rejections): {ARTIST_RETIREMENT_THRESHOLD}")
 logger.info(f"Artist Creation Probability: {ARTIST_CREATION_PROBABILITY}")
+logger.info(f"Lifecycle Check Interval: {LIFECYCLE_CHECK_INTERVAL_MINUTES} minutes")
 logger.info(f"A/B Testing Enabled: {AB_TESTING_ENABLED}")
 if AB_TESTING_ENABLED:
     logger.info(f"A/B Testing Parameter: {AB_TEST_PARAMETER}")
@@ -113,12 +116,9 @@ try:
             "name": "Synthwave Dreamer",
             "genre": "synthwave",
             "style_notes": "Prefers dreamy melodies, moderate tempo, avoids harsh sounds.",
+            "llm_config": {"model": "default-llm", "temperature": 0.7},
             "created_at": datetime.utcnow().isoformat(),
-            "last_run_at": None,
-            "performance_history": [],
-            "consecutive_rejections": 0,
-            "is_active": True,
-            "autopilot_enabled": False # Default autopilot off
+            "status": "Active" # Start default as Active
         }
         add_artist(default_artist_data)
 except Exception as e:
@@ -136,43 +136,75 @@ except Exception as e:
     logger.error(f"Failed to initialize LLM Orchestrator: {e}. Reflection/Creation disabled.")
     llm_orchestrator = None
 
+# --- Initialize Artist Lifecycle Manager ---
+try:
+    lifecycle_manager = ArtistLifecycleManager()
+    last_lifecycle_check_time = datetime.min # Ensure check runs on first iteration
+except Exception as e:
+    logger.critical(f"Failed to initialize Artist Lifecycle Manager: {e}. Exiting.")
+    sys.exit(1)
+
 def create_new_artist_profile():
-    """Uses LLM to generate a new artist profile and adds it to the DB."""
+    """Uses LLM (placeholder for now) to generate a new artist profile and adds it to the DB with Candidate status."""
     logger.info("Attempting to create a new artist profile...")
+    # TODO: Use LLM to generate more creative name, genre, style_notes, llm_config
     new_id = str(uuid.uuid4())
     new_artist_data = {
         "artist_id": new_id,
         "name": f"Generated Artist {new_id[:4]}",
-        "genre": random.choice(["electronic", "ambient", "lofi", "hyperpop"]), # Example genres
-        "style_notes": "Experimental, evolving style.",
+        "genre": random.choice(["electronic", "ambient", "lofi", "hyperpop", "cinematic"]), # Example genres
+        "style_notes": "Experimental, evolving style. Focus on atmospheric textures.",
+        "llm_config": {"model": REFLECTION_LLM_PRIMARY, "temperature": round(random.uniform(0.5, 0.9), 2)},
         "created_at": datetime.utcnow().isoformat(),
-        "last_run_at": None,
-        "performance_history": [],
-        "consecutive_rejections": 0,
-        "is_active": True,
+        "status": "Candidate", # New artists start as Candidate
         "autopilot_enabled": False # New artists start with autopilot off
     }
-    if add_artist(new_artist_data):
-        logger.info(f"Created and added new artist profile to DB: ID={new_id}, Name=", {new_artist_data["name"]}, ")")
-        return new_artist_data
+    added_id = add_artist(new_artist_data)
+    if added_id:
+        logger.info(f"Created and added new artist profile to DB: ID={added_id}, Name=", {new_artist_data["name"]}, ")")
+        return get_artist(added_id) # Return full data from DB
     else:
         logger.error(f"Failed to add newly created artist {new_id} to the database.")
         return None
 
+def run_global_lifecycle_check_if_needed():
+    """Runs the global lifecycle check if the interval has passed."""
+    global last_lifecycle_check_time
+    now = datetime.utcnow()
+    if now - last_lifecycle_check_time >= timedelta(minutes=LIFECYCLE_CHECK_INTERVAL_MINUTES):
+        logger.info("Running global artist lifecycle check...")
+        try:
+            lifecycle_manager.run_lifecycle_check_all()
+            last_lifecycle_check_time = now
+            logger.info("Global lifecycle check completed.")
+        except Exception as e:
+            logger.error(f"Error during global lifecycle check: {e}", exc_info=True)
+    else:
+        logger.debug("Skipping global lifecycle check (interval not reached).")
+
 def select_next_artist():
     """Selects an active artist from DB, potentially creating a new one."""
-    logger.info("Selecting next artist with lifecycle logic (using DB)...")
-    active_artists = get_all_artists(only_active=True)
+    logger.info("Selecting next artist...")
 
-    if random.random() < ARTIST_CREATION_PROBABILITY or not active_artists:
+    # Run global check first to update statuses (e.g., pause inactive)
+    run_global_lifecycle_check_if_needed()
+
+    active_artists = get_all_artists(status_filter="Active")
+
+    # Decide whether to create a new artist
+    create_new = random.random() < ARTIST_CREATION_PROBABILITY
+
+    if create_new or not active_artists:
         logger.info("Triggering new artist creation...")
         new_artist = create_new_artist_profile()
         if new_artist:
-            logger.info(f"Successfully created new artist {new_artist['artist_id']}. Selecting it.")
+            logger.info(f"Successfully created new artist {new_artist["artist_id"]}. Selecting it (will run as Candidate).")
+            # New artists start as Candidate, they will run once and become Active if approved.
             return new_artist
         else:
-            logger.warning("Failed to create a new artist. Proceeding with existing pool.")
-            active_artists = get_all_artists(only_active=True)
+            logger.warning("Failed to create a new artist. Proceeding with existing active pool.")
+            # Re-fetch active artists in case creation failed but there are active ones
+            active_artists = get_all_artists(status_filter="Active")
             if not active_artists:
                  logger.error("No active artists available and failed to create a new one. Cannot proceed.")
                  return None
@@ -181,22 +213,22 @@ def select_next_artist():
         logger.error("No active artists found in the database.")
         return None
 
+    # Select from active artists based on least recent run
     sorted_artists = sorted(
         active_artists,
         key=lambda a: datetime.fromisoformat(a["last_run_at"]) if a["last_run_at"] else datetime.min
     )
     selected_artist = sorted_artists[0]
-    logger.info(f"Selected artist {selected_artist['artist_id']} ({selected_artist['name']}) based on least recent run.")
+    logger.info(f"Selected active artist {selected_artist["artist_id"]} ({selected_artist["name"]}) based on least recent run.")
     return selected_artist
 
-# --- Parameter Adaptation with A/B Testing --- #
+# --- Parameter Adaptation with A/B Testing (Unchanged) --- #
 def get_adapted_parameters(artist_profile):
     """Gets generation parameters, applying A/B test variations if enabled."""
     genre = artist_profile.get("genre", "synthwave")
     style_notes = artist_profile.get("style_notes", "standard synthwave")
     ab_test_info = {"enabled": False, "parameter": None, "variation_index": None, "variation_value": None}
 
-    # Base parameters
     base_suno_prompt = f"upbeat tempo, inspired by {style_notes}"
     base_params = {
         "suno_style": genre,
@@ -204,7 +236,6 @@ def get_adapted_parameters(artist_profile):
         "make_instrumental": False,
     }
 
-    # Apply A/B Test Variation if enabled
     if AB_TESTING_ENABLED and AB_TEST_PARAMETER in AB_TEST_VARIATIONS:
         variations = AB_TEST_VARIATIONS[AB_TEST_PARAMETER]
         if variations:
@@ -216,29 +247,22 @@ def get_adapted_parameters(artist_profile):
             ab_test_info["variation_value"] = chosen_variation
             logger.info(f"A/B Test: Applying variation {chosen_index} (", {chosen_variation}, ") for parameter ", {AB_TEST_PARAMETER}, ")")
 
-            # Example: Apply variation to suno_prompt_prefix
             if AB_TEST_PARAMETER == "suno_prompt_prefix":
-                prompt_prefix = chosen_variation.format(genre=genre) # Format with genre
+                prompt_prefix = chosen_variation.format(genre=genre)
                 base_params["suno_prompt"] = f"{prompt_prefix}, {base_suno_prompt}"
-            # Add logic here for other testable parameters
-            # elif AB_TEST_PARAMETER == "some_other_param":
-            #     base_params["some_other_param"] = chosen_variation
             else:
-                 logger.warning(f"A/B test parameter ", {AB_TEST_PARAMETER}, " not handled in get_adapted_parameters. Using default.")
-                 # Fallback to default if parameter logic isn"t implemented
+                 logger.warning(f"A/B test parameter ", {AB_TEST_PARAMETER}, " not handled. Using default.")
                  base_params["suno_prompt"] = f"A dreamy {genre} track, {base_suno_prompt}"
         else:
             logger.warning(f"A/B testing enabled but no variations defined for ", {AB_TEST_PARAMETER}, ". Using default.")
             base_params["suno_prompt"] = f"A dreamy {genre} track, {base_suno_prompt}"
     else:
-        # Default behavior when A/B testing is disabled or parameter not defined
         base_params["suno_prompt"] = f"A dreamy {genre} track, {base_suno_prompt}"
 
-    # Include A/B test info in the returned dictionary
     base_params["ab_test_info"] = ab_test_info
     return base_params
 
-# --- Placeholder Generation Functions (Keep as is) ---
+# --- Placeholder Generation Functions (Unchanged) ---
 def generate_track(suno_params):
     logger.info(f"Generating track with params: {suno_params} (placeholder)...")
     try:
@@ -261,48 +285,39 @@ def select_video(track_info, video_keywords):
         logger.error(f"Error during placeholder video selection: {e}", exc_info=True)
         return None
 
-# --- Auto-Reflection Function (Keep as is) --- #
+# --- Auto-Reflection Function (Unchanged) --- #
 async def generate_reflection(artist_profile, parameters, track_info, video_info):
-    """Generates a reflection on the created content using the LLM Orchestrator."""
     if not llm_orchestrator:
         logger.warning("LLM Orchestrator not initialized. Skipping reflection.")
         return None
-
     logger.info("Generating reflection for the created content...")
     try:
-        # Exclude ab_test_info from the prompt to LLM
         prompt_params = {k: v for k, v in parameters.items() if k != "ab_test_info"}
-
         prompt = f"""
         Artist Profile:
         - Name: {artist_profile.get("name", "N/A")}
         - Genre: {artist_profile.get("genre", "N/A")}
         - Style Notes: {artist_profile.get("style_notes", "N/A")}
-
         Generation Parameters:
         - Suno Prompt: {prompt_params.get("suno_prompt", "N/A")}
         - Suno Style: {prompt_params.get("suno_style", "N/A")}
         - Video Keywords: {prompt_params.get("video_keywords", "N/A")}
         - Instrumental: {prompt_params.get("make_instrumental", "N/A")}
-
         Generated Content:
         - Track URL: {track_info.get("track_url", "N/A")}
         - Video URL: {video_info.get("video_url", "N/A")}
-
         Task: Reflect on the generated track and video.
-        1. Assess the alignment of the generated track and video with the artist"s profile (genre, style notes).
-        2. Evaluate the quality and coherence of the track and video combination.
-        3. Suggest 1-2 specific improvements for the next generation cycle for this artist (e.g., prompt adjustments, keyword changes, style focus).
-        4. Provide a brief overall assessment (e.g., "Good alignment", "Needs improvement in video coherence", "Excellent match").
+        1. Assess alignment with artist profile.
+        2. Evaluate quality and coherence.
+        3. Suggest 1-2 specific improvements for the next run.
+        4. Provide a brief overall assessment.
         Keep the reflection concise and actionable.
         """
-
-        reflection_text = await llm_orchestrator.generate_text(
+        reflection_text = await llm_orchestrator.generate(
             prompt=prompt,
             max_tokens=REFLECTION_MAX_TOKENS,
             temperature=REFLECTION_TEMPERATURE
         )
-
         if reflection_text:
             logger.info("Reflection generated successfully.")
             logger.debug(f"Reflection Text: {reflection_text}")
@@ -310,7 +325,6 @@ async def generate_reflection(artist_profile, parameters, track_info, video_info
         else:
             logger.warning("Reflection generation returned empty content.")
             return None
-
     except LLMOrchestratorError as e:
         logger.error(f"LLM Orchestrator error during reflection generation: {e}")
         return None
@@ -318,11 +332,11 @@ async def generate_reflection(artist_profile, parameters, track_info, video_info
         logger.error(f"Unexpected error during reflection generation: {e}", exc_info=True)
         return None
 
-# --- Telegram Integration & Status Handling (Record A/B Test Info) --- #
+# --- Telegram Integration & Status Handling (Updated) --- #
 
 def update_run_status(run_id, new_status, reason=None, reflection=None, artist_id=None):
-    """Updates the status, reason, and optionally reflection in the run"s status file.
-       Also triggers artist performance update in DB if status is final.
+    """Updates the status file and triggers artist performance update in DB.
+       The DB update handles immediate retirement based on consecutive rejections.
     """
     status_filepath = os.path.join(RUN_STATUS_DIR, f"run_{run_id}.json")
     try:
@@ -331,13 +345,17 @@ def update_run_status(run_id, new_status, reason=None, reflection=None, artist_i
             try:
                 with open(status_filepath, "r") as f:
                     run_data = json.load(f)
-            except json.JSONDecodeError as e:
-                logger.error(f"Error decoding existing status file {status_filepath}, will overwrite: {e}")
-            except IOError as e:
-                logger.error(f"Error reading existing status file {status_filepath}, will overwrite: {e}")
+            except (json.JSONDecodeError, IOError) as e:
+                logger.error(f"Error reading/decoding status file {status_filepath}, will overwrite: {e}")
         else:
-            logger.warning(f"Status file {status_filepath} not found for update, creating basic structure.")
-            run_data = {"run_id": run_id, "created_at": datetime.utcnow().isoformat()}
+            logger.warning(f"Status file {status_filepath} not found, creating basic structure.")
+
+        # Ensure basic info exists
+        run_data["run_id"] = run_id
+        if "created_at" not in run_data:
+             run_data["created_at"] = datetime.utcnow().isoformat()
+        if artist_id:
+            run_data["artist_id"] = artist_id
 
         run_data["status"] = new_status
         run_data["updated_at"] = datetime.utcnow().isoformat()
@@ -345,323 +363,212 @@ def update_run_status(run_id, new_status, reason=None, reflection=None, artist_i
             run_data["final_status_reason"] = reason
         if reflection:
              run_data["reflection"] = reflection
-        # Use specific status for autopilot approval
         if new_status in ["approved", "autopilot_approved", "rejected"] and "approved_at" not in run_data:
             run_data["approved_at"] = run_data["updated_at"]
-        if artist_id:
-            run_data["artist_id"] = artist_id
 
         with open(status_filepath, "w") as f:
             json.dump(run_data, f, indent=4)
-        logger.info(f"Updated status for run {run_id} to ", {new_status}, " in {status_filepath}")
+        logger.info(f"Updated status for run {run_id} to {new_status} in {status_filepath}")
 
-        # Treat autopilot_approved same as approved for performance tracking
-        final_statuses = ["approved", "autopilot_approved", "rejected", "failed_setup", "failed_generation", "failed_to_send", "failed_runtime_error", "aborted"]
-        if new_status in final_statuses:
-            current_artist_id = run_data.get("artist_id")
-            if current_artist_id:
-                # Map autopilot_approved to approved for DB update
-                db_status = "approved" if new_status == "autopilot_approved" else new_status
-                update_artist_performance_db(current_artist_id, run_id, db_status, ARTIST_RETIREMENT_THRESHOLD)
-            else:
-                logger.warning(f"Cannot update artist performance for run {run_id}: artist_id missing in status file.")
+        # --- Trigger DB Performance Update --- #
+        # Use the actual artist_id associated with the run
+        db_artist_id = run_data.get("artist_id")
+        if db_artist_id and new_status in ["approved", "autopilot_approved", "rejected"]:
+            # Map autopilot_approved to approved for DB performance tracking
+            db_status = "approved" if new_status == "autopilot_approved" else new_status
+            logger.info(f"Updating performance DB for artist {db_artist_id} with run {run_id} status: {db_status}")
+            try:
+                update_success = update_artist_performance_db(
+                    artist_id=db_artist_id,
+                    run_id=run_id,
+                    status=db_status,
+                    retirement_threshold=ARTIST_RETIREMENT_THRESHOLD
+                )
+                if not update_success:
+                     logger.error(f"Failed to update performance in DB for artist {db_artist_id}, run {run_id}.")
+                else:
+                     logger.info(f"Performance DB updated for artist {db_artist_id}.")
+                     # After successful DB update, trigger the broader lifecycle evaluation
+                     logger.info(f"Triggering post-run lifecycle evaluation for artist {db_artist_id}...")
+                     try:
+                         lifecycle_manager.evaluate_artist_lifecycle(db_artist_id)
+                     except Exception as eval_e:
+                         logger.error(f"Error during post-run lifecycle evaluation for artist {db_artist_id}: {eval_e}", exc_info=True)
+
+            except Exception as db_e:
+                logger.error(f"Error updating performance DB for artist {db_artist_id}: {db_e}", exc_info=True)
+        elif not db_artist_id:
+             logger.warning(f"Cannot update performance DB: artist_id missing in run status file {status_filepath}")
 
     except Exception as e:
-        logger.error(f"Failed to update status file {status_filepath} or artist DB: {e}", exc_info=True)
+        logger.error(f"Failed to update run status for {run_id}: {e}", exc_info=True)
 
-def create_initial_run_status(
-    run_id, artist_profile, parameters, track_info, video_info, reflection_text, initial_status="pending_approval"
-):
-    """Creates the initial status file for a run, including parameters, reflection, and A/B test info."""
+async def send_to_telegram_for_approval(run_id, artist_profile, track_info, video_info, parameters):
+    """Sends content preview to Telegram and waits for approval/rejection."""
     status_filepath = os.path.join(RUN_STATUS_DIR, f"run_{run_id}.json")
-    artist_id = artist_profile.get("artist_id")
-    # Extract A/B test info from parameters
-    ab_test_info = parameters.get("ab_test_info", {"enabled": False})
-    # Prepare parameters for saving (exclude ab_test_info itself)
-    saved_params = {k: v for k, v in parameters.items() if k != "ab_test_info"}
+    artist_id = artist_profile["artist_id"]
+    artist_name = artist_profile.get("name", "Unknown Artist")
+    ab_test_info = parameters.get("ab_test_info", {})
 
-    run_data = {
+    # Initial status update
+    update_run_status(run_id, "pending_approval", artist_id=artist_id)
+
+    # Generate reflection before sending
+    reflection = await generate_reflection(artist_profile, parameters, track_info, video_info)
+    if reflection:
+        update_run_status(run_id, "pending_approval", reflection=reflection, artist_id=artist_id)
+
+    # Construct message
+    message = f"**New Content Preview**\n\n"
+    message += f"**Run ID:** `{run_id}`\n"
+    message += f"**Artist:** {artist_name} (`{artist_id}`)\n"
+    message += f"**Track:** {track_info["track_url"]}\n"
+    message += f"**Video:** {video_info["video_url"]}\n\n"
+    if ab_test_info.get("enabled"):
+        message += f"**A/B Test:** Parameter=`{ab_test_info["parameter"]}`, Variation=`{ab_test_info["variation_index"]}` (`{ab_test_info["variation_value"]}`)\n\n"
+    if reflection:
+        message += f"**Reflection:**\n```\n{reflection[:800]}...```\n\n" # Truncate reflection for TG
+    message += f"Please approve or reject within {MAX_APPROVAL_WAIT_TIME // 60} minutes."
+
+    try:
+        # Send preview
+        await send_preview_to_telegram(run_id, message)
+        logger.info(f"Preview for run {run_id} sent to Telegram. Waiting for approval...")
+
+        # Wait for approval status change
+        start_time = time.time()
+        while time.time() - start_time < MAX_APPROVAL_WAIT_TIME:
+            if os.path.exists(status_filepath):
+                try:
+                    with open(status_filepath, "r") as f:
+                        current_data = json.load(f)
+                    current_status = current_data.get("status")
+                    if current_status in ["approved", "rejected"]:
+                        logger.info(f"Received status 	{current_status}	 for run {run_id} via status file.")
+                        # Update status again to ensure DB performance is logged if needed
+                        update_run_status(run_id, current_status, reason=current_data.get("final_status_reason"), reflection=reflection, artist_id=artist_id)
+                        return current_status
+                except (json.JSONDecodeError, IOError) as e:
+                    logger.error(f"Error reading status file {status_filepath} while polling: {e}")
+            await asyncio.sleep(POLL_INTERVAL)
+
+        # Timeout
+        logger.warning(f"Timeout waiting for approval for run {run_id}. Marking as rejected.")
+        update_run_status(run_id, "rejected", reason="Timeout waiting for approval", reflection=reflection, artist_id=artist_id)
+        return "rejected"
+
+    except Exception as e:
+        logger.error(f"Error in Telegram approval process for run {run_id}: {e}", exc_info=True)
+        update_run_status(run_id, "rejected", reason=f"Error during approval process: {e}", reflection=reflection, artist_id=artist_id)
+        return "rejected"
+
+# --- Main Execution Logic --- #
+async def run_artist_cycle():
+    """Runs a single generation cycle for a selected artist."""
+    run_id = str(uuid.uuid4())
+    logger.info(f"\n--- Starting Artist Cycle: Run ID {run_id} ---")
+
+    # 1. Select Artist
+    artist_profile = select_next_artist()
+    if not artist_profile:
+        logger.error("Failed to select an artist. Skipping cycle.")
+        return
+    artist_id = artist_profile["artist_id"]
+    artist_status = artist_profile.get("status", "Unknown")
+    logger.info(f"Running cycle for artist: {artist_id} ({artist_profile.get("name")}), Status: {artist_status}")
+
+    # Create initial status file
+    initial_status_data = {
         "run_id": run_id,
-        "status": initial_status, # Use provided initial status
-        "created_at": datetime.utcnow().isoformat(),
-        "updated_at": datetime.utcnow().isoformat(),
         "artist_id": artist_id,
         "artist_name": artist_profile.get("name"),
-        "genre": artist_profile.get("genre"),
-        "style_notes": artist_profile.get("style_notes"),
-        "track_id": track_info.get("track_id"),
-        "track_url": track_info.get("track_url"),
-        "video_url": video_info.get("video_url"),
-        "video_source": video_info.get("source"),
-        "reflection": reflection_text,
-        "approved_at": None,
-        "final_status_reason": None,
-        "parameters": saved_params, # Store the actual parameters used
-        "ab_test_info": ab_test_info, # Store A/B test details
-        "autopilot_run": artist_profile.get("autopilot_enabled", False) # Record if it was an autopilot run
+        "status": "generating",
+        "created_at": datetime.utcnow().isoformat()
     }
+    status_filepath = os.path.join(RUN_STATUS_DIR, f"run_{run_id}.json")
     try:
         with open(status_filepath, "w") as f:
-            json.dump(run_data, f, indent=4)
-        logger.info(f"Created initial status file with status ", {initial_status}, ": {status_filepath}")
-        return True
+            json.dump(initial_status_data, f, indent=4)
     except IOError as e:
-        logger.error(f"Failed to create initial status file {status_filepath}: {e}")
-        update_run_status(run_id, "failed_setup", f"IOError creating status file: {e}", artist_id=artist_id)
-        return False
+        logger.error(f"Failed to create initial status file {status_filepath}: {e}. Proceeding cautiously.")
 
-def send_to_telegram_for_approval(
-    run_id, artist_profile, parameters, track_info, video_info, reflection_text
-):
-    """Sends content preview to Telegram after creating the status file."""
-    logger.info(f"Preparing to send run {run_id} to Telegram for approval...")
-    artist_id = artist_profile.get("artist_id")
-
-    # Create status file with pending_approval status
-    if not create_initial_run_status(
-        run_id, artist_profile, parameters, track_info, video_info, reflection_text, initial_status="pending_approval"
-    ):
-        logger.error(f"Failed to create initial status file for run {run_id}. Cannot send to Telegram.")
-        return False
-
-    logger.info(f"Sending run {run_id} content preview to Telegram...")
+    # 2. Adapt Parameters (including A/B test)
+    parameters = get_adapted_parameters(artist_profile)
+    logger.debug(f"Adapted parameters: {parameters}")
+    # Update status file with parameters
+    initial_status_data["parameters"] = parameters
     try:
-        caption = f"Artist: {artist_profile.get('name', 'Unknown')}\nRun ID: {run_id}\nTrack: {track_info.get('track_url', 'N/A')}\nVideo: {video_info.get('video_url', 'N/A')}"
-        # Optionally add A/B test info to caption for moderators?
-        ab_test_info = parameters.get("ab_test_info", {})
-        if ab_test_info.get("enabled"):
-            caption += f"\nA/B Test: {ab_test_info.get('parameter')} - Var {ab_test_info.get('variation_index')}"
-
-        success = asyncio.run(
-            send_preview_to_telegram(
-                artist_name=artist_profile.get("name", "Unknown Artist"),
-                track_url=track_info.get("track_url", ""),
-                video_url=video_info.get("video_url", ""),
-                release_id=run_id,
-                # caption=caption # Uncomment if telegram_service supports custom captions
-            )
-        )
-        if success:
-            logger.info(f"Successfully sent run {run_id} to Telegram.")
-            return True
-        else:
-            logger.error(f"Failed to send run {run_id} to Telegram (telegram_service returned False).")
-            update_run_status(run_id, "failed_to_send", "Telegram service failed", artist_id=artist_id)
-            return False
-    except Exception as e:
-        logger.error(f"Exception sending run {run_id} to Telegram: {e}", exc_info=True)
-        update_run_status(run_id, "failed_to_send", f"Exception: {e}", artist_id=artist_id)
-        return False
-
-def check_approval_status(run_id):
-    """Checks the status file updated by the webhook server."""
-    status_filepath = os.path.join(RUN_STATUS_DIR, f"run_{run_id}.json")
-    try:
-        if not os.path.exists(status_filepath):
-            logger.warning(f"Status file not found for run {run_id}: {status_filepath}. Assuming pending.")
-            return None
-
-        with open(status_filepath, "r") as f:
-            run_data = json.load(f)
-
-        current_status = run_data.get("status")
-
-        if current_status == "approved":
-            logger.debug(f"Approval status for run {run_id}: Approved")
-            return True
-        elif current_status == "rejected":
-            logger.debug(f"Approval status for run {run_id}: Rejected")
-            return False
-        elif current_status == "pending_approval":
-            logger.debug(f"Approval status for run {run_id}: Pending")
-            return None
-        # Handle autopilot status - it shouldn"t be checked here, but handle defensively
-        elif current_status == "autopilot_approved":
-             logger.warning(f"Run {run_id} has status autopilot_approved during manual check? Treating as approved.")
-             return True
-        elif current_status in ["failed_setup", "failed_generation", "failed_to_send", "failed_runtime_error", "aborted"]:
-             logger.warning(f"Run {run_id} encountered failure status: {current_status}. Treating as rejected for approval check.")
-             return False
-        else:
-            logger.warning(f"Run {run_id} has unexpected status: {current_status}. Treating as pending for approval check.")
-            return None
-
-    except json.JSONDecodeError as e:
-        logger.error(f"Error decoding status file {status_filepath}: {e}. Treating as pending.")
-        return None
+        with open(status_filepath, "w") as f:
+            json.dump(initial_status_data, f, indent=4)
     except IOError as e:
-        logger.error(f"Error reading status file {status_filepath}: {e}. Treating as pending.")
-        return None
-    except Exception as e:
-        logger.error(f"Unexpected error checking status file {status_filepath}: {e}", exc_info=True)
-        return None
+         logger.error(f"Failed to update status file {status_filepath} with parameters: {e}")
 
-# --- Approval Handling & Output (Keep as is) --- #
-def save_approved_content(run_id, artist_profile, track_info, video_info):
-    """Saves metadata about approved content (placeholder)."""
-    approved_dir = os.path.join(OUTPUT_DIR, "approved")
-    os.makedirs(approved_dir, exist_ok=True)
-    approved_filepath = os.path.join(approved_dir, f"approved_{run_id}.json")
+    # 3. Generate Content (Placeholders)
+    track_info = generate_track(parameters)
+    if not track_info:
+        logger.error("Track generation failed. Aborting cycle.")
+        update_run_status(run_id, "failed", reason="Track generation failed", artist_id=artist_id)
+        return
 
-    # Load the full run status to get parameters and A/B info
-    status_filepath = os.path.join(RUN_STATUS_DIR, f"run_{run_id}.json")
-    run_data = {}
-    if os.path.exists(status_filepath):
+    video_info = select_video(track_info, parameters["video_keywords"])
+    if not video_info:
+        logger.error("Video selection failed. Aborting cycle.")
+        update_run_status(run_id, "failed", reason="Video selection failed", artist_id=artist_id)
+        return
+
+    logger.info("Content generation completed.")
+    update_run_status(run_id, "generated", artist_id=artist_id)
+
+    # 4. Approval Step (Manual via Telegram or Autopilot)
+    autopilot = artist_profile.get("autopilot_enabled", False)
+    final_status = "unknown"
+
+    if autopilot:
+        logger.info(f"Artist {artist_id} is on Autopilot. Auto-approving run {run_id}.")
+        # Generate reflection even for autopilot
+        reflection = await generate_reflection(artist_profile, parameters, track_info, video_info)
+        update_run_status(run_id, "autopilot_approved", reason="Autopilot enabled", reflection=reflection, artist_id=artist_id)
+        final_status = "autopilot_approved"
+    else:
+        logger.info(f"Sending run {run_id} for manual approval via Telegram...")
+        final_status = await send_to_telegram_for_approval(run_id, artist_profile, track_info, video_info, parameters)
+
+    # 5. Process Approved Run (Release Chain)
+    if final_status in ["approved", "autopilot_approved"]:
+        logger.info(f"Run {run_id} approved. Processing through release chain...")
         try:
-            with open(status_filepath, "r") as f:
-                run_data = json.load(f)
-        except Exception as e:
-            logger.error(f"Error reading run status file {status_filepath} for approved content save: {e}")
-
-    content_data = {
-        "run_id": run_id,
-        "approved_at": datetime.utcnow().isoformat(),
-        "artist_id": artist_profile.get("artist_id"),
-        "artist_name": artist_profile.get("name"),
-        "track_id": track_info.get("track_id"),
-        "track_url": track_info.get("track_url"),
-        "video_url": video_info.get("video_url"),
-        "video_source": video_info.get("source"),
-        "parameters": run_data.get("parameters", {}), # Include parameters
-        "ab_test_info": run_data.get("ab_test_info", {"enabled": False}), # Include A/B info
-        "autopilot_run": run_data.get("autopilot_run", False) # Include autopilot flag
-    }
-    try:
-        with open(approved_filepath, "w") as f:
-            json.dump(content_data, f, indent=4)
-        logger.info(f"Saved approved content metadata (with params/AB/autopilot info) to {approved_filepath}")
-        return approved_filepath
-    except IOError as e:
-        logger.error(f"Failed to save approved content metadata: {e}")
-        return None
-
-# --- Main Batch Runner Logic (Integrates Autopilot) --- #
-async def run_artist_cycle():
-    """Executes a single cycle of artist selection, content generation, and approval/autopilot."""
-    run_id = str(uuid.uuid4())
-    logger.info(f"Starting artist cycle run_id: {run_id}")
-    artist_profile = None
-    artist_id = None
-    try:
-        # 1. Select Artist
-        artist_profile = select_next_artist()
-        if not artist_profile:
-            logger.error("Failed to select an artist. Aborting cycle.")
-            return
-        artist_id = artist_profile.get("artist_id")
-        is_autopilot = artist_profile.get("autopilot_enabled", False)
-        logger.info(f"Artist {artist_id} Autopilot mode: {'ENABLED' if is_autopilot else 'DISABLED'}")
-
-        # 2. Get Parameters (with potential A/B variation)
-        parameters = get_adapted_parameters(artist_profile)
-
-        # 3. Generate Track
-        track_info = generate_track(parameters)
-        if not track_info:
-            logger.error(f"Failed to generate track for artist {artist_id}. Aborting cycle.")
-            update_run_status(run_id, "failed_generation", "Track generation failed", artist_id=artist_id)
-            return
-
-        # 4. Select Video
-        video_info = select_video(track_info, parameters.get("video_keywords", []))
-        if not video_info:
-            logger.error(f"Failed to select video for artist {artist_id}. Aborting cycle.")
-            update_run_status(run_id, "failed_generation", "Video selection failed", artist_id=artist_id)
-            return
-
-        # 5. Generate Reflection
-        reflection_text = await generate_reflection(artist_profile, parameters, track_info, video_info)
-        if not reflection_text:
-             logger.warning(f"Proceeding without reflection for run {run_id}.")
-             reflection_text = "Reflection generation failed or was skipped."
-
-        # 6. Handle Approval: Autopilot or Manual via Telegram
-        approval_status = None
-        if is_autopilot:
-            logger.info(f"Autopilot enabled for run {run_id}. Skipping Telegram approval.")
-            # Create status file with autopilot_approved status
-            if not create_initial_run_status(
-                run_id, artist_profile, parameters, track_info, video_info, reflection_text, initial_status="autopilot_approved"
-            ):
-                logger.error(f"Failed to create initial status file for autopilot run {run_id}. Aborting.")
-                return
-            approval_status = True # Treat as approved for processing
-            update_run_status(run_id, "autopilot_approved", reason="Autopilot mode", artist_id=artist_id)
-        else:
-            # Manual Approval Flow
-            sent_ok = send_to_telegram_for_approval(
-                run_id, artist_profile, parameters, track_info, video_info, reflection_text
-            )
-            if not sent_ok:
-                logger.error(f"Failed to send run {run_id} for approval. Cycle ended.")
-                return
-
-            # Wait for Approval / Timeout
-            logger.info(f"Waiting for approval status for run {run_id} (max {MAX_APPROVAL_WAIT_TIME}s)...")
-            start_time = time.time()
-            while time.time() - start_time < MAX_APPROVAL_WAIT_TIME:
-                approval_status = check_approval_status(run_id)
-                if approval_status is not None:
-                    break
-                await asyncio.sleep(POLL_INTERVAL)
-
-            # Update status based on manual check result
-            if approval_status is True:
-                logger.info(f"Run {run_id} approved manually.")
-                update_run_status(run_id, "approved", reason="Approved by user/moderator", artist_id=artist_id)
-            elif approval_status is False:
-                logger.info(f"Run {run_id} rejected manually or failed.")
-                # Check if already rejected by webhook to avoid double DB update
-                status_filepath = os.path.join(RUN_STATUS_DIR, f"run_{run_id}.json")
-                current_status = "unknown"
-                if os.path.exists(status_filepath):
-                    try:
-                        with open(status_filepath, "r") as f:
-                            run_data = json.load(f)
-                            current_status = run_data.get("status", "unknown")
-                    except Exception:
-                        pass
-                if current_status != "rejected":
-                    update_run_status(run_id, "rejected", "Rejected by user/moderator or failure", artist_id=artist_id)
-                else:
-                    # If already rejected by webhook, just ensure performance DB is updated
-                    update_artist_performance_db(artist_id, run_id, "rejected", ARTIST_RETIREMENT_THRESHOLD)
-            else: # Timeout
-                logger.warning(f"Run {run_id} timed out waiting for approval.")
-                update_run_status(run_id, "aborted", "Timeout waiting for approval", artist_id=artist_id)
-                approval_status = None # Ensure timeout doesn"t proceed to release
-
-        # 7. Process Result (Only if approved, either manually or via autopilot)
-        if approval_status is True:
-            approved_metadata_path = save_approved_content(run_id, artist_profile, track_info, video_info)
-            if approved_metadata_path:
-                logger.info(f"Triggering release chain for approved run {run_id}...")
-                process_approved_run(run_id, approved_metadata_path)
+            release_result = process_approved_run(run_id, artist_profile, track_info, video_info, parameters)
+            if release_result:
+                logger.info(f"Release chain processing successful for run {run_id}.")
+                update_run_status(run_id, "released", artist_id=artist_id)
             else:
-                logger.error(f"Failed to save approved metadata for run {run_id}. Release chain not triggered.")
-        else:
-            logger.info(f"Run {run_id} was not approved (Status: {approval_status}). No release triggered.")
+                logger.error(f"Release chain processing failed for run {run_id}.")
+                update_run_status(run_id, "release_failed", reason="Release chain function returned failure", artist_id=artist_id)
+        except Exception as e:
+            logger.error(f"Error during release chain processing for run {run_id}: {e}", exc_info=True)
+            update_run_status(run_id, "release_failed", reason=f"Exception in release chain: {e}", artist_id=artist_id)
+    else:
+        logger.info(f"Run {run_id} was not approved (status: {final_status}). Skipping release chain.")
 
-    except Exception as e:
-        run_id_str = run_id if "run_id" in locals() else "UNKNOWN"
-        artist_id_str = artist_id if artist_id else "UNKNOWN"
-        logger.error(f"Unhandled exception in artist cycle run_id={run_id_str}: {e}", exc_info=True)
-        if "run_id" in locals():
-            update_run_status(run_id, "failed_runtime_error", f"Unhandled exception: {e}", artist_id=artist_id_str)
+    logger.info(f"--- Finished Artist Cycle: Run ID {run_id} --- Final Status: {final_status} ---")
 
 async def main():
     logger.info("Starting AI Artist Batch Runner...")
     while True:
-        await run_artist_cycle()
-        logger.info("Cycle finished. Waiting before starting next cycle...")
-        await asyncio.sleep(10)
+        try:
+            await run_artist_cycle()
+            # Add a short delay between cycles
+            sleep_time = random.uniform(5, 15) # Random sleep between 5-15 seconds
+            logger.info(f"Cycle finished. Sleeping for {sleep_time:.1f} seconds...")
+            await asyncio.sleep(sleep_time)
+        except KeyboardInterrupt:
+            logger.info("KeyboardInterrupt received. Shutting down batch runner...")
+            break
+        except Exception as e:
+            logger.critical(f"Unhandled exception in main loop: {e}", exc_info=True)
+            logger.info("Restarting cycle after error...")
+            await asyncio.sleep(30) # Wait 30s before restarting after critical error
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("Batch runner stopped by user.")
-    except Exception as e:
-        logger.critical(f"Critical error in main loop: {e}", exc_info=True)
-        sys.exit(1)
+    asyncio.run(main())
 
