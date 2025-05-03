@@ -27,8 +27,8 @@ class AltMusicClient:
         Returns:
             The URL of the generated music file, or a mock URL, or None if generation failed.
         """
-        logger.info(f"Attempting music generation with model {model} using prompt: 
-{prompt}")
+        # Corrected f-string (removed newline)
+        logger.info(f"Attempting music generation with model {model} using prompt: {prompt}")
 
         # Mock fallback if API key is missing
         if not self.api_key:

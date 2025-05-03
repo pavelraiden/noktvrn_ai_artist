@@ -4,6 +4,7 @@ import logging
 import time
 import requests
 import uuid
+import os # Add missing import
 
 # Assuming these clients/services exist and are importable
 # Need to structure imports based on actual project layout
@@ -27,7 +28,6 @@ class MockPrimaryMusicClient:
         logger.warning("MockPrimaryClient: Simulating failure.")
         return None
 
-import os # Add missing import
 primary_music_client = MockPrimaryMusicClient() # Replace with actual client
 alt_music_client = AltMusicClient()
 
@@ -88,18 +88,14 @@ class BeatService:
 
         # --- Analysis --- #
         if track_info and track_info.get("track_url"):
-            logger.info(f"Beat generated ({track_info[
-'model_used
-']}). Analyzing tempo and duration...")
+            # Corrected f-string
+            logger.info(f"Beat generated ({track_info['model_used']}). Analyzing tempo and duration...")
             try:
                 analysis = analyze_audio(track_info["track_url"])
                 if analysis:
                     track_info.update(analysis) # Add tempo and duration to track_info
-                    logger.info(f"Analysis complete: Tempo={analysis[
-'tempo
-']:.2f}, Duration={analysis[
-'duration
-']:.2f}s")
+                    # Corrected f-string
+                    logger.info(f"Analysis complete: Tempo={analysis['tempo']:.2f}, Duration={analysis['duration']:.2f}s")
                     return track_info
                 else:
                     logger.error("Audio analysis failed after successful generation.")
@@ -126,18 +122,11 @@ if __name__ == "__main__":
 
     if result:
         print("--- Beat Generation and Analysis Result ---")
-        print(f"Track URL: {result.get(
-'track_url
-')}")
-        print(f"Model Used: {result.get(
-'model_used
-')}")
-        print(f"Tempo (BPM): {result.get(
-'tempo
-')}")
-        print(f"Duration (s): {result.get(
-'duration
-')}")
+        # Corrected f-strings
+        print(f"Track URL: {result.get('track_url')}")
+        print(f"Model Used: {result.get('model_used')}")
+        print(f"Tempo (BPM): {result.get('tempo')}")
+        print(f"Duration (s): {result.get('duration')}")
     else:
         print("Beat generation and analysis failed.")
 

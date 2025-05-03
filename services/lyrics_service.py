@@ -57,25 +57,20 @@ class LyricsService:
             return None
 
         # Construct the prompt
-        prompt = f"Write lyrics for a {genre} song.
-"
-        prompt += f"Style: {style_notes}
-"
-        prompt += f"Theme/Topic: {base_prompt}
-"
+        # Corrected f-string: Use escaped newline \n or multi-line string
+        prompt = f"Write lyrics for a {genre} song.\n"
+        prompt += f"Style: {style_notes}\n"
+        prompt += f"Theme/Topic: {base_prompt}\n"
 
         if duration is not None:
-            prompt += f"The track duration is approximately {duration:.0f} seconds.
-"
+            prompt += f"The track duration is approximately {duration:.0f} seconds.\n"
         if tempo is not None:
-            prompt += f"The track tempo is approximately {tempo:.0f} BPM.
-"
+            prompt += f"The track tempo is approximately {tempo:.0f} BPM.\n"
 
         prompt += "Please generate suitable lyrics. Focus on evocative language and structure appropriate for the genre and duration."
 
         logger.info(f"Generating lyrics with LLM. Tempo: {tempo}, Duration: {duration}")
-        logger.debug(f"Lyrics generation prompt:
-{prompt}")
+        logger.debug(f"Lyrics generation prompt:\n{prompt}")
 
         model = llm_config.get("model", REFLECTION_LLM_PRIMARY)
         temperature = llm_config.get("temperature", REFLECTION_TEMPERATURE)
@@ -93,10 +88,8 @@ class LyricsService:
             if not lyrics:
                 logger.error("LLM returned empty response for lyrics generation.")
                 return None
-
-            logger.info(f"Successfully generated lyrics (length: {len(lyrics)}). Preview: 
-{lyrics[:100]}...
-")
+            # Corrected f-string: Use escaped newline \n
+            logger.info(f"Successfully generated lyrics (length: {len(lyrics)}). Preview: \n{lyrics[:100]}...")
             return lyrics
         except LLMOrchestratorError as e:
             logger.error(f"Failed to generate lyrics using LLM: {e}")
@@ -132,8 +125,7 @@ if __name__ == "__main__":
         else:
             print("Lyrics generation failed.")
 
-        print(
---- Testing Lyrics Generation (without tempo/duration) ---")
+        print("\n--- Testing Lyrics Generation (without tempo/duration) ---")
         generated_lyrics_no_timing = lyrics_service.generate_lyrics(
             test_base_prompt, test_genre, test_style, test_config
         )

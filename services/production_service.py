@@ -161,9 +161,9 @@ class ProductionService:
             # 5. Export Processed Audio
             output_format = file_extension.lstrip(".") if file_extension else "mp3"
             if output_format not in ["mp3", "wav", "ogg", "flac"]:
-                logger.warning(f"Original format 
-'{output_format}
-' not ideal for export, defaulting to mp3.")
+                # Rewritten line 165 again, removing the newline completely
+                log_message = f"Original format '{output_format}' not ideal for export, defaulting to mp3."
+                logger.warning(log_message)
                 output_format = "mp3"
 
             with tempfile.NamedTemporaryFile(suffix=f".{output_format}", delete=False) as tmp_out_file:
