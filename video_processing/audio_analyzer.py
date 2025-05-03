@@ -1,107 +1,130 @@
-import librosa
-import numpy as np
+# Audio analysis functions using librosa
+
 import logging
+import librosa
+import soundfile as sf
+import numpy as np
+import requests
+import tempfile
+import os
 
 logger = logging.getLogger(__name__)
 
-
 class AudioAnalysisError(Exception):
     """Custom exception for audio analysis errors."""
-
     pass
 
+def _download_audio(audio_url: str) -> str | None:
+    """Downloads audio from a URL to a temporary file."""
+    try:
+        response = requests.get(audio_url, stream=True, timeout=60)
+        response.raise_for_status()
 
-def analyze_audio_features(audio_path: str) -> dict:
-    """Analyzes an audio file to extract features like tempo and energy.
+        # Create a temporary file
+        # Note: Ensure the temp file has an appropriate extension if librosa/soundfile needs it.
+        # Using .wav as a common intermediate format.
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
+            for chunk in response.iter_content(chunk_size=8192):
+                tmp_file.write(chunk)
+            logger.info(f"Audio downloaded temporarily to: {tmp_file.name}")
+            return tmp_file.name
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Failed to download audio from {audio_url}: {e}")
+        return None
+    except IOError as e:
+        logger.error(f"Failed to write downloaded audio to temporary file: {e}")
+        return None
+
+def analyze_audio(audio_path_or_url: str) -> dict | None:
+    """Analyzes an audio file (local path or URL) to extract tempo and duration.
 
     Args:
-        audio_path: The absolute path to the audio file.
+        audio_path_or_url: Local path or URL to the audio file.
 
     Returns:
-        A dictionary containing extracted features:
-        {
-            'tempo': float,      # Estimated tempo in beats per minute (BPM)
-            'energy': float,     # Root Mean Square (RMS) energy (proxy for loudness/intensity)
-            'duration': float    # Duration of the audio in seconds
-        }
-
-    Raises:
-        AudioAnalysisError: If the audio file cannot be loaded or analyzed.
+        A dictionary containing {"tempo": float, "duration": float} or None if analysis fails.
     """
-    logger.info(f"Starting audio analysis for: {audio_path}")
+    local_path = None
+    downloaded = False
+
+    if audio_path_or_url.startswith("http://") or audio_path_or_url.startswith("https://"):
+        logger.info(f"Downloading audio for analysis from: {audio_path_or_url}")
+        local_path = _download_audio(audio_path_or_url)
+        if not local_path:
+            return None
+        downloaded = True
+    elif audio_path_or_url.startswith("file://"):
+        local_path = audio_path_or_url[7:] # Remove "file://"
+        if not os.path.exists(local_path):
+             logger.error(f"Local audio file not found: {local_path}")
+             return None
+    elif os.path.exists(audio_path_or_url):
+        local_path = audio_path_or_url
+    else:
+        logger.error(f"Invalid audio path or URL provided: {audio_path_or_url}")
+        return None
+
     try:
-        # Load the audio file
-        y, sr = librosa.load(
-            audio_path, sr=None
-        )  # sr=None preserves original sample rate
-        logger.debug(
-            f"Audio loaded successfully. Sample rate: {sr}, Duration: {len(y)/sr:.2f}s"
-        )
+        logger.info(f"Analyzing audio file: {local_path}")
+        # Load audio file using soundfile (more robust for different formats) and convert to mono if needed
+        y, sr = sf.read(local_path)
+        if y.ndim > 1:
+            y = np.mean(y, axis=1) # Convert to mono by averaging channels
+
+        # Get duration
+        duration = len(y) / sr
 
         # Estimate tempo
         tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
-        logger.debug(f"Estimated tempo: {tempo:.2f} BPM")
+        tempo = float(tempo) # Ensure tempo is float
 
-        # Calculate RMS energy
-        rms = librosa.feature.rms(y=y)[0]
-        # Use mean RMS as a single energy value
-        energy = np.mean(rms)
-        logger.debug(f"Calculated mean RMS energy: {energy:.4f}")
+        logger.info(f"Analysis complete: Duration={duration:.2f}s, Tempo={tempo:.2f} BPM")
+        return {"tempo": tempo, "duration": duration}
 
-        # Get duration
-        duration = librosa.get_duration(y=y, sr=sr)
-        logger.debug(f"Calculated duration: {duration:.2f} seconds")
-
-        analysis_results = {
-            "tempo": float(tempo),
-            "energy": float(energy),
-            "duration": float(duration),
-        }
-        logger.info(f"Audio analysis completed for: {audio_path}")
-        return analysis_results
-
-    except FileNotFoundError:
-        logger.error(f"Audio file not found at path: {audio_path}")
-        raise AudioAnalysisError(f"Audio file not found: {audio_path}")
     except Exception as e:
-        logger.error(
-            f"Error during audio analysis for {audio_path}: {e}", exc_info=True
-        )
-        raise AudioAnalysisError(f"Failed to analyze audio file {audio_path}: {e}")
+        logger.error(f"Error analyzing audio file {local_path}: {e}", exc_info=True)
+        raise AudioAnalysisError(f"Failed to analyze audio: {e}") from e
+    finally:
+        # Clean up temporary file if downloaded
+        if downloaded and local_path and os.path.exists(local_path):
+            try:
+                os.remove(local_path)
+                logger.info(f"Cleaned up temporary audio file: {local_path}")
+            except OSError as e:
+                logger.warning(f"Failed to clean up temporary audio file {local_path}: {e}")
 
-
-# Example usage (for testing purposes)
+# Example Usage
 if __name__ == "__main__":
-    # Configure basic logging for testing
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    )
+    logging.basicConfig(level=logging.INFO)
+    # Test with a known URL (replace with a valid, accessible audio URL for real testing)
+    # test_url = "https://example.com/some_audio.mp3" # Replace this
+    test_url = "https://example.com/mock-beat.mp3" # Using the mock URL for structure test
 
-    # Create a dummy audio file for testing (requires numpy and soundfile)
-    # In a real scenario, you'd use an actual audio file path.
-    try:
-        import soundfile as sf
+    # Test with a local file (create a dummy file or use a real one)
+    # dummy_file = "/tmp/dummy_audio.wav"
+    # import soundfile as sf
+    # import numpy as np
+    # sr_dummy = 22050
+    # duration_dummy = 5
+    # y_dummy = np.sin(2 * np.pi * 440.0 * np.arange(sr_dummy * duration_dummy) / sr_dummy)
+    # sf.write(dummy_file, y_dummy, sr_dummy)
+    # test_local = dummy_file
 
-        sr_test = 22050
-        duration_test = 5  # seconds
-        frequency_test = 440  # Hz (A4 note)
-        t_test = np.linspace(0.0, duration_test, int(sr_test * duration_test))
-        amplitude_test = np.iinfo(np.int16).max * 0.5
-        data_test = amplitude_test * np.sin(2.0 * np.pi * frequency_test * t_test)
-        dummy_file = "/tmp/test_audio.wav"
-        sf.write(dummy_file, data_test.astype(np.int16), sr_test)
-        logger.info(f"Created dummy audio file: {dummy_file}")
+    print(f"--- Testing URL Analysis ({test_url}) ---")
+    # This will fail download unless mock URL is replaced or server allows download
+    analysis_result_url = analyze_audio(test_url)
+    if analysis_result_url:
+        print(f"URL Analysis Result: {analysis_result_url}")
+    else:
+        print("URL Analysis failed (as expected for mock URL download)." )
 
-        # Analyze the dummy file
-        features = analyze_audio_features(dummy_file)
-        print(f"\nAnalyzed Features:\n{features}")
+    # print(f"--- Testing Local File Analysis ({test_local}) ---")
+    # analysis_result_local = analyze_audio(test_local)
+    # if analysis_result_local:
+    #     print(f"Local Analysis Result: {analysis_result_local}")
+    # else:
+    #     print("Local Analysis failed.")
+    # # Clean up dummy file
+    # if os.path.exists(dummy_file):
+    #     os.remove(dummy_file)
 
-    except ImportError:
-        logger.warning(
-            "Skipping dummy audio file creation and test - soundfile not installed."
-        )
-    except AudioAnalysisError as e:
-        print(f"\nAnalysis failed: {e}")
-    except Exception as e:
-        print(f"\nAn unexpected error occurred during testing: {e}")

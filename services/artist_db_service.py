@@ -43,12 +43,24 @@ def _add_column_if_not_exists(cursor, table_name, column_name, column_type):
     if column_name not in columns:
         try:
             cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}")
-            logger.info(f"Added column '{column_name}' to table '{table_name}'.")
+            logger.info(f"Added column 
+'{column_name}
+' to table 
+'{table_name}
+'.")
         except sqlite3.OperationalError as e:
             # Handle cases where adding column might fail concurrently (less likely with ALTER TABLE)
-            logger.warning(f"Could not add column '{column_name}' to '{table_name}' (might already exist): {e}")
+            logger.warning(f"Could not add column 
+'{column_name}
+' to 
+'{table_name}
+' (might already exist): {e}")
     else:
-        logger.debug(f"Column '{column_name}' already exists in table '{table_name}'.")
+        logger.debug(f"Column 
+'{column_name}
+' already exists in table 
+'{table_name}
+'.")
 
 def _rename_column_if_exists(cursor, table_name, old_column_name, new_column_name):
     """Helper function to rename a column if it exists and the new name doesn't."""
@@ -60,56 +72,70 @@ def _rename_column_if_exists(cursor, table_name, old_column_name, new_column_nam
             # For broader compatibility, we might need a more complex migration (create new table, copy data, drop old, rename new)
             # However, modern SQLite versions support it. Assuming modern version for simplicity here.
             cursor.execute(f"ALTER TABLE {table_name} RENAME COLUMN {old_column_name} TO {new_column_name}")
-            logger.info(f"Renamed column '{old_column_name}' to '{new_column_name}' in table '{table_name}'.")
+            logger.info(f"Renamed column 
+'{old_column_name}
+' to 
+'{new_column_name}
+' in table 
+'{table_name}
+'.")
         except sqlite3.OperationalError as e:
-            logger.error(f"Failed to rename column '{old_column_name}' to '{new_column_name}' in '{table_name}': {e}. Manual migration might be needed if using older SQLite.")
+            logger.error(f"Failed to rename column 
+'{old_column_name}
+' to 
+'{new_column_name}
+' in 
+'{table_name}
+': {e}. Manual migration might be needed if using older SQLite.")
     elif old_column_name in columns and new_column_name in columns:
-         logger.debug(f"Both '{old_column_name}' and '{new_column_name}' exist in '{table_name}'. Skipping rename.")
+         logger.debug(f"Both 
+'{old_column_name}
+' and 
+'{new_column_name}
+' exist in 
+'{table_name}
+'. Skipping rename.")
     elif old_column_name not in columns:
-         logger.debug(f"Column '{old_column_name}' does not exist in '{table_name}'. Skipping rename.")
+         logger.debug(f"Column 
+'{old_column_name}
+' does not exist in 
+'{table_name}
+'. Skipping rename.")
 
 def initialize_database():
-    """Creates the artists and error_reports tables if they don't exist, adding/modifying columns as needed for lifecycle management."""
+    """Creates the artists and error_reports tables if they don't exist, adding/modifying columns as needed."""
     conn = get_db_connection()
     if not conn:
         return
     try:
         cursor = conn.cursor()
-        # Artists Table - Updated Schema for Lifecycle Management
+        # Artists Table - Updated Schema
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS artists (
                 artist_id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 genre TEXT,
                 style_notes TEXT,
-                llm_config TEXT, -- Added for storing LLM details
+                llm_config TEXT, -- Storing LLM details as JSON
                 created_at TEXT NOT NULL,
                 last_run_at TEXT,
-                status TEXT DEFAULT 'Candidate', -- Replaces is_active (Candidate, Active, Paused, Retired, Evolving)
+                status TEXT DEFAULT 'Candidate', -- Candidate, Active, Paused, Retired, Evolving
                 performance_history TEXT, -- Storing as JSON string
                 consecutive_rejections INTEGER DEFAULT 0,
-                autopilot_enabled BOOLEAN DEFAULT 0
+                autopilot_enabled BOOLEAN DEFAULT 0,
+                voice_url TEXT -- Added for storing voice sample/clone URL
             )
         """)
         logger.info("Database initialized. 'artists' table checked/created.")
 
         # --- Schema Migrations/Updates ---
-        # 1. Add 'status' column if it doesn't exist
+        # Add columns if they don't exist (idempotent)
         _add_column_if_not_exists(cursor, "artists", "status", "TEXT DEFAULT 'Candidate'")
-
-        # 2. Add 'llm_config' column if it doesn't exist
         _add_column_if_not_exists(cursor, "artists", "llm_config", "TEXT")
-
-        # 3. Rename 'is_active' to 'status' if 'is_active' exists and 'status' doesn't (Handle legacy)
-        # Note: This is a simplification. A proper migration would map 1 to 'Active', 0 to 'Paused' or 'Retired'.
-        # For now, we prioritize the new 'status' column. If 'is_active' exists, it might become redundant.
-        # We will primarily use the 'status' column going forward.
-        # _rename_column_if_exists(cursor, "artists", "is_active", "status") # Commented out rename due to complexity of data migration
-
-        # 4. Add 'autopilot_enabled' if missing (already handled in previous version, kept for safety)
         _add_column_if_not_exists(cursor, "artists", "autopilot_enabled", "BOOLEAN DEFAULT 0")
+        _add_column_if_not_exists(cursor, "artists", "voice_url", "TEXT") # Add the new voice_url column
 
-        # Error Reports Table (Unchanged from previous version)
+        # Error Reports Table (Unchanged)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS error_reports (
                 report_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -124,10 +150,10 @@ def initialize_database():
         """)
         logger.info("Database initialized. 'error_reports' table checked/created.")
 
-        # Index for faster querying (Unchanged)
+        # Indexes
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_error_timestamp ON error_reports (timestamp DESC)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_error_hash ON error_reports (error_hash)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_artist_status ON artists (status)") # Add index for status
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_artist_status ON artists (status)")
 
         conn.commit()
     except sqlite3.Error as e:
@@ -139,14 +165,14 @@ def initialize_database():
 # --- Artist Data CRUD Operations ---
 
 def add_artist(artist_data: Dict[str, Any]) -> Optional[str]:
-    """Adds a new artist to the database with 'Candidate' status. Returns artist_id if successful."""
+    """Adds a new artist to the database. Returns artist_id if successful."""
     conn = get_db_connection()
     if not conn:
         return None
 
-    artist_id = artist_data.get("artist_id", str(uuid.uuid4())) # Generate ID if not provided
+    artist_id = artist_data.get("artist_id", str(uuid.uuid4()))
     created_at = artist_data.get("created_at", datetime.utcnow().isoformat())
-    initial_status = artist_data.get("status", "Candidate") # Default to Candidate
+    initial_status = artist_data.get("status", "Candidate")
 
     try:
         cursor = conn.cursor()
@@ -154,24 +180,29 @@ def add_artist(artist_data: Dict[str, Any]) -> Optional[str]:
             INSERT INTO artists (
                 artist_id, name, genre, style_notes, llm_config, created_at,
                 last_run_at, status, performance_history, consecutive_rejections,
-                autopilot_enabled
+                autopilot_enabled, voice_url
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             artist_id,
             artist_data["name"],
             artist_data.get("genre"),
             artist_data.get("style_notes"),
-            json.dumps(artist_data.get("llm_config", {})), # Store LLM config as JSON
+            json.dumps(artist_data.get("llm_config", {})),
             created_at,
-            artist_data.get("last_run_at"), # Likely None initially
+            artist_data.get("last_run_at"),
             initial_status,
-            json.dumps(artist_data.get("performance_history", [])), # Store as JSON string
+            json.dumps(artist_data.get("performance_history", [])),
             artist_data.get("consecutive_rejections", 0),
-            artist_data.get("autopilot_enabled", False) # Default autopilot to False
+            artist_data.get("autopilot_enabled", False),
+            artist_data.get("voice_url") # Include voice_url (can be None initially)
         ))
         conn.commit()
-        logger.info(f"Added new artist '{artist_data['name']}' with ID {artist_id} and status '{initial_status}'.")
+        logger.info(f"Added new artist 
+'{artist_data['name']}
+' with ID {artist_id} and status 
+'{initial_status}
+'.")
         return artist_id
     except sqlite3.IntegrityError:
         logger.warning(f"Artist ID {artist_id} already exists in the database.")
@@ -201,11 +232,16 @@ def get_artist(artist_id: str) -> Optional[Dict[str, Any]]:
             artist["llm_config"] = json.loads(llm_config_str) if llm_config_str is not None else {}
             # Convert autopilot_enabled from 0/1 to boolean
             artist["autopilot_enabled"] = bool(artist.get("autopilot_enabled", 0))
+            # voice_url is already TEXT, no conversion needed
             return artist
         else:
             return None
     except json.JSONDecodeError as e:
-        logger.error(f"Error decoding JSON for artist {artist_id}: {e}. Data: llm_config='{llm_config_str}', history='{perf_history_str}'")
+        logger.error(f"Error decoding JSON for artist {artist_id}: {e}. Data: llm_config=
+'{llm_config_str}
+', history=
+'{perf_history_str}
+'")
         return None # Or handle partially loaded data if needed
     except sqlite3.Error as e:
         logger.error(f"Error getting artist {artist_id}: {e}")
@@ -240,10 +276,15 @@ def get_all_artists(status_filter: Optional[str] = None) -> List[Dict[str, Any]]
                 artist["llm_config"] = json.loads(llm_config_str) if llm_config_str is not None else {}
                 # Convert autopilot_enabled from 0/1 to boolean
                 artist["autopilot_enabled"] = bool(artist.get("autopilot_enabled", 0))
+                # voice_url is already TEXT, no conversion needed
                 artists.append(artist)
             except json.JSONDecodeError as e:
                 artist_id = artist.get("artist_id", "UNKNOWN")
-                logger.error(f"Error decoding JSON for artist {artist_id} in get_all_artists: {e}. Skipping this artist. Data: llm_config='{llm_config_str}', history='{perf_history_str}'")
+                logger.error(f"Error decoding JSON for artist {artist_id} in get_all_artists: {e}. Skipping this artist. Data: llm_config=
+'{llm_config_str}
+', history=
+'{perf_history_str}
+'")
                 continue # Skip this artist if JSON is invalid
         return artists
     except sqlite3.Error as e:
@@ -265,12 +306,12 @@ def update_artist(artist_id: str, update_data: Dict[str, Any]) -> bool:
         # Handle specific fields that need transformation
         if key == "performance_history" or key == "llm_config":
             fields.append(f"{key} = ?")
-            values.append(json.dumps(value)) # Serialize to JSON
-        elif key == "autopilot_enabled": # Handle boolean field
+            values.append(json.dumps(value))
+        elif key == "autopilot_enabled":
              fields.append(f"{key} = ?")
-             values.append(1 if value else 0) # Convert boolean to integer for SQLite
+             values.append(1 if value else 0)
         elif key != "artist_id": # Avoid updating the primary key
-            # Includes 'status', 'name', 'genre', 'style_notes', 'last_run_at', 'consecutive_rejections'
+            # Includes 'status', 'name', 'genre', 'style_notes', 'last_run_at', 'consecutive_rejections', 'voice_url'
             fields.append(f"{key} = ?")
             values.append(value)
 
@@ -308,7 +349,7 @@ def update_artist_performance_db(artist_id: str, run_id: str, status: str, retir
     Args:
         artist_id: The ID of the artist.
         run_id: The ID of the completed run.
-        status: The outcome of the run ('approved', 'rejected', etc.).
+        status: The outcome of the run ('approved', 'rejected', 'error', etc.).
         retirement_threshold: Number of consecutive rejections to trigger retirement.
 
     Returns:
@@ -340,36 +381,50 @@ def update_artist_performance_db(artist_id: str, run_id: str, status: str, retir
         # Check for retirement trigger
         if consecutive_rejections >= retirement_threshold and current_status not in ["Retired", "Paused"]:
             update_payload["status"] = "Retired"
-            logger.warning(f"Artist {artist_id} ('{artist.get('name', 'N/A')}') automatically retired due to {consecutive_rejections} consecutive rejections.")
+            logger.warning(f"Artist {artist_id} (
+'{artist.get('name', 'N/A')}
+') automatically retired due to {consecutive_rejections} consecutive rejections.")
     elif status == "approved":
         if consecutive_rejections > 0:
             update_payload["consecutive_rejections"] = 0 # Reset on approval
         # If artist was 'Candidate', first approval makes them 'Active'
         if current_status == "Candidate":
-             update_payload["status"] = "Active"
-             logger.info(f"Artist {artist_id} ('{artist.get('name', 'N/A')}') status changed from Candidate to Active after first approval.")
+            update_payload["status"] = "Active"
+            logger.info(f"Promoting candidate artist {artist_id} (
+'{artist.get('name', 'N/A')}
+') to Active after first approval.")
+    else: # Handle 'error', 'generation_failed_track', etc. - Treat as neutral for rejection count
+        # No change to consecutive_rejections needed
+        pass
 
-    # Ensure we don't try to update if payload is empty (e.g., non-approved/rejected status with 0 rejections)
-    if len(update_payload) <= 1 and "last_run_at" in update_payload:
-         logger.debug(f"No significant performance update needed for artist {artist_id} based on run status '{status}'. Only updating last_run_at.")
-         return update_artist(artist_id, {"last_run_at": now_iso})
+    # Perform the update
+    success = update_artist(artist_id, update_payload)
+    if success:
+        logger.info(f"Updated performance for artist {artist_id}. Run: {run_id}, Status: {status}. New rejection count: {update_payload.get('consecutive_rejections', consecutive_rejections)}")
+    else:
+        logger.error(f"Failed to update performance for artist {artist_id} after run {run_id}.")
 
-    return update_artist(artist_id, update_payload)
+    return success
 
-# --- Error Report CRUD Operations (Unchanged) ---
+# --- Error Report CRUD Operations ---
 
 def add_error_report(report_data: Dict[str, Any]) -> Optional[int]:
-    """Adds a new error report to the database and returns the report ID."""
+    """Adds a new error report to the database. Returns report_id if successful."""
     conn = get_db_connection()
     if not conn:
         return None
+
+    timestamp = report_data.get("timestamp", datetime.utcnow().isoformat())
+
     try:
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO error_reports (timestamp, error_hash, error_log, analysis, fix_suggestion, status, service_name)
+            INSERT INTO error_reports (
+                timestamp, error_hash, error_log, analysis, fix_suggestion, status, service_name
+            )
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (
-            report_data.get("timestamp", datetime.utcnow().isoformat()),
+            timestamp,
             report_data.get("error_hash"),
             report_data.get("error_log"),
             report_data.get("analysis"),
@@ -379,17 +434,9 @@ def add_error_report(report_data: Dict[str, Any]) -> Optional[int]:
         ))
         conn.commit()
         report_id = cursor.lastrowid
-        logger.info(f"Added new error report with ID: {report_id}")
-
-        # --- Prune old error reports ---
-        cursor.execute("SELECT COUNT(*) FROM error_reports")
-        count = cursor.fetchone()[0]
-        if count > MAX_ERROR_REPORTS:
-            num_to_delete = count - MAX_ERROR_REPORTS
-            cursor.execute("DELETE FROM error_reports WHERE report_id IN (SELECT report_id FROM error_reports ORDER BY timestamp ASC LIMIT ?)", (num_to_delete,))
-            conn.commit()
-            logger.info(f"Pruned {num_to_delete} oldest error reports.")
-
+        logger.info(f"Added new error report with ID {report_id}.")
+        # Prune old reports if necessary
+        _prune_error_reports(cursor, conn)
         return report_id
     except sqlite3.Error as e:
         logger.error(f"Error adding error report: {e}")
@@ -398,8 +445,25 @@ def add_error_report(report_data: Dict[str, Any]) -> Optional[int]:
         if conn:
             conn.close()
 
-def get_error_reports(limit: int = 50, offset: int = 0, status_filter: Optional[str] = None) -> List[Dict[str, Any]]:
-    """Retrieves error reports, ordered by timestamp descending, with optional status filter."""
+def get_error_report(report_id: int) -> Optional[Dict[str, Any]]:
+    """Retrieves a single error report by ID."""
+    conn = get_db_connection()
+    if not conn:
+        return None
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM error_reports WHERE report_id = ?", (report_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+    except sqlite3.Error as e:
+        logger.error(f"Error getting error report {report_id}: {e}")
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+def get_error_reports(limit: int = 50, status_filter: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Retrieves recent error reports, optionally filtering by status."""
     conn = get_db_connection()
     if not conn:
         return []
@@ -410,65 +474,72 @@ def get_error_reports(limit: int = 50, offset: int = 0, status_filter: Optional[
         if status_filter:
             query += " WHERE status = ?"
             params.append(status_filter)
-        query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
-        params.extend([limit, offset])
+        query += " ORDER BY timestamp DESC LIMIT ?"
+        params.append(limit)
 
         cursor.execute(query, tuple(params))
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
     except sqlite3.Error as e:
-        logger.error(f"Error getting error reports: {e}")
+        logger.error(f"Error getting error reports (filter: {status_filter}): {e}")
         return []
     finally:
         if conn:
             conn.close()
 
-def update_error_report_status(report_id: int, new_status: str) -> bool:
-    """Updates the status of a specific error report."""
+def update_error_report(report_id: int, update_data: Dict[str, Any]) -> bool:
+    """Updates specific fields for an existing error report."""
     conn = get_db_connection()
     if not conn:
         return False
+
+    fields = []
+    values = []
+    for key, value in update_data.items():
+        if key != "report_id": # Avoid updating the primary key
+            fields.append(f"{key} = ?")
+            values.append(value)
+
+    if not fields:
+        logger.warning("No valid fields provided for error report update.")
+        return False
+
+    set_clause = ", ".join(fields)
+    query = f"UPDATE error_reports SET {set_clause} WHERE report_id = ?"
+    values.append(report_id)
+
     try:
         cursor = conn.cursor()
-        cursor.execute("UPDATE error_reports SET status = ? WHERE report_id = ?", (new_status, report_id))
+        cursor.execute(query, tuple(values))
         conn.commit()
         if cursor.rowcount == 0:
-            logger.warning(f"Attempted to update status for non-existent error report ID: {report_id}")
+            logger.warning(f"Attempted to update non-existent error report ID: {report_id}")
             return False
-        logger.info(f"Updated status for error report {report_id} to '{new_status}'.")
+        logger.debug(f"Updated error report {report_id} with data: {update_data}")
         return True
     except sqlite3.Error as e:
-        logger.error(f"Error updating status for error report {report_id}: {e}")
+        logger.error(f"Error updating error report {report_id}: {e}")
         return False
     finally:
         if conn:
             conn.close()
 
-# --- Seed Data (Optional) ---
-# You might want a function to load initial artists from a JSON file if the DB is empty.
-# Example:
-# def seed_artists_from_json(filepath="data/artists/seed_artists.json"):
-#     if not os.path.exists(filepath):
-#         logger.warning(f"Seed artist file not found: {filepath}")
-#         return
-#     if get_all_artists(): # Only seed if DB is empty
-#         logger.info("Artist database already contains data. Skipping seed.")
-#         return
-#     try:
-#         with open(filepath, "r") as f:
-#             seed_data = json.load(f)
-#         logger.info(f"Seeding artists from {filepath}...")
-#         count = 0
-#         for artist_data in seed_data:
-#             if add_artist(artist_data):
-#                 count += 1
-#         logger.info(f"Successfully seeded {count} artists.")
-#     except (json.JSONDecodeError, IOError) as e:
-#         logger.error(f"Error reading or decoding seed artist file {filepath}: {e}")
-#     except Exception as e:
-#         logger.error(f"Unexpected error during artist seeding: {e}")
+def _prune_error_reports(cursor, conn):
+    """Internal function to keep the error_reports table size manageable."""
+    try:
+        cursor.execute("SELECT COUNT(*) FROM error_reports")
+        count = cursor.fetchone()[0]
+        if count > MAX_ERROR_REPORTS:
+            # Find the timestamp of the report at the cutoff point
+            cursor.execute("SELECT timestamp FROM error_reports ORDER BY timestamp DESC LIMIT 1 OFFSET ?", (MAX_ERROR_REPORTS,))
+            cutoff_timestamp = cursor.fetchone()
+            if cutoff_timestamp:
+                cursor.execute("DELETE FROM error_reports WHERE timestamp < ?", (cutoff_timestamp[0],))
+                conn.commit()
+                logger.info(f"Pruned error reports older than {cutoff_timestamp[0]}. {cursor.rowcount} reports deleted.")
+    except sqlite3.Error as e:
+        logger.error(f"Error pruning error reports: {e}")
 
-# --- Initialization Call ---
-# initialize_database() # Usually called by the main application/runner
-# seed_artists_from_json() # Optional: Call if you want to seed on module load
+# --- Initialization on import ---
+initialize_database()
 

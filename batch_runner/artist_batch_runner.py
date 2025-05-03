@@ -40,6 +40,8 @@ try:
     )
     # Import the lifecycle manager
     from services.artist_lifecycle_manager import ArtistLifecycleManager
+    # Import the voice service
+    from services.voice_service import VoiceService, VoiceServiceError
     # from services.trend_analysis_service import TrendAnalysisService
 except ImportError as e:
     logging.error(f"Failed to import core modules, release_chain, orchestrator, or services: {e}. Exiting.")
@@ -65,6 +67,7 @@ LIFECYCLE_CHECK_INTERVAL_MINUTES = int(os.getenv("LIFECYCLE_CHECK_INTERVAL_MINUT
 AIMLAPI_KEY = os.getenv("AIMLAPI_KEY") or os.getenv("SUNO_API_KEY")
 PEXELS_API_KEY = os.getenv("PEXELS_API_KEY")
 PIXABAY_API_KEY = os.getenv("PIXABAY_API_KEY")
+# ELEVENLABS_API_KEY is loaded within VoiceService
 
 # --- API Endpoints ---
 AIMLAPI_MUSIC_ENDPOINT = "https://api.aimlapi.com/v2/generate/audio" # v2 endpoint for music
@@ -117,6 +120,7 @@ if not PEXELS_API_KEY:
     logger.warning("PEXELS_API_KEY not found in environment variables. Pexels video search will fail.")
 if not PIXABAY_API_KEY:
     logger.warning("PIXABAY_API_KEY not found in environment variables. Pixabay video search will fail.")
+# ELEVENLABS_API_KEY warning is handled within VoiceService
 
 logger.info(f"Log level set to: {LOG_LEVEL}")
 logger.info(f"Max approval wait time: {MAX_APPROVAL_WAIT_TIME}s")
@@ -145,10 +149,20 @@ try:
                 for artist_data in seed_artists:
                     # Check if artist already exists before adding
                     if not get_artist(artist_data["artist_id"]):
-                        add_artist(artist_data)
-                        logger.info(f"Added seed artist: {artist_data['name']}")
+                        added_id = add_artist(artist_data)
+                        if added_id:
+                            logger.info(f"Added seed artist: {artist_data[
+'name
+']}")
+                            # TODO: Optionally generate voice for seed artists here?
+                        else:
+                             logger.error(f"Failed to add seed artist {artist_data[
+'name
+']}")
                     else:
-                        logger.info(f"Seed artist {artist_data['name']} already exists, skipping.")
+                        logger.info(f"Seed artist {artist_data[
+'name
+']} already exists, skipping.")
             except (json.JSONDecodeError, IOError) as e:
                 logger.error(f"Error reading or parsing seed file {seed_file_path}: {e}. Continuing without seeding.")
         else:
@@ -162,7 +176,16 @@ try:
                 "created_at": datetime.utcnow().isoformat(),
                 "status": "Active"
             }
-            add_artist(default_artist_data)
+            added_id = add_artist(default_artist_data)
+            if added_id:
+                 logger.info(f"Added default artist: {default_artist_data[
+'name
+']}")
+                 # TODO: Optionally generate voice for default artist here?
+            else:
+                 logger.error(f"Failed to add default artist {default_artist_data[
+'name
+']}")
 except Exception as e:
     logger.critical(f"Failed to initialize or populate artist database: {e}. Exiting.")
     sys.exit(1)
@@ -186,22 +209,55 @@ except Exception as e:
     logger.critical(f"Failed to initialize Artist Lifecycle Manager: {e}. Exiting.")
     sys.exit(1)
 
+# --- Initialize Voice Service ---
+try:
+    voice_service = VoiceService()
+except Exception as e:
+    logger.error(f"Failed to initialize Voice Service: {e}. Voice generation disabled.")
+    voice_service = None
+
 def create_new_artist_profile():
     logger.info("Attempting to create a new artist profile...")
     new_id = str(uuid.uuid4())
+    artist_name = f"Generated Artist {new_id[:4]}"
     new_artist_data = {
         "artist_id": new_id,
-        "name": f"Generated Artist {new_id[:4]}",
+        "name": artist_name,
         "genre": random.choice(["electronic", "ambient", "lofi", "hyperpop", "cinematic"]),
         "style_notes": "Experimental, evolving style. Focus on atmospheric textures.",
         "llm_config": {"model": REFLECTION_LLM_PRIMARY, "temperature": round(random.uniform(0.5, 0.9), 2)},
         "created_at": datetime.utcnow().isoformat(),
         "status": "Candidate",
-        "autopilot_enabled": False
+        "autopilot_enabled": False,
+        "voice_url": None # Initialize voice_url as None
     }
     added_id = add_artist(new_artist_data)
     if added_id:
-        logger.info(f"Successfully created new artist {new_artist_data['artist_id']}. Selecting it (will run as Candidate).")
+        logger.info(f"Successfully created new artist {added_id} (
+'{artist_name}
+"). Now generating voice sample...")
+        if voice_service:
+            try:
+                sample_text = f"Hello, I am {artist_name}. This is a sample of my voice."
+                voice_url = voice_service.generate_artist_voice(artist_name, sample_text)
+                if voice_url:
+                    logger.info(f"Generated voice sample URL for artist {added_id}: {voice_url}")
+                    # Update the artist record with the voice URL
+                    update_success = update_artist(added_id, {"voice_url": voice_url})
+                    if update_success:
+                        logger.info(f"Successfully saved voice URL for artist {added_id}.")
+                    else:
+                        logger.error(f"Failed to save voice URL for artist {added_id}.")
+                else:
+                    logger.error(f"Voice generation failed for artist {added_id}.")
+            except VoiceServiceError as e:
+                logger.error(f"Error generating voice for artist {added_id}: {e}")
+            except Exception as e:
+                 logger.error(f"Unexpected error during voice generation for artist {added_id}: {e}", exc_info=True)
+        else:
+            logger.warning(f"Voice service not available, skipping voice generation for artist {added_id}.")
+
+        # Return the full artist profile after potential voice update
         return get_artist(added_id)
     else:
         logger.error(f"Failed to add newly created artist {new_id} to the database.")
@@ -256,7 +312,15 @@ def select_next_artist():
         key=lambda a: (a["status"] != "Candidate", datetime.fromisoformat(a["last_run_at"]) if a["last_run_at"] else datetime.min)
     )
     selected_artist = sorted_artists[0]
-    logger.info(f"Selected artist {selected_artist['artist_id']} ({selected_artist['name']}), Status: {selected_artist['status']}")
+    logger.info(f"Selected artist {selected_artist[
+'artist_id
+']} (
+'{selected_artist[
+'name
+']}
+'), Status: {selected_artist[
+'status
+']}")
     return selected_artist
 
 def get_adapted_parameters(artist_profile):
@@ -280,16 +344,24 @@ def get_adapted_parameters(artist_profile):
             ab_test_info["parameter"] = AB_TEST_PARAMETER
             ab_test_info["variation_index"] = chosen_index
             ab_test_info["variation_value"] = chosen_variation
-            logger.info(f"A/B Test: Applying variation {chosen_index} ('{chosen_variation}') for parameter '{AB_TEST_PARAMETER}'.")
+            logger.info(f"A/B Test: Applying variation {chosen_index} (
+'{chosen_variation}
+') for parameter 
+'{AB_TEST_PARAMETER}
+'.")
 
             if AB_TEST_PARAMETER == "music_prompt_prefix":
                 prompt_prefix = chosen_variation.format(genre=genre)
                 base_params["music_prompt"] = f"{prompt_prefix}, {base_music_prompt}"
             else:
-                 logger.warning(f"A/B test parameter '{AB_TEST_PARAMETER}' not handled. Using default.")
+                 logger.warning(f"A/B test parameter 
+'{AB_TEST_PARAMETER}
+' not handled. Using default.")
                  base_params["music_prompt"] = f"A dreamy {genre} track, {base_music_prompt}"
         else:
-            logger.warning(f"A/B testing enabled but no variations defined for '{AB_TEST_PARAMETER}'. Using default.")
+            logger.warning(f"A/B testing enabled but no variations defined for 
+'{AB_TEST_PARAMETER}
+'. Using default.")
             base_params["music_prompt"] = f"A dreamy {genre} track, {base_music_prompt}"
     else:
         base_params["music_prompt"] = f"A dreamy {genre} track, {base_music_prompt}"
@@ -336,372 +408,553 @@ def generate_track(music_params):
             track_id = result.get("generation_id") or str(uuid.uuid4()) # Use generation_id if available
 
             if audio_url:
-                logger.info(f"Successfully generated track with aimlapi.com model '{model_name}': ID={track_id}, URL={audio_url}")
+                logger.info(f"Successfully generated track with aimlapi.com model 
+'{model_name}
+': ID={track_id}, URL={audio_url}")
                 return {"track_id": track_id, "track_url": audio_url, "model_used": model_name}
             else:
-                logger.error(f"aimlapi.com API call successful (Model: '{model_name}') but no audio_url found in response: {result}")
+                # Handle potential 'queued' status or other non-URL responses
+                status = result.get("status")
+                if status == "queued":
+                    logger.warning(f"aimlapi.com API call returned status 
+'queued
+' for model 
+'{model_name}
+'. Trying next model.")
+                    # TODO: Implement polling for queued jobs if needed, or rely on fallback
+                else:
+                    logger.error(f"aimlapi.com API call successful (Model: 
+'{model_name}
+') but no audio_url found in response: {result}")
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"aimlapi.com API call failed for model '{model_name}': {e}")
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to decode JSON response from aimlapi.com (Model: '{model_name}'): {e}. Response text: {response.text}")
+            logger.error(f"aimlapi.com API request failed for model 
+'{model_name}
+': {e}")
+            # If it's a client error (4xx), maybe don't retry with other models?
+            if e.response is not None and 400 <= e.response.status_code < 500:
+                logger.error(f"Client error ({e.response.status_code}) received from aimlapi.com. Stopping music generation attempt.")
+                return None # Stop trying other models for client errors
 
-    logger.error("All aimlapi.com music models failed. Cannot generate track.")
+        # Wait a moment before trying the next fallback model
+        if model_name != MUSIC_MODELS_ORDER[-1]:
+            time.sleep(2)
+
+    logger.error("Failed to generate track using all configured aimlapi.com models.")
+    # TODO: Implement fallback to AltMusicClient here
     return None
 
-def select_video(video_params):
-    """Selects a video using Pexels first, then Pixabay as fallback."""
-    logger.info(f"Selecting video with params: {video_params}")
-    query = " ".join(video_params.get("video_keywords", ["abstract"])) # Join keywords for search
-    orientation = "landscape" # Default or adapt based on params
-    size = "medium" # Default or adapt based on params
+def generate_lyrics(llm_params):
+    """Generates lyrics using the LLM orchestrator."""
+    logger.info(f"Generating lyrics with LLM using params: {llm_params}")
+    if not llm_orchestrator:
+        logger.error("LLM Orchestrator not available. Cannot generate lyrics.")
+        return None
 
-    # --- Try Pexels --- #
+    prompt = llm_params.get("lyrics_prompt", "Write short, evocative lyrics about neon nights.")
+    llm_config = llm_params.get("llm_config", {})
+    model = llm_config.get("model", REFLECTION_LLM_PRIMARY)
+    temperature = llm_config.get("temperature", REFLECTION_TEMPERATURE)
+    max_tokens = llm_config.get("max_tokens", REFLECTION_MAX_TOKENS)
+
+    try:
+        response = llm_orchestrator.generate_text(
+            prompt=prompt,
+            model_name=model,
+            max_tokens=max_tokens,
+            temperature=temperature
+        )
+        lyrics = response.strip()
+        logger.info(f"Successfully generated lyrics: 
+{lyrics[:100]}...
+")
+        return lyrics
+    except LLMOrchestratorError as e:
+        logger.error(f"Failed to generate lyrics using LLM: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error during lyrics generation: {e}", exc_info=True)
+        return None
+
+def select_video(video_params):
+    """Selects a video using Pexels or Pixabay API with fallback."""
+    logger.info(f"Selecting video using keywords: {video_params.get(
+'video_keywords
+')}")
+    query = " ".join(video_params.get("video_keywords", ["abstract"]))
+
+    # Try Pexels first
     if PEXELS_API_KEY:
-        logger.info(f"Searching Pexels for video with query: '{query}', orientation: {orientation}, size: {size}")
+        logger.info("Attempting video search with Pexels...")
         headers = {"Authorization": PEXELS_API_KEY}
-        params = {
-            "query": query,
-            "orientation": orientation,
-            "size": size,
-            "per_page": 10 # Fetch a few options
-        }
+        params = {"query": query, "per_page": 5, "orientation": "portrait"}
         try:
             response = requests.get(PEXELS_API_VIDEO_ENDPOINT, headers=headers, params=params, timeout=30)
             response.raise_for_status()
-            data = response.json()
-            videos = data.get("videos", [])
+            results = response.json()
+            videos = results.get("videos", [])
             if videos:
-                logger.info(f"Found {len(videos)} videos on Pexels. Selecting one.")
-                selected_video = random.choice(videos)
-                logger.info(f"Selected Pexels video: ID={selected_video['id']}, URL={selected_video['video_files'][0]['link']}")
-                return {"video_id": selected_video["id"], "video_url": selected_video["video_files"][0]["link"], "source": "pexels"}
+                selected_pexels_video = random.choice(videos)
+                # Find the highest quality portrait video file URL
+                video_files = selected_pexels_video.get("video_files", [])
+                best_video_url = None
+                max_height = 0
+                for vf in video_files:
+                    if vf.get("height") and vf["height"] > max_height and vf.get("link"):
+                        # Basic check for portrait-like aspect ratio if width available
+                        if vf.get("width") and vf["height"] > vf["width"]:
+                            max_height = vf["height"]
+                            best_video_url = vf["link"]
+                        elif not vf.get("width"): # If width unknown, accept based on height
+                             max_height = vf["height"]
+                             best_video_url = vf["link"]
+
+                if best_video_url:
+                    video_id = selected_pexels_video.get("id")
+                    logger.info(f"Selected video from Pexels: ID={video_id}, URL={best_video_url}")
+                    return {"video_id": video_id, "video_url": best_video_url, "source": "Pexels"}
+                else:
+                    logger.warning("Found Pexels videos, but no suitable portrait video file link.")
             else:
-                logger.warning(f"No videos found on Pexels for query: '{query}'")
+                logger.info("No videos found on Pexels for the query.")
         except requests.exceptions.RequestException as e:
             logger.error(f"Pexels API request failed: {e}")
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to decode JSON response from Pexels: {e}. Response text: {response.text}")
-    else:
-        logger.warning("PEXELS_API_KEY missing. Skipping Pexels search.")
+        except Exception as e:
+            logger.error(f"Error processing Pexels response: {e}", exc_info=True)
 
-    # --- Try Pixabay (Fallback) --- #
+    # Fallback to Pixabay
     if PIXABAY_API_KEY:
-        logger.info(f"Searching Pixabay for video with query: '{query}', orientation: {orientation}")
+        logger.info("Attempting video search with Pixabay...")
         params = {
             "key": PIXABAY_API_KEY,
             "q": query,
-            "orientation": orientation,
-            "video_type": "film", # Or "animation"
-            "per_page": 10
+            "video_type": "film",
+            "orientation": "vertical",
+            "per_page": 5
         }
         try:
             response = requests.get(PIXABAY_API_VIDEO_ENDPOINT, params=params, timeout=30)
             response.raise_for_status()
-            data = response.json()
-            videos = data.get("hits", [])
+            results = response.json()
+            videos = results.get("hits", [])
             if videos:
-                logger.info(f"Found {len(videos)} videos on Pixabay. Selecting one.")
-                selected_video = random.choice(videos)
-                logger.info(f"Selected Pixabay video: ID={selected_video['id']}, URL={selected_video['videos']['medium']['url']}")
-                return {"video_id": selected_video["id"], "video_url": selected_video["videos"]["medium"]["url"], "source": "pixabay"}
+                selected_pixabay_video = random.choice(videos)
+                # Find the highest quality video URL (assuming portrait)
+                video_urls = selected_pixabay_video.get("videos", {})
+                best_video_url = None
+                max_height = 0
+                # Pixabay structure: {"large": {url, w, h}, "medium": {...}, ...}
+                for quality, details in video_urls.items():
+                    if details.get("height") and details["height"] > max_height and details.get("url"):
+                        max_height = details["height"]
+                        best_video_url = details["url"]
+
+                if best_video_url:
+                    video_id = selected_pixabay_video.get("id")
+                    logger.info(f"Selected video from Pixabay: ID={video_id}, URL={best_video_url}")
+                    return {"video_id": video_id, "video_url": best_video_url, "source": "Pixabay"}
+                else:
+                    logger.warning("Found Pixabay videos, but no suitable video file link.")
             else:
-                logger.warning(f"No videos found on Pixabay for query: '{query}'")
+                logger.info("No videos found on Pixabay for the query.")
         except requests.exceptions.RequestException as e:
             logger.error(f"Pixabay API request failed: {e}")
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to decode JSON response from Pixabay: {e}. Response text: {response.text}")
-    else:
-        logger.warning("PIXABAY_API_KEY missing. Skipping Pixabay search.")
+        except Exception as e:
+            logger.error(f"Error processing Pixabay response: {e}", exc_info=True)
 
-    logger.error("Failed to select video from both Pexels and Pixabay.")
+    logger.error("Failed to select a video from any source.")
     return None
 
-# --- LLM Reflection --- #
-def perform_reflection(artist_profile, track_info, video_info):
-    if not llm_orchestrator:
-        logger.warning("LLM Orchestrator not initialized. Skipping reflection.")
+def save_run_status(run_id, status, data=None):
+    """Saves the status of a run to a JSON file."""
+    filepath = os.path.join(RUN_STATUS_DIR, f"{run_id}.json")
+    try:
+        status_data = {"run_id": run_id, "status": status, "timestamp": datetime.utcnow().isoformat()}
+        if data:
+            status_data.update(data)
+        with open(filepath, "w") as f:
+            json.dump(status_data, f, indent=2)
+        logger.debug(f"Saved run status 
+'{status}
+' for run {run_id} to {filepath}")
+    except IOError as e:
+        logger.error(f"Failed to save run status for {run_id}: {e}")
+
+def load_run_status(run_id):
+    """Loads the status of a run from its JSON file."""
+    filepath = os.path.join(RUN_STATUS_DIR, f"{run_id}.json")
+    try:
+        if os.path.exists(filepath):
+            with open(filepath, "r") as f:
+                return json.load(f)
+        else:
+            return None
+    except (IOError, json.JSONDecodeError) as e:
+        logger.error(f"Failed to load run status for {run_id}: {e}")
         return None
 
-    logger.info(f"Performing reflection for artist {artist_profile['name']} (ID: {artist_profile['artist_id']})")
+def delete_run_status_file(run_id):
+    """Deletes the status file for a completed or aborted run."""
+    filepath = os.path.join(RUN_STATUS_DIR, f"{run_id}.json")
+    try:
+        if os.path.exists(filepath):
+            os.remove(filepath)
+            logger.info(f"Deleted run status file for {run_id}.")
+    except OSError as e:
+        logger.error(f"Failed to delete run status file for {run_id}: {e}")
 
-    prompt = f"""
-    Artist Profile:
-    Name: {artist_profile.get('name')}
-    Genre: {artist_profile.get('genre')}
-    Style Notes: {artist_profile.get('style_notes')}
+async def wait_for_approval(run_id, timeout):
+    """Waits for the approval status file to indicate approval or rejection."""
+    start_time = time.time()
+    logger.info(f"Waiting for approval for run {run_id} (timeout: {timeout}s)...")
+    while time.time() - start_time < timeout:
+        status_data = load_run_status(run_id)
+        if status_data:
+            status = status_data.get("status")
+            if status == "approved":
+                logger.info(f"Run {run_id} approved.")
+                return "approved", status_data
+            elif status == "rejected":
+                logger.info(f"Run {run_id} rejected.")
+                return "rejected", status_data
+            elif status == "pending_approval":
+                # Still waiting
+                pass
+            else:
+                logger.warning(f"Run {run_id} found with unexpected status: {status}. Assuming rejection.")
+                return "rejected", status_data # Treat unexpected status as rejection
+        else:
+            # Status file might not exist yet or failed to load
+            logger.debug(f"Run status file for {run_id} not found or invalid. Still waiting...")
 
-    Generated Track:
-    ID: {track_info.get('track_id') if track_info else 'N/A'}
-    URL: {track_info.get('track_url') if track_info else 'N/A'}
-    Model Used: {track_info.get('model_used') if track_info else 'N/A'}
+        await asyncio.sleep(POLL_INTERVAL)
 
-    Selected Video:
-    ID: {video_info.get('video_id') if video_info else 'N/A'}
-    URL: {video_info.get('video_url') if video_info else 'N/A'}
-    Source: {video_info.get('source') if video_info else 'N/A'}
+    logger.warning(f"Timeout waiting for approval for run {run_id}. Assuming rejection.")
+    return "rejected", None # Timeout is treated as rejection
 
-    Reflect on this generated content. Does it align with the artist's profile? Suggest improvements or alternative directions for the next generation. Keep the reflection concise (max {REFLECTION_MAX_TOKENS} tokens).
-    """
+def reflect_on_run(artist_profile, run_data, outcome):
+    """Uses LLM to reflect on the run and suggest improvements for the artist profile."""
+    logger.info(f"Reflecting on run {run_data.get(
+'run_id
+')} for artist {artist_profile.get(
+'artist_id
+')} (
+'{artist_profile.get(
+'name
+')}
+'). Outcome: {outcome}")
+    if not llm_orchestrator:
+        logger.error("LLM Orchestrator not available. Cannot perform reflection.")
+        return None
+
+    # Prepare context for the LLM
+    context = f"Artist Profile:
+Name: {artist_profile.get(
+'name
+')}
+Genre: {artist_profile.get(
+'genre
+')}
+Style Notes: {artist_profile.get(
+'style_notes
+')}
+LLM Config: {json.dumps(artist_profile.get(
+'llm_config
+', {}))}
+Status: {artist_profile.get(
+'status
+')}
+Consecutive Rejections: {artist_profile.get(
+'consecutive_rejections
+', 0)}
+Performance History (last 5): {json.dumps(artist_profile.get(
+'performance_history
+', [])[-5:], indent=2)}
+
+Run Details:
+Run ID: {run_data.get(
+'run_id
+')}
+Parameters Used: {json.dumps(run_data.get(
+'parameters_used
+', {}), indent=2)}
+Generated Track URL: {run_data.get(
+'track_url
+')}
+Generated Lyrics: 
+{run_data.get(
+'lyrics
+', 'N/A')[:200]}...
+Selected Video URL: {run_data.get(
+'video_url
+')}
+Outcome: {outcome}
+
+Task: Based on the artist profile and the details of the latest run, suggest specific, actionable modifications to the artist's 'style_notes' or 'llm_config' (like temperature or prompt adjustments) to improve future outcomes. Aim for subtle changes. If the outcome was 'approved', suggest refinements to maintain success or explore slight variations. If 'rejected', suggest changes to address potential reasons for rejection (e.g., if lyrics were generic, suggest adding more specific themes to style_notes). Provide the suggestions ONLY as a JSON object with keys 'style_notes' and/or 'llm_config'. Example: {"style_notes": "Maintain dreamy synthwave but add more prominent basslines."} or {"llm_config": {"temperature": 0.65}}"
 
     try:
-        reflection_result = llm_orchestrator.generate_text(
-            prompt=prompt,
+        response = llm_orchestrator.generate_text(
+            prompt=context,
+            model_name=REFLECTION_LLM_PRIMARY, # Use primary reflection model
             max_tokens=REFLECTION_MAX_TOKENS,
             temperature=REFLECTION_TEMPERATURE,
-            llm_config=artist_profile.get("llm_config") # Use artist-specific config if available
+            response_format={"type": "json_object"} # Request JSON output
         )
-        logger.info(f"LLM Reflection result for artist {artist_profile['artist_id']}: {reflection_result}")
-        return reflection_result
+        suggestions = json.loads(response.strip()) # Parse the JSON response
+        logger.info(f"Reflection suggestions received: {suggestions}")
+        return suggestions
     except LLMOrchestratorError as e:
-        logger.error(f"LLM reflection failed for artist {artist_profile['artist_id']}: {e}")
+        logger.error(f"LLM reflection failed: {e}")
+        return None
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse JSON reflection suggestions: {e}. Raw response: {response}")
         return None
     except Exception as e:
-        logger.error(f"Unexpected error during LLM reflection for artist {artist_profile['artist_id']}: {e}", exc_info=True)
+        logger.error(f"Unexpected error during reflection: {e}", exc_info=True)
         return None
 
-# --- Preview and Approval --- #
-def generate_preview_data(run_id, artist_profile, track_info, video_info, reflection_result, params):
-    preview = {
-        "run_id": run_id,
-        "artist_id": artist_profile["artist_id"],
-        "artist_name": artist_profile.get("name", "Unknown Artist"),
-        "track_url": track_info.get("track_url") if track_info else None,
-        "video_url": video_info.get("video_url") if video_info else None,
-        "reflection": reflection_result,
-        "parameters_used": params,
-        "timestamp": datetime.utcnow().isoformat()
-    }
-    logger.info(f"Generated preview data for run {run_id}, artist {artist_profile['artist_id']}")
-    return preview
+def apply_reflection_suggestions(artist_id, suggestions):
+    """Applies the reflection suggestions to the artist profile in the database."""
+    if not suggestions or not isinstance(suggestions, dict):
+        logger.warning("No valid reflection suggestions to apply.")
+        return False
 
-def send_for_approval(preview_data):
-    run_id = preview_data["run_id"]
-    release_id = str(uuid.uuid4()) # Generate a unique ID for this potential release
-    preview_data["release_id"] = release_id # Add release_id to data
+    update_payload = {}
+    if "style_notes" in suggestions and isinstance(suggestions["style_notes"], str):
+        update_payload["style_notes"] = suggestions["style_notes"]
 
-    logger.info(f"Sending preview to Telegram for run {run_id}, release_id {release_id}")
-    try:
-        send_preview_to_telegram(preview_data, release_id) # Pass release_id
-        # Create status file indicating pending
-        status_file = os.path.join(RUN_STATUS_DIR, f"{run_id}.status")
-        with open(status_file, "w") as f:
-            json.dump({"status": "pending", "release_id": release_id}, f)
-        return True, release_id
-    except Exception as e:
-        logger.error(f"Failed to send preview to Telegram for run {run_id}: {e}")
-        return False, None
-
-def wait_for_approval(run_id):
-    logger.info(f"Waiting for approval for run {run_id} (up to {MAX_APPROVAL_WAIT_TIME}s)...")
-    start_time = time.time()
-    status_file = os.path.join(RUN_STATUS_DIR, f"{run_id}.status")
-
-    while time.time() - start_time < MAX_APPROVAL_WAIT_TIME:
-        logger.info(f"Checking approval status for run {run_id}...")
-        if os.path.exists(status_file):
-            try:
-                with open(status_file, "r") as f:
-                    status_data = json.load(f)
-                    status = status_data.get("status")
-                    release_id = status_data.get("release_id") # Get release_id from status file
-                    if status == "approved":
-                        logger.info(f"Run {run_id} approved by user.")
-                        return True, release_id
-                    elif status == "rejected":
-                        logger.info(f"Run {run_id} rejected by user.")
-                        return False, release_id
-                    elif status == "pending":
-                        logger.debug(f"Run {run_id} still pending...")
-                    else:
-                        logger.warning(f"Approval status for run {run_id} is unknown or invalid: {status}")
-                        # Treat unknown status as rejection for safety
-                        return False, release_id
-            except (IOError, json.JSONDecodeError) as e:
-                logger.error(f"Error reading approval status file for run {run_id}: {e}")
-                # Wait and retry in case of temporary file access issue
+    if "llm_config" in suggestions and isinstance(suggestions["llm_config"], dict):
+        # Merge suggestions with existing config to avoid overwriting other keys
+        current_artist = get_artist(artist_id)
+        if current_artist:
+            current_config = current_artist.get("llm_config", {})
+            current_config.update(suggestions["llm_config"])
+            update_payload["llm_config"] = current_config
         else:
-            logger.debug(f"Status file for run {run_id} not found yet.")
+            logger.warning(f"Cannot apply LLM config suggestions: Artist {artist_id} not found.")
 
-        time.sleep(POLL_INTERVAL)
+    if not update_payload:
+        logger.info("Reflection suggestions did not contain valid fields to update (
+'style_notes
+' or 
+'llm_config
+').")
+        return False
 
-    logger.warning(f"Approval timed out for run {run_id} after {MAX_APPROVAL_WAIT_TIME} seconds.")
-    # Attempt to read release_id one last time if file exists
-    release_id = None
-    if os.path.exists(status_file):
-        try:
-            with open(status_file, "r") as f:
-                status_data = json.load(f)
-                release_id = status_data.get("release_id")
-        except Exception:
-            pass # Ignore errors here, just trying to get release_id
-    return False, release_id # Timeout is considered a rejection
+    logger.info(f"Applying reflection suggestions to artist {artist_id}: {update_payload}")
+    success = update_artist(artist_id, update_payload)
+    if success:
+        logger.info(f"Successfully applied reflection suggestions for artist {artist_id}.")
+    else:
+        logger.error(f"Failed to apply reflection suggestions for artist {artist_id}.")
+    return success
 
-# --- Release Processing --- #
-def process_release(run_id, release_id, preview_data):
-    logger.info(f"Processing approved run {run_id} with release_id {release_id}")
+async def run_artist_pipeline(artist_profile):
+    """Runs the full generation pipeline for a single artist."""
+    run_id = str(uuid.uuid4())
+    artist_id = artist_profile["artist_id"]
+    artist_name = artist_profile["name"]
+    logger.info(f"--- Starting pipeline run {run_id} for artist {artist_id} (
+'{artist_name}
+') ---")
+    save_run_status(run_id, "started", {"artist_id": artist_id, "artist_name": artist_name})
+
+    run_data = {
+        "run_id": run_id,
+        "artist_id": artist_id,
+        "artist_name": artist_name,
+        "start_time": datetime.utcnow().isoformat(),
+        "parameters_used": {},
+        "track_id": None,
+        "track_url": None,
+        "track_model_used": None,
+        "lyrics": None,
+        "video_id": None,
+        "video_url": None,
+        "video_source": None,
+        "telegram_message_id": None,
+        "status": "running",
+        "end_time": None,
+        "outcome": None # approved, rejected, error, etc.
+    }
+
     try:
-        # Pass the full preview_data which now includes release_id
-        process_approved_run(preview_data)
-        logger.info(f"Successfully processed release for run {run_id}")
-    except Exception as e:
-        logger.error(f"Error processing approved run {run_id}: {e}")
+        # 1. Get Adapted Parameters (including A/B testing)
+        logger.info("Step 1: Adapting parameters...")
+        params = get_adapted_parameters(artist_profile)
+        run_data["parameters_used"] = params
+        save_run_status(run_id, "parameters_adapted", {"parameters": params})
+        logger.info(f"Adapted parameters: {params}")
 
-# --- Artist State Update --- #
-def update_artist_status(artist_id: str, new_status: str) -> bool:
-    try:
-        logger.info(f"Updating artist {artist_id} status to '{new_status}'")
-        update_artist(artist_id, {"status": new_status})
-    except Exception as e:
-        logger.error(f"Failed to update artist {artist_id} status: {e}")
+        # 2. Generate Track
+        logger.info("Step 2: Generating track...")
+        track_info = generate_track(params)
+        if not track_info or not track_info.get("track_url"):
+            logger.error("Track generation failed.")
+            run_data["status"] = "failed"
+            run_data["outcome"] = "generation_failed_track"
+            raise Exception("Track generation failed")
+        run_data.update({
+            "track_id": track_info.get("track_id"),
+            "track_url": track_info.get("track_url"),
+            "track_model_used": track_info.get("model_used")
+        })
+        save_run_status(run_id, "track_generated", {"track_url": run_data["track_url"], "track_model": run_data["track_model_used"]})
+        logger.info(f"Track generated: {run_data[
+'track_url
+']}")
 
-# FIX: This function was removed as its logic is now inside update_artist_performance_db
-# def update_artist_performance(artist_id, run_id, approved, track_info, video_info, reflection_result, params, ab_test_info):
-#     try:
-#         logger.info(f"Updating performance history for artist {artist_id} (Run ID: {run_id}, Approved: {approved})")
-#         performance_data = {
-#             "run_id": run_id,
-#             "timestamp": datetime.utcnow().isoformat(),
-#             "approved": approved,
-#             "track_info": track_info,
-#             "video_info": video_info,
-#             "reflection_result": reflection_result,
-#             "parameters_used": params,
-#             "ab_test_info": ab_test_info
-#         }
-#         # FIX: Pass correct arguments to update_artist_performance_db
-#         update_artist_performance_db(artist_id, run_id, 'approved' if approved else 'rejected', ARTIST_RETIREMENT_THRESHOLD)
-#     except Exception as e:
-#         logger.error(f"Failed to update performance history for artist {artist_id}: {e}")
+        # 3. Generate Lyrics
+        logger.info("Step 3: Generating lyrics...")
+        lyrics_params = {
+            "lyrics_prompt": f"Write short, evocative lyrics in the style of {artist_profile.get(
+'genre
+', 'electronic music')}, inspired by: {artist_profile.get(
+'style_notes
+', '')}. Theme: {params.get(
+'music_prompt
+', 'synthwave dreams')}",
+            "llm_config": artist_profile.get("llm_config", {})
+        }
+        lyrics = generate_lyrics(lyrics_params)
+        if not lyrics:
+            logger.warning("Lyrics generation failed. Proceeding without lyrics.")
+            run_data["lyrics"] = "(Lyrics generation failed)"
+        else:
+            run_data["lyrics"] = lyrics
+        save_run_status(run_id, "lyrics_generated", {"lyrics_preview": run_data["lyrics"][:100] if run_data["lyrics"] else "N/A"})
+        logger.info("Lyrics generated.")
 
-# --- Main Batch Runner Loop --- #
-def run_batch():
-    logger.info("Starting AI Artist Batch Runner...")
-    cycle_count = 0
-    while True: # Loop indefinitely or until stopped
-        cycle_count += 1
-        logger.info(f"Starting batch run cycle {cycle_count}...")
-        run_id = str(uuid.uuid4())
-        artist_profile = None # Ensure artist_profile is defined in this scope
-        approved = False
-        release_id = None
-        track_info = None
-        video_info = None
-        reflection_result = None
-        params = None
-        ab_test_info = {"enabled": False}
-        run_status = 'unknown' # Track run outcome for DB update
+        # 4. Select Video
+        logger.info("Step 4: Selecting video...")
+        video_info = select_video(params)
+        if not video_info or not video_info.get("video_url"):
+            logger.error("Video selection failed.")
+            run_data["status"] = "failed"
+            run_data["outcome"] = "selection_failed_video"
+            raise Exception("Video selection failed")
+        run_data.update({
+            "video_id": video_info.get("video_id"),
+            "video_url": video_info.get("video_url"),
+            "video_source": video_info.get("source")
+        })
+        save_run_status(run_id, "video_selected", {"video_url": run_data["video_url"], "video_source": run_data["video_source"]})
+        logger.info(f"Video selected: {run_data[
+'video_url
+']} (Source: {run_data[
+'video_source
+']}) ")
 
-        try:
-            artist_profile = select_next_artist()
-            if not artist_profile:
-                logger.error("No artist selected, skipping cycle.")
-                time.sleep(60) # Wait before trying again
-                continue
+        # 5. Send Preview for Approval (if Telegram configured)
+        logger.info("Step 5: Sending preview for approval...")
+        telegram_message_id = send_preview_to_telegram(run_id, run_data)
+        if telegram_message_id:
+            run_data["telegram_message_id"] = telegram_message_id
+            save_run_status(run_id, "pending_approval", {"telegram_message_id": telegram_message_id})
+            logger.info(f"Preview sent to Telegram (Message ID: {telegram_message_id}). Waiting for approval...")
 
-            artist_id = artist_profile["artist_id"]
-            logger.info(f"Processing artist: {artist_profile['name']} (ID: {artist_profile['artist_id']}, Status: {artist_profile['status']})")
+            # 6. Wait for Approval
+            approval_status, approval_data = await wait_for_approval(run_id, MAX_APPROVAL_WAIT_TIME)
+            run_data["outcome"] = approval_status # 'approved' or 'rejected'
+            logger.info(f"Approval outcome: {approval_status}")
 
-            # 1. Get Parameters (including A/B test variations if enabled)
-            params = get_adapted_parameters(artist_profile)
-            ab_test_info = params.get("ab_test_info", {"enabled": False})
-            logger.info(f"Generated parameters: {params}")
+        else:
+            logger.warning("Telegram service not configured or failed to send preview. Skipping approval step and assuming rejection.")
+            run_data["outcome"] = "rejected" # Treat as rejected if preview fails
 
-            # 2. Generate Track
-            track_info = generate_track(params)
-            if not track_info:
-                logger.error(f"Failed to generate track for artist {artist_id}. Skipping cycle.")
-                run_status = 'generation_failed_track'
-                # FIX: Call update_artist_performance_db directly with correct args
-                update_artist_performance_db(artist_id, run_id, run_status, ARTIST_RETIREMENT_THRESHOLD)
-                lifecycle_manager.evaluate_artist_lifecycle(artist_id) # Evaluate after failure
-                continue
-            logger.info(f"Generated track: {track_info}")
-
-            # 3. Select Video
-            video_info = select_video(params)
-            if not video_info:
-                logger.error(f"Failed to select video for artist {artist_id}. Skipping cycle.")
-                run_status = 'generation_failed_video'
-                # FIX: Call update_artist_performance_db directly with correct args
-                update_artist_performance_db(artist_id, run_id, run_status, ARTIST_RETIREMENT_THRESHOLD)
-                lifecycle_manager.evaluate_artist_lifecycle(artist_id) # Evaluate after failure
-                continue
-            logger.info(f"Selected video: {video_info}")
-
-            # 4. Perform Reflection
-            reflection_result = perform_reflection(artist_profile, track_info, video_info)
-            logger.info(f"Generated reflection: {reflection_result}") # Log even if None
-
-            # 5. Generate Preview Data
-            preview_data = generate_preview_data(run_id, artist_profile, track_info, video_info, reflection_result, params)
-            logger.info(f"Generated preview data: {preview_data}")
-
-            # 6. Send for Approval & Wait
-            sent_ok, generated_release_id = send_for_approval(preview_data)
-            if sent_ok:
-                approved, release_id = wait_for_approval(run_id)
-                if not release_id:
-                    release_id = generated_release_id # Use the one generated if wait timed out but we have it
+        # 7. Process based on outcome
+        logger.info(f"Step 7: Processing outcome 
+'{run_data[
+'outcome
+']}
+'...")
+        if run_data["outcome"] == "approved":
+            logger.info(f"Run {run_id} approved. Proceeding to release chain...")
+            # Add run_data to the approval_data before processing
+            if approval_data:
+                 approval_data["run_details"] = run_data
             else:
-                logger.error(f"Failed to send run {run_id} for approval. Marking as rejected.")
-                approved = False
-                release_id = generated_release_id # Keep track of the ID even if sending failed
+                 # If timeout occurred but somehow status was approved (unlikely), create basic data
+                 approval_data = {"run_id": run_id, "status": "approved", "run_details": run_data}
+            process_approved_run(approval_data) # Pass the approval data (which includes run_data)
+            run_data["status"] = "completed"
+        else: # Rejected or timeout
+            logger.info(f"Run {run_id} rejected or timed out. Skipping release.")
+            run_data["status"] = "rejected"
 
-            # Determine final run status for DB update
-            run_status = 'approved' if approved else 'rejected'
+        # 8. Update Artist Performance in DB
+        logger.info("Step 8: Updating artist performance...")
+        update_artist_performance_db(
+            artist_id=artist_id,
+            run_id=run_id,
+            status=run_data["outcome"], # Use the final outcome
+            retirement_threshold=ARTIST_RETIREMENT_THRESHOLD
+        )
 
-            # 7. Update Artist Performance History (using the correct function call)
-            # FIX: Call update_artist_performance_db directly with correct args
-            update_artist_performance_db(artist_id, run_id, run_status, ARTIST_RETIREMENT_THRESHOLD)
+        # 9. Reflect on Run (if LLM available)
+        if llm_orchestrator:
+            logger.info("Step 9: Reflecting on run...")
+            suggestions = reflect_on_run(artist_profile, run_data, run_data["outcome"])
+            if suggestions:
+                apply_reflection_suggestions(artist_id, suggestions)
+            else:
+                logger.warning("Reflection did not produce valid suggestions.")
+        else:
+            logger.info("Skipping reflection step (LLM Orchestrator not available).")
 
-            # 8. Process Release if Approved
-            if approved and release_id:
-                process_release(run_id, release_id, preview_data)
-                # If artist was a Candidate, promote to Active after first approval
-                # This logic is now handled within update_artist_performance_db
-                # if artist_profile.get("status") == "Candidate":
-                #     logger.info(f"Promoting candidate artist {artist_id} to Active after first approval.")
-                #     update_artist_status(artist_id, "Active")
-                #     # Reload profile to reflect status change for logging
-                #     artist_profile = get_artist(artist_id)
+    except Exception as e:
+        logger.error(f"Pipeline run {run_id} failed: {e}", exc_info=True)
+        run_data["status"] = "failed"
+        if not run_data["outcome"]: # If outcome wasn't set before error
+            run_data["outcome"] = "error"
+        # Attempt to update performance even on error
+        try:
+            update_artist_performance_db(
+                artist_id=artist_id,
+                run_id=run_id,
+                status=run_data["outcome"],
+                retirement_threshold=ARTIST_RETIREMENT_THRESHOLD
+            )
+        except Exception as db_err:
+            logger.error(f"Failed to update artist performance after error for run {run_id}: {db_err}")
 
-            # 9. Update Artist Lifecycle (based on approval/rejection)
-            # This is now implicitly handled by update_artist_performance_db and subsequent get_artist calls
-            # lifecycle_manager.evaluate_artist_lifecycle(artist_id)
-            # Reload profile to get potentially updated status for logging
-            artist_profile = get_artist(artist_id) # Reload to get latest status after DB update
+    finally:
+        run_data["end_time"] = datetime.utcnow().isoformat()
+        logger.info(f"--- Finished pipeline run {run_id} for artist {artist_id}. Final Status: {run_data[
+'status
+']}, Outcome: {run_data[
+'outcome
+']} ---")
+        # Save final status and clean up status file
+        save_run_status(run_id, run_data["status"], run_data)
+        # Optionally keep status files for rejected/failed runs for debugging
+        if run_data["status"] == "completed":
+             delete_run_status_file(run_id)
+        # Log the full run data for debugging
+        logger.debug(f"Full run data for {run_id}: {json.dumps(run_data, indent=2)}")
 
-            logger.info(f"Run {run_id} completed. Artist: {artist_profile.get('name', 'N/A')}, Status: {artist_profile.get('status', 'N/A')}, Approved: {approved}")
+async def main():
+    logger.info("Starting AI Artist Batch Runner...")
+    while True:
+        try:
+            artist = select_next_artist()
+            if artist:
+                await run_artist_pipeline(artist)
+            else:
+                logger.warning("No artist selected. Waiting before retry...")
+                await asyncio.sleep(60) # Wait a minute if no artist found
 
-            # Clean up status file
-            status_file = os.path.join(RUN_STATUS_DIR, f"{run_id}.status")
-            if os.path.exists(status_file):
-                os.remove(status_file)
+            # Add a short delay between runs
+            await asyncio.sleep(5)
 
+        except KeyboardInterrupt:
+            logger.info("KeyboardInterrupt received. Shutting down...")
+            break
         except Exception as e:
-            logger.error(f"Error during batch run cycle {cycle_count} for artist {artist_profile.get('artist_id', 'N/A') if artist_profile else 'N/A'}: {e}", exc_info=True)
-            # Attempt to update performance as failure if artist context available
-            if artist_profile and run_id:
-                try:
-                    # FIX: Call update_artist_performance_db directly with correct args
-                    update_artist_performance_db(artist_profile["artist_id"], run_id, 'error', ARTIST_RETIREMENT_THRESHOLD)
-                    # lifecycle_manager.evaluate_artist_lifecycle(artist_profile["artist_id"])
-                except Exception as inner_e:
-                    logger.error(f"Failed to record performance/lifecycle update after cycle error: {inner_e}")
-
-        logger.info(f"Batch run cycle {cycle_count} finished.")
-        # Add a delay between cycles if needed
-        time.sleep(5)
+            logger.critical(f"Unhandled exception in main loop: {e}", exc_info=True)
+            logger.info("Restarting main loop after a delay...")
+            await asyncio.sleep(30)
 
 if __name__ == "__main__":
-    try:
-        run_batch()
-    except KeyboardInterrupt:
-        logger.info("Batch runner stopped by user.")
-    except Exception as e:
-        logger.critical(f"Unhandled critical error in batch runner: {e}", exc_info=True)
-        sys.exit(1)
-    finally:
-        logger.info("Batch runner finished.")
+    asyncio.run(main())
 
