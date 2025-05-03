@@ -1,18 +1,25 @@
-# AI Artist Platform - Production Ready v1.4 (Lifecycle Implemented)
+# AI Artist Platform - Production Ready v1.5 (Pipeline Enhancements)
 
 ## Project Description
 
-The AI Artist Platform is a comprehensive system designed to autonomously generate, manage, and evolve AI-powered virtual music artists. It creates unique artist identities, orchestrates content creation (music, visuals), analyzes performance, and adapts based on data-driven insights and feedback, aiming to explore the potential of autonomous creative systems in the music industry.
+The AI Artist Platform is a comprehensive system designed to autonomously generate, manage, and evolve AI-powered virtual music artists. It creates unique artist identities, orchestrates content creation (music, visuals, voice), analyzes performance, and adapts based on data-driven insights and feedback, aiming to explore the potential of autonomous creative systems in the music industry.
 
-## System Architecture (Phase 11 - v1.4)
+## System Architecture (Phase 12 - v1.5)
 
-The system employs a modular architecture focused on a continuous evolution loop. This version (v1.4) incorporates the full artist lifecycle management and further production readiness enhancements:
+The system employs a modular architecture focused on a continuous evolution loop. This version (v1.5) incorporates significant pipeline enhancements for improved content quality and robustness:
 
 *   **Multi-Provider LLM Support:** Utilizes `llm_orchestrator` for interaction with DeepSeek, Gemini, Grok, Mistral, Anthropic, OpenAI (optional) with retry, enhanced fallback logic, and auto-discovery.
-*   **API Integration:** Consistent use of environment variables (`.env`) for API keys (Suno, Pexels, LLMs, Telegram).
+*   **API Integration:** Consistent use of environment variables (`.env`) for API keys (Music APIs, Video APIs, LLMs, Voice APIs, Telegram).
 *   **Persistent Memory:** Artist profiles, performance history, and error reports are stored in a SQLite database (`data/artists.db`) managed by `services/artist_db_service.py`.
-*   **Full Artist Lifecycle Management:** A dedicated `services/artist_lifecycle_manager.py` manages artist states (`Candidate`, `Active`, `Evolving`, `Paused`, `Retired`) based on performance metrics (approval rate, error rate, inactivity) and configurable thresholds. It handles evolution (e.g., LLM config adjustment) and retirement logic. Integrated into the `batch_runner`.
+*   **Full Artist Lifecycle Management:** `services/artist_lifecycle_manager.py` manages artist states (`Candidate`, `Active`, `Evolving`, `Paused`, `Retired`) based on performance metrics.
 *   **LLM Auto-Reflection:** The `batch_runner` prompts the LLM via the orchestrator to reflect on each generated piece.
+*   **Enhanced Content Pipeline:**
+    *   **Voice Synthesis (`VoiceService`):** Generates unique artist voice samples using ElevenLabs API (with mock fallback) upon artist creation.
+    *   **Music Generation (`BeatService`):** Orchestrates music generation using primary (e.g., aimlapi.com) and alternative (e.g., Replicate MusicGen - mocked) APIs with fallback logic.
+    *   **Audio Analysis (`AudioAnalyzer`):** Extracts tempo (BPM) and duration from generated music using Librosa.
+    *   **Beat-Aligned Lyrics (`LyricsService`):** Generates lyrics using LLM, incorporating tempo and duration information from `AudioAnalyzer` into the prompt.
+    *   **Audio Post-Processing (`ProductionService`):** Applies "humanization" effects like normalization and subtle noise overlay to generated audio using Pydub.
+    *   **Video Selection:** Selects background videos using Pexels/Pixabay APIs.
 *   **Basic Video Editing:** `services/video_editing_service.py` adds text overlays.
 *   **Trend Analysis (Initial):** `services/trend_analysis_service.py` uses Twitter API for basic trend scoring.
 *   **A/B Testing Framework:** Configurable framework in `batch_runner`.
@@ -24,9 +31,9 @@ The system employs a modular architecture focused on a continuous evolution loop
 *   **Security:** Hardcoded credentials removed, consistent use of `.env` and `.gitignore`.
 *   **CI/CD:** GitHub Actions for code formatting checks.
 *   **Frontend Foundation:** Basic Flask-based UI foundation in `frontend/`.
-*   **Code Structure Audit:** Removed deprecated modules, validated core component imports.
 
 For a detailed breakdown, refer to:
+*   `/ARTIST_FLOW.md` (Updated flow including new pipeline steps)
 *   `/docs/artist_profile.md` (Details on profile structure and lifecycle states)
 *   `/docs/development/dev_diary.md` (Chronological development log)
 *   `/docs/architecture/` (Architecture diagrams and descriptions)
@@ -39,11 +46,17 @@ graph TD
     end
 
     subgraph Core Logic
-        BatchRunner["Batch Runner (Automation, Lifecycle Trigger, A/B Test, Reflection, Autopilot Check)"]
+        BatchRunner["Batch Runner (Automation, Lifecycle Trigger, A/B Test, Reflection, Autopilot Check, Pipeline Orchestration)"]
         LifecycleMgr["Artist Lifecycle Manager (State Mgt, Evolution, Retirement)"]
         Orchestrator["LLM Orchestrator (Multi-Provider, Enhanced Fallback)"]
-        ArtistDB["Artist DB Service (SQLite - Artists, Errors, Autopilot Flag)"]
-        VideoEdit["Video Editing Service"]
+        ArtistDB["Artist DB Service (SQLite - Artists, Errors, Autopilot Flag, Voice URL)"]
+        BeatSvc["Beat Service (Music Gen Orchestration, Fallback)"]
+        AudioAnalyzer["Audio Analyzer (Tempo/Duration Extraction)"]
+        LyricsSvc["Lyrics Service (Beat-Aligned Generation)"]
+        VoiceSvc["Voice Service (Voice Synthesis)"]
+        ProdSvc["Production Service (Audio Humanization)"]
+        VideoSelect["Video Selection Logic (in Batch Runner)"]
+        VideoEdit["Video Editing Service (Overlays)"]
         TrendSvc["Trend Analysis Service (Twitter)"]
         TelegramSvc["Telegram Service (Notifications, Approval Feedback)"]
         ReleaseChain["Release Chain (Packaging)"]
@@ -54,45 +67,55 @@ graph TD
 
     subgraph External Services
         LLM_APIs["LLM APIs (DeepSeek, Gemini, ...)"]
-        Suno["Suno API (Music Gen)"]
-        Pexels["Pexels API (Video Assets)"]
+        MusicAPIs["Music APIs (aimlapi, Replicate, ...)"]
+        VideoAPIs["Video APIs (Pexels, Pixabay)"]
+        VoiceAPI["Voice API (ElevenLabs)"]
         TwitterAPI["Twitter API (Trends)"]
         TelegramAPI["Telegram Bot API"]
         GitPlatform["Git Platform (Auto-Fixing)"]
     end
 
     subgraph Data
-        SQLiteDB["data/artists.db (Profiles, History, Errors, Autopilot)"]
-        Output["Output Directory (Releases, Status)"]
+        SQLiteDB["data/artists.db (Profiles, History, Errors, Autopilot, Voice URL)"]
+        Output["Output Directory (Releases, Status, Processed Audio)"]
         Logs["logs/ (Detailed Logs)"]
     end
 
     Env --> Orchestrator
     Env --> BatchRunner
-    Env --> LifecycleMgr # Reads thresholds
-    Env --> Suno
-    Env --> Pexels
-    Env --> TwitterAPI
+    Env --> LifecycleMgr
+    Env --> BeatSvc
+    Env --> VoiceSvc
+    Env --> ProdSvc
+    Env --> VideoSelect
+    Env --> TrendSvc
     Env --> TelegramSvc
     Env --> Frontend
     Env --> ArtistDB
     Env --> VideoEdit
-    Env --> TrendSvc
     Env --> ErrorAnalyzer
 
     BatchRunner -- Triggers --> LifecycleMgr
-    BatchRunner -- Uses --> Orchestrator
     BatchRunner -- Uses --> ArtistDB
+    BatchRunner -- Calls --> VoiceSvc # On artist creation
+    BatchRunner -- Calls --> BeatSvc
+    BatchRunner -- Calls --> LyricsSvc
+    BatchRunner -- Calls --> VideoSelect
+    BatchRunner -- Calls --> ProdSvc # Potentially
     BatchRunner -- Uses --> VideoEdit
     BatchRunner -- Uses --> TrendSvc
-    BatchRunner -- Uses --> Suno
-    BatchRunner -- Uses --> Pexels
     BatchRunner -- Uses --> TelegramSvc
     BatchRunner -- Creates Releases --> ReleaseChain
     BatchRunner -- Logs Errors --> Logs
 
-    LifecycleMgr -- Reads/Writes --> ArtistDB # Updates status, reads history
-    LifecycleMgr -- Uses --> Orchestrator # Potentially for advanced evolution
+    BeatSvc -- Uses --> MusicAPIs
+    BeatSvc -- Uses --> AudioAnalyzer
+    LyricsSvc -- Uses --> Orchestrator
+    VoiceSvc -- Uses --> VoiceAPI
+    ProdSvc -- Processes Audio --> Output # Saves processed file
+
+    LifecycleMgr -- Reads/Writes --> ArtistDB
+    LifecycleMgr -- Uses --> Orchestrator
 
     Orchestrator -- API Calls --> LLM_APIs
     LLM_APIs -- Responses --> Orchestrator
@@ -102,7 +125,7 @@ graph TD
 
     TelegramSvc -- API Calls --> TelegramAPI
     TelegramAPI -- Updates/Commands --> TelegramSvc
-    TelegramSvc -- Updates --> BatchRunner # For approval feedback
+    TelegramSvc -- Updates --> BatchRunner
 
     ArtistDB -- Reads/Writes --> SQLiteDB
 
@@ -110,15 +133,15 @@ graph TD
     BatchRunner -- Saves Status --> Output
 
     ErrorAnalyzer -- Reads --> Logs
-    ErrorAnalyzer -- Uses --> Orchestrator # For analysis/fixing
-    ErrorAnalyzer -- Interacts --> GitPlatform # For patching
+    ErrorAnalyzer -- Uses --> Orchestrator
+    ErrorAnalyzer -- Interacts --> GitPlatform
     ErrorAnalyzer -- Notifies --> TelegramSvc
     ErrorAnalyzer -- Logs Reports --> ArtistDB
 
     ErrorDashboard -- Reads --> ArtistDB
 ```
 
-## Directory Structure (Phase 11 - v1.4)
+## Directory Structure (Phase 12 - v1.5)
 
 ```
 noktvrn_ai_artist/
@@ -126,19 +149,20 @@ noktvrn_ai_artist/
 ├── .env.example          # Environment variables template
 ├── .github/              # GitHub Actions workflows (CI checks)
 ├── .gitignore
-├── api_clients/          # Clients for external APIs (Suno, Pexels, Base)
-├── batch_runner/         # Automated generation cycle runner (Lifecycle Trigger, Reflection, A/B Test, Autopilot)
+├── api_clients/          # Clients for external APIs (Music, Video, Base)
+│   └── alt_music_client.py # NEW: Mockable alternative music client
+├── batch_runner/         # Automated generation cycle runner (Lifecycle Trigger, Reflection, A/B Test, Autopilot, Pipeline Orchestration)
 ├── dashboard/            # Streamlit error reporting dashboard
 │   └── error_dashboard.py
 ├── data/                 # Data storage directory
-│   └── artists.db        # SQLite database for artist profiles, history, errors, autopilot status
+│   └── artists.db        # SQLite database for artist profiles, history, errors, autopilot status, voice_url
 ├── docs/                 # Documentation (Architecture, Development, System State, etc.)
 │   ├── architecture/
 │   ├── deployment/
 │   ├── development/
 │   ├── modules/          # Docs for specific services
 │   ├── system_state/
-│   └── artist_profile.md # NEW: Artist profile structure and lifecycle states
+│   └── artist_profile.md # Artist profile structure and lifecycle states
 ├── frontend/             # Basic Flask frontend UI foundation
 │   ├── src/
 │   ├── templates/
@@ -147,23 +171,31 @@ noktvrn_ai_artist/
 ├── llm_orchestrator/     # Multi-provider LLM interaction handler (with enhanced fallback)
 ├── logs/                 # Log file output directory
 ├── metrics/              # Metrics logging and feedback analysis (Partially integrated into DB)
-├── output/               # Default dir for generated outputs (run status, releases, etc.)
+├── output/               # Default dir for generated outputs (run status, releases, processed audio)
 ├── release_chain/        # Logic for packaging approved runs into releases
 ├── release_uploader/     # Logic for preparing releases for upload/deployment (Placeholder)
-├── requirements.txt      # Python dependencies for core system (includes streamlit)
+├── requirements.txt      # Python dependencies for core system (includes streamlit, librosa, pydub, elevenlabs, replicate)
 ├── scripts/              # Utility & operational scripts
 │   ├── boot_test.py
 │   └── toggle_autopilot.py # Helper to toggle artist autopilot mode
 ├── services/             # Shared services
-│   ├── artist_db_service.py # Manages SQLite database (artists, errors)
-│   ├── artist_lifecycle_manager.py # NEW: Manages artist lifecycle (creation, evolution, retirement)
+│   ├── artist_db_service.py # Manages SQLite database (artists, errors, voice_url)
+│   ├── artist_lifecycle_manager.py # Manages artist lifecycle (creation, evolution, retirement)
+│   ├── beat_service.py      # NEW: Orchestrates music generation and analysis
 │   ├── error_analysis_service.py # Monitors logs, analyzes errors, attempts fixes
+│   ├── lyrics_service.py    # NEW: Generates beat-aligned lyrics
+│   ├── production_service.py # NEW: Applies audio post-processing (humanization)
 │   ├── telegram_service.py  # Handles Telegram interactions (Notifications, Approval Feedback)
 │   ├── trend_analysis_service.py # Analyzes trends (currently Twitter)
-│   └── video_editing_service.py # Adds overlays to videos
+│   ├── video_editing_service.py # Adds overlays to videos
+│   └── voice_service.py     # NEW: Generates artist voice samples
 ├── tests/                # Unit and integration tests
+│   ├── api_clients/
+│   └── services/
 ├── utils/                # Common utilities (retry decorator, health checker)
 ├── video_processing/     # Audio analysis and video selection logic
+│   └── audio_analyzer.py  # NEW: Extracts tempo/duration using librosa
+├── ARTIST_FLOW.md        # UPDATED: High-level artist lifecycle flow
 ├── boot_test.py          # Script to test core component imports/initialization
 ├── CONTRIBUTION_GUIDE.md # Contribution guidelines
 └── README.md             # This file
@@ -175,9 +207,9 @@ noktvrn_ai_artist/
 
 *   Python 3.11
 *   Docker & Docker Compose (Recommended)
-*   FFmpeg (Required for video editing, install system-wide)
+*   FFmpeg (Required for audio processing with pydub/librosa, install system-wide)
 *   Git (Required for error auto-fixing)
-*   API keys/credentials for: Suno.ai, Pexels, DeepSeek, Gemini, Grok, Mistral, Anthropic (optional), Telegram Bot.
+*   API keys/credentials for: Music APIs (aimlapi, Replicate - optional), Video APIs (Pexels, Pixabay), LLMs (DeepSeek, Gemini, etc.), ElevenLabs (optional), Telegram Bot.
 *   A specific Telegram Chat ID where the bot will operate.
 *   (Optional) Twitter API access via Datasource for trend analysis.
 
@@ -187,7 +219,7 @@ noktvrn_ai_artist/
 2.  **Navigate:** `cd noktvrn_ai_artist`
 3.  **Configure `.env`:**
     *   Copy `.env.example` to `.env`.
-    *   Fill in **all** required credentials (API keys, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `OUTPUT_BASE_DIR`).
+    *   Fill in **all** required credentials (API keys, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `OUTPUT_BASE_DIR`). Include `REPLICATE_API_TOKEN` and `ELEVENLABS_API_KEY` if using the live services (otherwise mocks will be used).
     *   Configure optional features like `AB_TESTING_ENABLED`, `AUTO_FIX_ENABLED`.
     *   Configure **Lifecycle Thresholds** (e.g., `PERFORMANCE_EVALUATION_PERIOD_DAYS`, `PAUSE_APPROVAL_RATE_THRESHOLD`, `RETIREMENT_CONSECUTIVE_REJECTIONS`). See `.env.example` for details.
 4.  **Install Dependencies (if not using Docker):**
@@ -235,29 +267,24 @@ noktvrn_ai_artist/
 
 Contributions are welcome! Please read our [Contribution Guide](CONTRIBUTION_GUIDE.md) for details on code standards, development workflow, testing, documentation, and the core principle of building a self-evolving system.
 
-## Project Status (Phase 11 - Lifecycle Implemented v1.4)
+## Project Status (Phase 12 - Pipeline Enhancements v1.5)
 
-*   **Status:** Production Finalizer Pass nearing completion. Full artist lifecycle management implemented.
-*   **Key Features Added/Enhanced in v1.4:**
-    *   **Artist Lifecycle Management:** Implemented `services/artist_lifecycle_manager.py` handling creation, evolution, pausing, and retirement based on performance and configurable thresholds. Integrated into `batch_runner`.
-    *   **Documentation Updates:** Added `docs/artist_profile.md`, updated `README.md` and `dev_diary.md` to reflect lifecycle implementation.
-    *   **Code Structure Audit:** Removed deprecated modules, validated core imports.
-    *   **LLM Fallback Logic:** Enhanced robustness in `llm_orchestrator`.
-    *   **Error Analysis System:** Implemented log monitoring, LLM-based analysis, fix suggestion, DB logging, optional auto-patching, and Telegram notifications.
-    *   **Error Reporting Dashboard:** Added Streamlit UI.
-    *   **Autopilot/Manual Control:** Implemented DB flag and helper script.
-*   **Skipped Features:**
-    *   Telegram Control Panel Interface (Skipped due to technical issues).
+*   **Status:** Production Finalizer Pass - Pipeline Enhancements Implemented.
+*   **Key Features Added/Enhanced in v1.5:**
+    *   **Voice Synthesis:** Added `VoiceService` using ElevenLabs (mockable) for artist voice generation.
+    *   **Music Gen Fallback:** Implemented `BeatService` with fallback logic (primary -> alternative/mock).
+    *   **Audio Analysis:** Added `AudioAnalyzer` using Librosa for tempo/duration extraction.
+    *   **Beat-Aligned Lyrics:** Updated `LyricsService` to use tempo/duration in prompts.
+    *   **Audio Humanization:** Added `ProductionService` using Pydub for normalization and noise overlay.
+    *   **Database Schema:** Added `voice_url` column to artists table.
+    *   **Documentation:** Updated `ARTIST_FLOW.md` and `README.md`.
 *   **Known Issues/Placeholders:**
-    *   **Lifecycle Validation Deferred:** Validation of `services/artist_lifecycle_manager.py` is blocked by a persistent syntax error (f-string quotes) requiring manual user correction after GitHub push.
-    *   Chartmetric API integration pending access verification.
-    *   Suno API endpoint (`/generate`) may still have external issues.
-    *   Intelligent LLM routing is basic.
-    *   Several older modules (`metrics`, `video_processing`, `release_uploader`) need review/refactoring.
-    *   Frontend UI is a basic placeholder.
-    *   Video Editing / Trend Analysis services need deeper integration into the main generation flow.
+    *   **API Keys:** Requires `REPLICATE_API_TOKEN` and `ELEVENLABS_API_KEY` for full functionality (currently uses mocks).
+    *   **aimlapi.com Issues:** Primary music generation API (aimlapi.com) was previously unreliable; `BeatService` now includes fallback but primary path needs testing.
+    *   **Integration:** `ProductionService` output (processed audio) is not yet fully integrated into the final video/release chain.
+    *   Video Editing / Trend Analysis services need deeper integration.
     *   Comprehensive unit/integration tests for new services are needed.
-*   **Next Steps:** Finalize remaining TODOs and cleanup. Validate environment variables and replace dummy tokens. Run final system boot test (post-manual-fix). Report missing credentials. Commit and push changes. Generate final report.
+*   **Next Steps:** Commit documentation updates. Perform full end-to-end validation of the enhanced pipeline (using mocks where necessary). Prepare production readiness report.
 
 For a detailed history, see `docs/development/dev_diary.md`.
 
