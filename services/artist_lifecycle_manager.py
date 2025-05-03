@@ -129,7 +129,7 @@ class ArtistLifecycleManager:
         performance = self._get_performance_summary(artist_id)
 
         if "error" in performance:
-            logger.error(f"Cannot evaluate artist {artist_id}: {performance["error"]}")
+            logger.error(f"Cannot evaluate artist {artist_id}: {performance['error']}")
             return None
 
         total_runs = performance["total_runs"]
