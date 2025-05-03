@@ -194,14 +194,19 @@ def get_artist(artist_id: str) -> Optional[Dict[str, Any]]:
         row = cursor.fetchone()
         if row:
             artist = dict(row)
-            # Deserialize JSON fields
-            artist["performance_history"] = json.loads(artist.get("performance_history", "[]"))
-            artist["llm_config"] = json.loads(artist.get("llm_config", "{}"))
+            # Deserialize JSON fields safely
+            perf_history_str = artist.get("performance_history")
+            artist["performance_history"] = json.loads(perf_history_str) if perf_history_str is not None else []
+            llm_config_str = artist.get("llm_config")
+            artist["llm_config"] = json.loads(llm_config_str) if llm_config_str is not None else {}
             # Convert autopilot_enabled from 0/1 to boolean
             artist["autopilot_enabled"] = bool(artist.get("autopilot_enabled", 0))
             return artist
         else:
             return None
+    except json.JSONDecodeError as e:
+        logger.error(f"Error decoding JSON for artist {artist_id}: {e}. Data: llm_config='{llm_config_str}', history='{perf_history_str}'")
+        return None # Or handle partially loaded data if needed
     except sqlite3.Error as e:
         logger.error(f"Error getting artist {artist_id}: {e}")
         return None
@@ -227,10 +232,19 @@ def get_all_artists(status_filter: Optional[str] = None) -> List[Dict[str, Any]]
         artists = []
         for row in rows:
             artist = dict(row)
-            artist["performance_history"] = json.loads(artist.get("performance_history", "[]"))
-            artist["llm_config"] = json.loads(artist.get("llm_config", "{}"))
-            artist["autopilot_enabled"] = bool(artist.get("autopilot_enabled", 0))
-            artists.append(artist)
+            try:
+                # Deserialize JSON fields safely
+                perf_history_str = artist.get("performance_history")
+                artist["performance_history"] = json.loads(perf_history_str) if perf_history_str is not None else []
+                llm_config_str = artist.get("llm_config")
+                artist["llm_config"] = json.loads(llm_config_str) if llm_config_str is not None else {}
+                # Convert autopilot_enabled from 0/1 to boolean
+                artist["autopilot_enabled"] = bool(artist.get("autopilot_enabled", 0))
+                artists.append(artist)
+            except json.JSONDecodeError as e:
+                artist_id = artist.get("artist_id", "UNKNOWN")
+                logger.error(f"Error decoding JSON for artist {artist_id} in get_all_artists: {e}. Skipping this artist. Data: llm_config='{llm_config_str}', history='{perf_history_str}'")
+                continue # Skip this artist if JSON is invalid
         return artists
     except sqlite3.Error as e:
         logger.error(f"Error getting artists (filter: {status_filter}): {e}")
@@ -365,16 +379,16 @@ def add_error_report(report_data: Dict[str, Any]) -> Optional[int]:
         ))
         conn.commit()
         report_id = cursor.lastrowid
-        logger.info(f"Added new error report with ID {report_id}.")
+        logger.info(f"Added new error report with ID: {report_id}")
 
-        # Prune old reports if necessary
-        cursor.execute(f"SELECT COUNT(*) FROM error_reports")
+        # --- Prune old error reports ---
+        cursor.execute("SELECT COUNT(*) FROM error_reports")
         count = cursor.fetchone()[0]
         if count > MAX_ERROR_REPORTS:
-            limit = count - MAX_ERROR_REPORTS
-            cursor.execute(f"DELETE FROM error_reports WHERE report_id IN (SELECT report_id FROM error_reports ORDER BY timestamp ASC LIMIT {limit})")
+            num_to_delete = count - MAX_ERROR_REPORTS
+            cursor.execute("DELETE FROM error_reports WHERE report_id IN (SELECT report_id FROM error_reports ORDER BY timestamp ASC LIMIT ?)", (num_to_delete,))
             conn.commit()
-            logger.info(f"Pruned {limit} oldest error reports.")
+            logger.info(f"Pruned {num_to_delete} oldest error reports.")
 
         return report_id
     except sqlite3.Error as e:
@@ -385,7 +399,7 @@ def add_error_report(report_data: Dict[str, Any]) -> Optional[int]:
             conn.close()
 
 def get_error_reports(limit: int = 50, offset: int = 0, status_filter: Optional[str] = None) -> List[Dict[str, Any]]:
-    """Retrieves error reports, ordered by timestamp descending, with optional filtering."""
+    """Retrieves error reports, ordered by timestamp descending, with optional status filter."""
     conn = get_db_connection()
     if not conn:
         return []
@@ -396,14 +410,12 @@ def get_error_reports(limit: int = 50, offset: int = 0, status_filter: Optional[
         if status_filter:
             query += " WHERE status = ?"
             params.append(status_filter)
-
         query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
         params.extend([limit, offset])
 
         cursor.execute(query, tuple(params))
         rows = cursor.fetchall()
-        reports = [dict(row) for row in rows]
-        return reports
+        return [dict(row) for row in rows]
     except sqlite3.Error as e:
         logger.error(f"Error getting error reports: {e}")
         return []
@@ -411,33 +423,19 @@ def get_error_reports(limit: int = 50, offset: int = 0, status_filter: Optional[
         if conn:
             conn.close()
 
-def update_error_report_status(report_id: int, new_status: str, update_data: Optional[Dict[str, Any]] = None) -> bool:
-    """Updates the status and optionally other fields of a specific error report."""
+def update_error_report_status(report_id: int, new_status: str) -> bool:
+    """Updates the status of a specific error report."""
     conn = get_db_connection()
     if not conn:
         return False
-
-    fields = ["status = ?"]
-    values = [new_status]
-
-    if update_data:
-        for key, value in update_data.items():
-            if key != "report_id": # Avoid updating the primary key
-                fields.append(f"{key} = ?")
-                values.append(value)
-
-    set_clause = ", ".join(fields)
-    query = f"UPDATE error_reports SET {set_clause} WHERE report_id = ?"
-    values.append(report_id)
-
     try:
         cursor = conn.cursor()
-        cursor.execute(query, tuple(values))
+        cursor.execute("UPDATE error_reports SET status = ? WHERE report_id = ?", (new_status, report_id))
         conn.commit()
         if cursor.rowcount == 0:
             logger.warning(f"Attempted to update status for non-existent error report ID: {report_id}")
             return False
-        logger.info(f"Updated error report {report_id}: Status={new_status}, Data={update_data}")
+        logger.info(f"Updated status for error report {report_id} to '{new_status}'.")
         return True
     except sqlite3.Error as e:
         logger.error(f"Error updating status for error report {report_id}: {e}")
@@ -446,81 +444,31 @@ def update_error_report_status(report_id: int, new_status: str, update_data: Opt
         if conn:
             conn.close()
 
-# --- Initial Setup ---
-# Run initialization when the module is imported to ensure schema is up-to-date
-initialize_database()
+# --- Seed Data (Optional) ---
+# You might want a function to load initial artists from a JSON file if the DB is empty.
+# Example:
+# def seed_artists_from_json(filepath="data/artists/seed_artists.json"):
+#     if not os.path.exists(filepath):
+#         logger.warning(f"Seed artist file not found: {filepath}")
+#         return
+#     if get_all_artists(): # Only seed if DB is empty
+#         logger.info("Artist database already contains data. Skipping seed.")
+#         return
+#     try:
+#         with open(filepath, "r") as f:
+#             seed_data = json.load(f)
+#         logger.info(f"Seeding artists from {filepath}...")
+#         count = 0
+#         for artist_data in seed_data:
+#             if add_artist(artist_data):
+#                 count += 1
+#         logger.info(f"Successfully seeded {count} artists.")
+#     except (json.JSONDecodeError, IOError) as e:
+#         logger.error(f"Error reading or decoding seed artist file {filepath}: {e}")
+#     except Exception as e:
+#         logger.error(f"Unexpected error during artist seeding: {e}")
 
-# --- Example Usage (for testing) ---
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-    logger.info("Running artist_db_service tests...")
-
-    # --- Artist Tests ---
-    test_artist_name = f"DB Test Artist {datetime.now().strftime('%H%M%S')}"
-    test_artist_data = {
-        "name": test_artist_name,
-        "genre": "test-genre",
-        "style_notes": "Testing DB service creation.",
-        "llm_config": {"model": "test-llm-v1", "temperature": 0.7},
-        "autopilot_enabled": False # Test adding with autopilot off
-    }
-    added_id = add_artist(test_artist_data)
-    print(f"Add Artist '{test_artist_name}': {'Success (ID: ' + added_id + ')' if added_id else 'Failed'}")
-
-    if added_id:
-        retrieved_artist = get_artist(added_id)
-        print(f"Get Artist {added_id}: {'Found' if retrieved_artist else 'Not Found'}")
-        if retrieved_artist:
-            print(f"  Status: {retrieved_artist.get('status')}")
-            print(f"  Autopilot Enabled: {retrieved_artist.get('autopilot_enabled')}")
-            print(f"  LLM Config: {retrieved_artist.get('llm_config')}")
-
-        # Test Update Autopilot
-        updated_autopilot = update_artist(added_id, {"autopilot_enabled": True, "status": "Active"})
-        print(f"Update Autopilot to True & Status to Active: {'Success' if updated_autopilot else 'Failed'}")
-        retrieved_artist = get_artist(added_id)
-        if retrieved_artist:
-            print(f"  New Status: {retrieved_artist.get('status')}")
-            print(f"  New Autopilot Enabled: {retrieved_artist.get('autopilot_enabled')}")
-
-        # Test Update Performance (simulate approval)
-        updated_perf = update_artist_performance_db(added_id, "run_001", "approved", 3)
-        print(f"Update Performance (Approved): {'Success' if updated_perf else 'Failed'}")
-        retrieved_artist = get_artist(added_id)
-        if retrieved_artist:
-            print(f"  Consecutive Rejections: {retrieved_artist.get('consecutive_rejections')}")
-            print(f"  Performance History Length: {len(retrieved_artist.get('performance_history', []))}")
-
-        # Test Update Performance (simulate rejection)
-        updated_perf = update_artist_performance_db(added_id, "run_002", "rejected", 3)
-        print(f"Update Performance (Rejected): {'Success' if updated_perf else 'Failed'}")
-        retrieved_artist = get_artist(added_id)
-        if retrieved_artist:
-            print(f"  Consecutive Rejections: {retrieved_artist.get('consecutive_rejections')}")
-
-        # Test get_all_artists
-        all_artists = get_all_artists()
-        print(f"Get All Artists: Found {len(all_artists)} artists.")
-        active_artists = get_all_artists(status_filter="Active")
-        print(f"Get Active Artists: Found {len(active_artists)} artists.")
-
-    # --- Error Report Tests ---
-    test_error_data = {
-        "error_hash": "testhash123",
-        "error_log": "Traceback...\nValueError: Test error",
-        "analysis": "Seems like a test.",
-        "fix_suggestion": "Ignore it.",
-        "service_name": "db_test_script"
-    }
-    report_id = add_error_report(test_error_data)
-    print(f"Add Error Report: {'Success (ID: ' + str(report_id) + ')' if report_id else 'Failed'}")
-
-    if report_id:
-        reports = get_error_reports(limit=1)
-        print(f"Get Error Reports: Found {len(reports)} report(s). Status: {reports[0]['status'] if reports else 'N/A'}")
-        updated_status = update_error_report_status(report_id, "analyzed", {"analysis": "Updated analysis."})
-        print(f"Update Error Report Status to 'analyzed': {'Success' if updated_status else 'Failed'}")
-        reports = get_error_reports(limit=1)
-        print(f"Get Error Reports After Update: Status: {reports[0]['status'] if reports else 'N/A'}")
-
+# --- Initialization Call ---
+# initialize_database() # Usually called by the main application/runner
+# seed_artists_from_json() # Optional: Call if you want to seed on module load
 

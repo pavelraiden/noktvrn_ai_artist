@@ -161,7 +161,8 @@ def create_new_artist_profile():
     }
     added_id = add_artist(new_artist_data)
     if added_id:
-        logger.info(f"Created and added new artist profile to DB: ID={added_id}, Name=", {new_artist_data["name"]}, ")")
+        # Corrected line 165 (was 201 before comments):
+        logger.info(f"Successfully created new artist {new_artist_data['artist_id']}. Selecting it (will run as Candidate).")
         return get_artist(added_id) # Return full data from DB
     else:
         logger.error(f"Failed to add newly created artist {new_id} to the database.")
@@ -198,8 +199,7 @@ def select_next_artist():
         logger.info("Triggering new artist creation...")
         new_artist = create_new_artist_profile()
         if new_artist:
-            logger.info(f"Successfully created new artist {new_artist["artist_id"]}. Selecting it (will run as Candidate).")
-            # New artists start as Candidate, they will run once and become Active if approved.
+            # This line was already corrected above in create_new_artist_profile
             return new_artist
         else:
             logger.warning("Failed to create a new artist. Proceeding with existing active pool.")
@@ -219,7 +219,8 @@ def select_next_artist():
         key=lambda a: datetime.fromisoformat(a["last_run_at"]) if a["last_run_at"] else datetime.min
     )
     selected_artist = sorted_artists[0]
-    logger.info(f"Selected active artist {selected_artist["artist_id"]} ({selected_artist["name"]}) based on least recent run.")
+    # Corrected line 226:
+    logger.info(f"Selected active artist {selected_artist['artist_id']} ({selected_artist['name']}) based on least recent run.")
     return selected_artist
 
 # --- Parameter Adaptation with A/B Testing (Unchanged) --- #
@@ -245,16 +246,16 @@ def get_adapted_parameters(artist_profile):
             ab_test_info["parameter"] = AB_TEST_PARAMETER
             ab_test_info["variation_index"] = chosen_index
             ab_test_info["variation_value"] = chosen_variation
-            logger.info(f"A/B Test: Applying variation {chosen_index} (", {chosen_variation}, ") for parameter ", {AB_TEST_PARAMETER}, ")")
+            logger.info(f"A/B Test: Applying variation {chosen_index} (\'{chosen_variation}\') for parameter \'{AB_TEST_PARAMETER}\'.")
 
             if AB_TEST_PARAMETER == "suno_prompt_prefix":
                 prompt_prefix = chosen_variation.format(genre=genre)
                 base_params["suno_prompt"] = f"{prompt_prefix}, {base_suno_prompt}"
             else:
-                 logger.warning(f"A/B test parameter ", {AB_TEST_PARAMETER}, " not handled. Using default.")
+                 logger.warning(f"A/B test parameter \'{AB_TEST_PARAMETER}\' not handled. Using default.")
                  base_params["suno_prompt"] = f"A dreamy {genre} track, {base_suno_prompt}"
         else:
-            logger.warning(f"A/B testing enabled but no variations defined for ", {AB_TEST_PARAMETER}, ". Using default.")
+            logger.warning(f"A/B testing enabled but no variations defined for \'{AB_TEST_PARAMETER}\'. Using default.")
             base_params["suno_prompt"] = f"A dreamy {genre} track, {base_suno_prompt}"
     else:
         base_params["suno_prompt"] = f"A dreamy {genre} track, {base_suno_prompt}"
@@ -295,17 +296,17 @@ async def generate_reflection(artist_profile, parameters, track_info, video_info
         prompt_params = {k: v for k, v in parameters.items() if k != "ab_test_info"}
         prompt = f"""
         Artist Profile:
-        - Name: {artist_profile.get("name", "N/A")}
-        - Genre: {artist_profile.get("genre", "N/A")}
-        - Style Notes: {artist_profile.get("style_notes", "N/A")}
+        - Name: {artist_profile.get('name', 'N/A')}
+        - Genre: {artist_profile.get('genre', 'N/A')}
+        - Style Notes: {artist_profile.get('style_notes', 'N/A')}
         Generation Parameters:
-        - Suno Prompt: {prompt_params.get("suno_prompt", "N/A")}
-        - Suno Style: {prompt_params.get("suno_style", "N/A")}
-        - Video Keywords: {prompt_params.get("video_keywords", "N/A")}
-        - Instrumental: {prompt_params.get("make_instrumental", "N/A")}
+        - Suno Prompt: {prompt_params.get('suno_prompt', 'N/A')}
+        - Suno Style: {prompt_params.get('suno_style', 'N/A')}
+        - Video Keywords: {prompt_params.get('video_keywords', 'N/A')}
+        - Instrumental: {prompt_params.get('make_instrumental', 'N/A')}
         Generated Content:
-        - Track URL: {track_info.get("track_url", "N/A")}
-        - Video URL: {video_info.get("video_url", "N/A")}
+        - Track URL: {track_info.get('track_url', 'N/A')}
+        - Video URL: {video_info.get('video_url', 'N/A')}
         Task: Reflect on the generated track and video.
         1. Assess alignment with artist profile.
         2. Evaluate quality and coherence.
@@ -350,22 +351,22 @@ def update_run_status(run_id, new_status, reason=None, reflection=None, artist_i
         else:
             logger.warning(f"Status file {status_filepath} not found, creating basic structure.")
 
-        # Ensure basic info exists
-        run_data["run_id"] = run_id
-        if "created_at" not in run_data:
-             run_data["created_at"] = datetime.utcnow().isoformat()
-        if artist_id:
-            run_data["artist_id"] = artist_id
+        # Ensure basic structure if file was missing or corrupt
+        if not run_data:
+             run_data = {"run_id": run_id, "artist_id": artist_id}
 
+        # Update fields
         run_data["status"] = new_status
         run_data["updated_at"] = datetime.utcnow().isoformat()
         if reason:
             run_data["final_status_reason"] = reason
         if reflection:
-             run_data["reflection"] = reflection
-        if new_status in ["approved", "autopilot_approved", "rejected"] and "approved_at" not in run_data:
-            run_data["approved_at"] = run_data["updated_at"]
+            run_data["reflection"] = reflection
+        # Ensure artist_id is present if provided
+        if artist_id and "artist_id" not in run_data:
+            run_data["artist_id"] = artist_id
 
+        # Write updated data back
         with open(status_filepath, "w") as f:
             json.dump(run_data, f, indent=4)
         logger.info(f"Updated status for run {run_id} to {new_status} in {status_filepath}")
@@ -422,10 +423,13 @@ async def send_to_telegram_for_approval(run_id, artist_profile, track_info, vide
     message = f"**New Content Preview**\n\n"
     message += f"**Run ID:** `{run_id}`\n"
     message += f"**Artist:** {artist_name} (`{artist_id}`)\n"
-    message += f"**Track:** {track_info["track_url"]}\n"
-    message += f"**Video:** {video_info["video_url"]}\n\n"
+    # Corrected line 428:
+    message += f"**Track:** {track_info['track_url']}\n"
+    # Corrected line 429:
+    message += f"**Video:** {video_info['video_url']}\n\n"
+    # Corrected line 431 (multiple instances):
     if ab_test_info.get("enabled"):
-        message += f"**A/B Test:** Parameter=`{ab_test_info["parameter"]}`, Variation=`{ab_test_info["variation_index"]}` (`{ab_test_info["variation_value"]}`)\n\n"
+        message += f"**A/B Test:** Parameter=`{ab_test_info['parameter']}`, Variation=`{ab_test_info['variation_index']}` (`{ab_test_info['variation_value']}`)\n\n"
     if reflection:
         message += f"**Reflection:**\n```\n{reflection[:800]}...```\n\n" # Truncate reflection for TG
     message += f"Please approve or reject within {MAX_APPROVAL_WAIT_TIME // 60} minutes."
@@ -444,7 +448,7 @@ async def send_to_telegram_for_approval(run_id, artist_profile, track_info, vide
                         current_data = json.load(f)
                     current_status = current_data.get("status")
                     if current_status in ["approved", "rejected"]:
-                        logger.info(f"Received status 	{current_status}	 for run {run_id} via status file.")
+                        logger.info(f"Received status \'{current_status}\' for run {run_id} via status file.")
                         # Update status again to ensure DB performance is logged if needed
                         update_run_status(run_id, current_status, reason=current_data.get("final_status_reason"), reflection=reflection, artist_id=artist_id)
                         return current_status
@@ -475,7 +479,8 @@ async def run_artist_cycle():
         return
     artist_id = artist_profile["artist_id"]
     artist_status = artist_profile.get("status", "Unknown")
-    logger.info(f"Running cycle for artist: {artist_id} ({artist_profile.get("name")}), Status: {artist_status}")
+    # Corrected line 482:
+    logger.info(f"Running cycle for artist: {artist_id} ({artist_profile.get('name')}), Status: {artist_status}")
 
     # Create initial status file
     initial_status_data = {
@@ -571,4 +576,5 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
