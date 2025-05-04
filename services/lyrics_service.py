@@ -13,7 +13,9 @@ logger = logging.getLogger(__name__)
 # Initialize LLM Orchestrator (assuming similar setup as in batch_runner)
 # This might be better handled via dependency injection or a shared instance
 REFLECTION_LLM_PRIMARY = os.getenv("REFLECTION_LLM_PRIMARY", "deepseek:deepseek-chat")
-REFLECTION_LLM_FALLBACKS = os.getenv("REFLECTION_LLM_FALLBACKS", "gemini:gemini-pro").split(",")
+REFLECTION_LLM_FALLBACKS = os.getenv(
+    "REFLECTION_LLM_FALLBACKS", "gemini:gemini-pro"
+).split(",")
 REFLECTION_MAX_TOKENS = int(os.getenv("REFLECTION_MAX_TOKENS", 500))
 REFLECTION_TEMPERATURE = float(os.getenv("REFLECTION_TEMPERATURE", 0.6))
 
@@ -23,22 +25,35 @@ try:
     llm_orchestrator = LLMOrchestrator(
         primary_model=REFLECTION_LLM_PRIMARY,
         fallback_models=REFLECTION_LLM_FALLBACKS,
-        enable_auto_discovery=False
+        enable_auto_discovery=False,
     )
 except Exception as e:
-    logger.error(f"Failed to initialize LLM Orchestrator in LyricsService: {e}. Lyrics generation disabled.")
+    logger.error(
+        f"Failed to initialize LLM Orchestrator in LyricsService: {e}. Lyrics generation disabled."
+    )
     llm_orchestrator = None
+
 
 class LyricsServiceError(Exception):
     """Custom exception for LyricsService errors."""
+
     pass
+
 
 class LyricsService:
     def __init__(self):
         # Orchestrator initialized globally for now
         self.orchestrator = llm_orchestrator
 
-    def generate_lyrics(self, base_prompt: str, genre: str, style_notes: str, llm_config: dict, tempo: float | None = None, duration: float | None = None) -> str | None:
+    def generate_lyrics(
+        self,
+        base_prompt: str,
+        genre: str,
+        style_notes: str,
+        llm_config: dict,
+        tempo: float | None = None,
+        duration: float | None = None,
+    ) -> str | None:
         """Generates lyrics using LLM, incorporating tempo and duration if provided.
 
         Args:
@@ -81,7 +96,7 @@ class LyricsService:
                 prompt=prompt,
                 model_name=model,
                 max_tokens=max_tokens,
-                temperature=temperature
+                temperature=temperature,
             )
             lyrics = response.strip()
             # Basic validation: check if response is empty or just whitespace
@@ -89,16 +104,21 @@ class LyricsService:
                 logger.error("LLM returned empty response for lyrics generation.")
                 return None
             # Corrected f-string: Use escaped newline \n
-            logger.info(f"Successfully generated lyrics (length: {len(lyrics)}). Preview: \n{lyrics[:100]}...")
+            logger.info(
+                f"Successfully generated lyrics (length: {len(lyrics)}). Preview: \n{lyrics[:100]}..."
+            )
             return lyrics
         except LLMOrchestratorError as e:
             logger.error(f"Failed to generate lyrics using LLM: {e}")
             # raise LyricsServiceError(f"LLM generation failed: {e}") from e
             return None
         except Exception as e:
-            logger.error(f"Unexpected error during lyrics generation: {e}", exc_info=True)
+            logger.error(
+                f"Unexpected error during lyrics generation: {e}", exc_info=True
+            )
             # raise LyricsServiceError(f"Unexpected error: {e}") from e
             return None
+
 
 # Example Usage
 if __name__ == "__main__":
@@ -116,7 +136,12 @@ if __name__ == "__main__":
 
         print("--- Testing Lyrics Generation (with tempo/duration) ---")
         generated_lyrics = lyrics_service.generate_lyrics(
-            test_base_prompt, test_genre, test_style, test_config, test_tempo, test_duration
+            test_base_prompt,
+            test_genre,
+            test_style,
+            test_config,
+            test_tempo,
+            test_duration,
         )
 
         if generated_lyrics:
@@ -136,4 +161,3 @@ if __name__ == "__main__":
             print("Lyrics generation failed.")
     else:
         print("Cannot run example: LLM Orchestrator failed to initialize.")
-

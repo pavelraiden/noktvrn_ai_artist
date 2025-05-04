@@ -7,15 +7,20 @@ import requests
 
 logger = logging.getLogger(__name__)
 
+
 class VoiceServiceError(Exception):
     """Custom exception for VoiceService errors."""
+
     pass
+
 
 class VoiceService:
     def __init__(self):
         self.api_key = os.getenv("ELEVENLABS_API_KEY")
         if not self.api_key:
-            logger.warning("ELEVENLABS_API_KEY not found. Voice cloning will use mock fallback.")
+            logger.warning(
+                "ELEVENLABS_API_KEY not found. Voice cloning will use mock fallback."
+            )
 
     def generate_artist_voice(self, name: str, sample_text: str) -> str | None:
         """Generates a voice clone for the artist using ElevenLabs API or returns a mock URL.
@@ -59,18 +64,22 @@ class VoiceService:
             # TODO: Refine this to perform actual cloning if feasible without pre-recorded samples.
             audio = client.generate(
                 text=sample_text,
-                voice="Rachel", # Using a standard voice as placeholder for cloned voice
-                model="eleven_multilingual_v2" # Or another appropriate model
+                voice="Rachel",  # Using a standard voice as placeholder for cloned voice
+                model="eleven_multilingual_v2",  # Or another appropriate model
             )
 
             # Save the audio to a temporary file to simulate getting a URL
             # In a real app, you'd upload this to cloud storage (e.g., S3) and get a public URL.
             with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp_file:
                 save(audio, tmp_file.name)
-                logger.info(f"Generated voice sample saved temporarily to: {tmp_file.name}")
+                logger.info(
+                    f"Generated voice sample saved temporarily to: {tmp_file.name}"
+                )
                 # Return a file URI for local testing, replace with cloud URL in production
-                mock_cloud_url = f"file://{tmp_file.name}" # MOCK URL
-                logger.info(f"Returning mock file URL for generated voice sample: {mock_cloud_url}")
+                mock_cloud_url = f"file://{tmp_file.name}"  # MOCK URL
+                logger.info(
+                    f"Returning mock file URL for generated voice sample: {mock_cloud_url}"
+                )
                 return mock_cloud_url
 
         except ImportError:
@@ -80,6 +89,7 @@ class VoiceService:
             logger.error(f"Error calling ElevenLabs API: {e}")
             # raise VoiceServiceError(f"Failed to generate voice sample: {e}") from e
             return None
+
 
 # Example usage
 if __name__ == "__main__":
@@ -94,4 +104,3 @@ if __name__ == "__main__":
         print(f"Generated voice sample URL: {sample_url}")
     else:
         print("Voice sample generation failed.")
-

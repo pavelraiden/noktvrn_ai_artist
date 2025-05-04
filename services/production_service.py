@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 # --- Helper Functions --- #
 
+
 def _download_audio(audio_url: str) -> tuple[str | None, str | None]:
     """Downloads audio from a URL to a temporary file, preserving extension."""
     try:
@@ -21,7 +22,7 @@ def _download_audio(audio_url: str) -> tuple[str | None, str | None]:
 
         # Try to guess extension from URL
         file_extension = os.path.splitext(audio_url)[1]
-        if not file_extension or len(file_extension) > 5: # Basic check
+        if not file_extension or len(file_extension) > 5:  # Basic check
             # Guess from content type if possible
             content_type = response.headers.get("content-type")
             if content_type == "audio/mpeg":
@@ -31,9 +32,11 @@ def _download_audio(audio_url: str) -> tuple[str | None, str | None]:
             elif content_type == "audio/ogg":
                 file_extension = ".ogg"
             else:
-                file_extension = ".audio" # Fallback generic extension
+                file_extension = ".audio"  # Fallback generic extension
 
-        with tempfile.NamedTemporaryFile(suffix=file_extension, delete=False) as tmp_file:
+        with tempfile.NamedTemporaryFile(
+            suffix=file_extension, delete=False
+        ) as tmp_file:
             for chunk in response.iter_content(chunk_size=8192):
                 tmp_file.write(chunk)
             logger.info(f"Audio downloaded temporarily to: {tmp_file.name}")
@@ -45,14 +48,20 @@ def _download_audio(audio_url: str) -> tuple[str | None, str | None]:
         logger.error(f"Failed to write downloaded audio to temporary file: {e}")
         return None, None
 
+
 def _generate_noise_file(duration_ms: int, volume_db: float = -40.0) -> str | None:
     """Generates a temporary white noise file."""
     try:
         sample_rate = 44100
         num_samples = int(sample_rate * duration_ms / 1000)
-        noise = (np.random.random(num_samples) * 2 - 1) # -1 to 1
+        noise = np.random.random(num_samples) * 2 - 1  # -1 to 1
         # Convert numpy array to AudioSegment
-        noise_segment = AudioSegment(noise.tobytes(), frame_rate=sample_rate, sample_width=noise.dtype.itemsize, channels=1)
+        noise_segment = AudioSegment(
+            noise.tobytes(),
+            frame_rate=sample_rate,
+            sample_width=noise.dtype.itemsize,
+            channels=1,
+        )
         # Adjust volume
         noise_segment = noise_segment + volume_db
 
@@ -64,16 +73,20 @@ def _generate_noise_file(duration_ms: int, volume_db: float = -40.0) -> str | No
         logger.error(f"Failed to generate noise file: {e}")
         return None
 
+
 # --- Production Service --- #
+
 
 class ProductionServiceError(Exception):
     """Custom exception for ProductionService errors."""
+
     pass
+
 
 class ProductionService:
     def __init__(self):
         # Configuration for effects can be added here
-        self.noise_level_db = -45.0 # Very subtle background noise
+        self.noise_level_db = -45.0  # Very subtle background noise
         pass
 
     def humanize_audio(self, audio_url: str) -> str | None:
@@ -113,13 +126,19 @@ class ProductionService:
             try:
                 audio = AudioSegment.from_file(local_path)
             except Exception as load_err:
-                 # Try common formats if guessing failed
-                 try: audio = AudioSegment.from_mp3(local_path)
-                 except: pass
-                 try: audio = AudioSegment.from_wav(local_path)
-                 except: pass
-                 if 'audio' not in locals(): # If still not loaded
-                     raise ProductionServiceError(f"Could not load audio file {local_path}: {load_err}") from load_err
+                # Try common formats if guessing failed
+                try:
+                    audio = AudioSegment.from_mp3(local_path)
+                except:
+                    pass
+                try:
+                    audio = AudioSegment.from_wav(local_path)
+                except:
+                    pass
+                if "audio" not in locals():  # If still not loaded
+                    raise ProductionServiceError(
+                        f"Could not load audio file {local_path}: {load_err}"
+                    ) from load_err
 
             # --- Apply Effects --- #
 
@@ -128,14 +147,18 @@ class ProductionService:
             processed_audio = normalize(audio)
 
             # 4. Add Subtle Background Noise
-            logger.info(f"Generating and adding background noise (level: {self.noise_level_db} dB)...")
-            noise_path = _generate_noise_file(duration_ms=len(processed_audio), volume_db=self.noise_level_db)
+            logger.info(
+                f"Generating and adding background noise (level: {self.noise_level_db} dB)..."
+            )
+            noise_path = _generate_noise_file(
+                duration_ms=len(processed_audio), volume_db=self.noise_level_db
+            )
             if noise_path:
                 try:
                     noise = AudioSegment.from_wav(noise_path)
                     # Ensure noise is same length as audio
                     if len(noise) > len(processed_audio):
-                        noise = noise[:len(processed_audio)]
+                        noise = noise[: len(processed_audio)]
                     elif len(noise) < len(processed_audio):
                         # Loop or pad noise - simple padding for now
                         silence_needed = len(processed_audio) - len(noise)
@@ -144,9 +167,13 @@ class ProductionService:
                     processed_audio = processed_audio.overlay(noise)
                     logger.info("Background noise added.")
                 except Exception as noise_err:
-                    logger.warning(f"Failed to load or overlay noise file {noise_path}: {noise_err}. Skipping noise addition.")
+                    logger.warning(
+                        f"Failed to load or overlay noise file {noise_path}: {noise_err}. Skipping noise addition."
+                    )
             else:
-                logger.warning("Failed to generate noise file. Skipping noise addition.")
+                logger.warning(
+                    "Failed to generate noise file. Skipping noise addition."
+                )
 
             # --- Placeholder for Future Effects --- #
             # TODO: Implement Timing Jitter (complex, requires slicing/shifting)
@@ -166,14 +193,20 @@ class ProductionService:
                 logger.warning(log_message)
                 output_format = "mp3"
 
-            with tempfile.NamedTemporaryFile(suffix=f".{output_format}", delete=False) as tmp_out_file:
+            with tempfile.NamedTemporaryFile(
+                suffix=f".{output_format}", delete=False
+            ) as tmp_out_file:
                 processed_path = tmp_out_file.name
-                logger.info(f"Exporting processed audio to: {processed_path} (format: {output_format})")
+                logger.info(
+                    f"Exporting processed audio to: {processed_path} (format: {output_format})"
+                )
                 processed_audio.export(processed_path, format=output_format)
 
             # Return mock file URL for local testing
             mock_cloud_url = f"file://{processed_path}"
-            logger.info(f"Humanization complete. Returning mock file URL: {mock_cloud_url}")
+            logger.info(
+                f"Humanization complete. Returning mock file URL: {mock_cloud_url}"
+            )
             return mock_cloud_url
 
         except Exception as e:
@@ -184,13 +217,20 @@ class ProductionService:
         finally:
             # Clean up temporary files
             if downloaded and local_path and os.path.exists(local_path):
-                try: os.remove(local_path); logger.debug(f"Cleaned up input file: {local_path}")
-                except OSError as e: logger.warning(f"Failed to clean up input file {local_path}: {e}")
+                try:
+                    os.remove(local_path)
+                    logger.debug(f"Cleaned up input file: {local_path}")
+                except OSError as e:
+                    logger.warning(f"Failed to clean up input file {local_path}: {e}")
             if noise_path and os.path.exists(noise_path):
-                try: os.remove(noise_path); logger.debug(f"Cleaned up noise file: {noise_path}")
-                except OSError as e: logger.warning(f"Failed to clean up noise file {noise_path}: {e}")
+                try:
+                    os.remove(noise_path)
+                    logger.debug(f"Cleaned up noise file: {noise_path}")
+                except OSError as e:
+                    logger.warning(f"Failed to clean up noise file {noise_path}: {e}")
             # Note: The final processed file (processed_path) is NOT deleted here,
             # as its path is returned. The caller needs to manage it or upload it.
+
 
 # Example Usage
 if __name__ == "__main__":
@@ -210,5 +250,6 @@ if __name__ == "__main__":
         # You can try opening the file path directly if running locally:
         # print(f"Local path: {humanized_url[7:]}")
     else:
-        print("Audio humanization failed (check logs for details, download might have failed)." )
-
+        print(
+            "Audio humanization failed (check logs for details, download might have failed)."
+        )

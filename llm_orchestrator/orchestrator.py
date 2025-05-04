@@ -100,9 +100,11 @@ try:
     from services.telegram_service import send_notification
 except ImportError:
     logger.warning("Telegram service not found, fallback notifications disabled.")
+
     async def send_notification(message: str):
         logger.debug(f"Telegram notification skipped (service unavailable): {message}")
-        await asyncio.sleep(0) # No-op awaitable
+        await asyncio.sleep(0)  # No-op awaitable
+
 
 # Configure logging
 logging.basicConfig(
@@ -214,7 +216,7 @@ class LLMOrchestrator:
         ] = None,  # e.g., ["gemini-pro", "mistral-large-latest"]
         config: Optional[Dict[str, Any]] = None,
         enable_auto_discovery: bool = True,  # Flag to enable/disable discovery
-        enable_fallback_notifications: bool = True, # Flag to enable/disable Telegram notifications
+        enable_fallback_notifications: bool = True,  # Flag to enable/disable Telegram notifications
     ):
         """
         Initialize the orchestrator with primary, fallback, and potentially discovered models.
@@ -631,9 +633,7 @@ class LLMOrchestrator:
                         max_tokens=max_tokens,
                         temperature=temperature,
                     )
-                    logger.info(
-                        f"Successfully generated content using {provider_key}"
-                    )
+                    logger.info(f"Successfully generated content using {provider_key}")
                     return result
                 except Exception as e:
                     logger.warning(
@@ -641,7 +641,10 @@ class LLMOrchestrator:
                     )
                     last_error = e
                     # Send notification if enabled and not the last model
-                    if self.enable_fallback_notifications and i < len(self.model_preference) - 1:
+                    if (
+                        self.enable_fallback_notifications
+                        and i < len(self.model_preference) - 1
+                    ):
                         next_provider, next_model = self.model_preference[i + 1]
                         next_key = f"{next_provider}:{next_model}"
                         message = f"LLM Fallback Alert: Failed with {provider_key} (Error: {type(e).__name__}). Falling back to {next_key}."
@@ -650,7 +653,9 @@ class LLMOrchestrator:
                             # Fire and forget notification
                             asyncio.create_task(send_notification(message))
                         except Exception as notify_err:
-                            logger.error(f"Failed to send Telegram notification: {notify_err}")
+                            logger.error(
+                                f"Failed to send Telegram notification: {notify_err}"
+                            )
                     logger.info("Trying next provider...")
 
             else:
@@ -658,22 +663,28 @@ class LLMOrchestrator:
                 logger.error(
                     f"Provider instance not found for {provider_key} during generation attempt."
                 )
-                last_error = LLMOrchestratorError(f"Provider instance {provider_key} not found.")
+                last_error = LLMOrchestratorError(
+                    f"Provider instance {provider_key} not found."
+                )
 
         # If loop completes without returning, all providers failed
         logger.critical("All configured LLM providers failed.")
-        error_message = f"All LLM providers failed. Attempted: {', '.join(attempted_models)}."
+        error_message = (
+            f"All LLM providers failed. Attempted: {', '.join(attempted_models)}."
+        )
         if last_error:
             error_message += f" Last error: {type(last_error).__name__}: {last_error}"
             # Send final failure notification if enabled
             if self.enable_fallback_notifications:
-                 final_message = f"LLM Critical Failure: All providers failed. Attempted: {', '.join(attempted_models)}. Last error: {type(last_error).__name__}"
-                 logger.info(f"Sending final failure notification: {final_message}")
-                 try:
-                     # Fire and forget notification
-                     asyncio.create_task(send_notification(final_message))
-                 except Exception as notify_err:
-                     logger.error(f"Failed to send final Telegram notification: {notify_err}")
+                final_message = f"LLM Critical Failure: All providers failed. Attempted: {', '.join(attempted_models)}. Last error: {type(last_error).__name__}"
+                logger.info(f"Sending final failure notification: {final_message}")
+                try:
+                    # Fire and forget notification
+                    asyncio.create_task(send_notification(final_message))
+                except Exception as notify_err:
+                    logger.error(
+                        f"Failed to send final Telegram notification: {notify_err}"
+                    )
             raise LLMOrchestratorError(error_message) from last_error
         else:
             final_message = f"LLM Critical Failure: No providers were available or initialized correctly. Attempted models based on preference: {', '.join(attempted_models)}."
@@ -682,7 +693,9 @@ class LLMOrchestrator:
                 try:
                     asyncio.create_task(send_notification(final_message))
                 except Exception as notify_err:
-                    logger.error(f"Failed to send final Telegram notification: {notify_err}")
+                    logger.error(
+                        f"Failed to send final Telegram notification: {notify_err}"
+                    )
             raise LLMOrchestratorError(error_message)
 
 
@@ -690,7 +703,11 @@ class LLMOrchestrator:
 async def main():
     # Example: Prioritize DeepSeek, fallback to Gemini, then Mistral, auto-discover others
     primary = "deepseek:deepseek-chat"
-    fallbacks = ["gemini:gemini-1.5-pro-latest", "mistral:mistral-large-latest", "anthropic:claude-3-haiku-20240307"]
+    fallbacks = [
+        "gemini:gemini-1.5-pro-latest",
+        "mistral:mistral-large-latest",
+        "anthropic:claude-3-haiku-20240307",
+    ]
 
     # Ensure API keys are set in .env for the models you want to test
     # e.g., DEEPSEEK_API_KEY, GEMINI_API_KEY, MISTRAL_API_KEY, ANTHROPIC_API_KEY etc.
@@ -713,6 +730,7 @@ async def main():
     except Exception as e:
         logger.error(f"An unexpected error occurred: {e}", exc_info=True)
 
+
 if __name__ == "__main__":
     # Check if running in an asyncio event loop
     try:
@@ -721,4 +739,3 @@ if __name__ == "__main__":
     except RuntimeError:
         # No running loop, run using asyncio.run()
         asyncio.run(main())
-
