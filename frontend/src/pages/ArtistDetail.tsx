@@ -1,0 +1,410 @@
+import React, { useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { fetchArtistById, fetchArtistLogs, generateArtistContent } from '../api/artists'; // Adjusted import path
+import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
+import { Tabs, TabList, TabTrigger, TabContent } from '../components/ui/Tab';
+import Button from '../components/ui/Button';
+import { ChatWindow } from '../components/chat';
+import { useArtistStore } from '../store/artistStore'; // Assuming store setup
+import { formatDate, formatNumber } from '../utils/formatters';
+import { Artist, LogEntry } from '../types'; // Assuming types defined
+
+/**
+ * ArtistDetail page component
+ * @returns ArtistDetail page with tabs for different sections
+ */
+const ArtistDetail: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState('overview');
+  const { addToRecentlyViewed } = useArtistStore();
+  
+  // Generate form state
+  const [generateForm, setGenerateForm] = useState({
+    genre: 'electronic',
+    style: 'ambient',
+    length: 'medium',
+  });
+
+  // Fetch artist data
+  const { 
+    data: artist, 
+    isLoading: isLoadingArtist, 
+    error: artistError 
+  } = useQuery<Artist, Error>({
+    queryKey: ['artist', id],
+    queryFn: () => fetchArtistById(id as string),
+    enabled: !!id,
+    onSuccess: (data) => {
+      if (data) addToRecentlyViewed(data);
+    },
+  });
+
+  // Fetch artist logs
+  const {
+    data: logs,
+    isLoading: isLoadingLogs,
+    error: logsError,
+  } = useQuery<LogEntry[], Error>({
+    queryKey: ['artistLogs', id],
+    queryFn: () => fetchArtistLogs(id as string),
+    enabled: !!id && activeTab === 'logs',
+  });
+
+  // Mutation for content generation
+  const generateMutation = useMutation({
+    mutationFn: (data: any) => generateArtistContent(id as string, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['artist', id] });
+      queryClient.invalidateQueries({ queryKey: ['artistLogs', id] });
+    },
+  });
+
+  // Form submission handler
+  const handleGenerateSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    generateMutation.mutate(generateForm);
+  };
+
+  // Form change handler
+  const handleFormChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setGenerateForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  if (isLoadingArtist) {
+    // TODO: Replace with Skeleton loader
+    return <div className="flex justify-center items-center h-full">Loading...</div>;
+  }
+
+  if (artistError || !artist) {
+    return (
+      <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">
+        Error loading artist data. Please try again later.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Artist header */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="relative h-40 bg-gradient-to-r from-primary-600 to-secondary-600">
+          <div className="absolute bottom-0 left-0 right-0 p-6 flex items-end">
+            <div className="w-24 h-24 rounded-full bg-white border-4 border-white shadow-sm overflow-hidden">
+              <img
+                src={artist.avatarUrl || `https://via.placeholder.com/200/0ea5e9/FFFFFF?text=${encodeURIComponent(artist.name)}`}
+                alt={artist.name}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="ml-4 text-white">
+              <h1 className="text-2xl font-bold">{artist.name}</h1>
+              <p className="text-white/80">{artist.genre}</p>
+            </div>
+            <div className="ml-auto">
+              <div className={`px-3 py-1 rounded-full text-sm font-medium
+                ${artist.status === 'active' ? 'bg-green-100 text-green-800' :
+                  artist.status === 'paused' ? 'bg-yellow-100 text-yellow-800' :
+                  artist.status === 'error' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
+                }`}
+              >
+                {artist.status === 'active' ? 'Active' :
+                 artist.status === 'paused' ? 'Paused' :
+                 artist.status === 'error' ? 'Error' : 'Inactive'}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <Card>
+        <TabList>
+          <TabTrigger
+            isActive={activeTab === 'overview'}
+            onClick={() => setActiveTab('overview')}
+          >
+            Overview
+          </TabTrigger>
+          <TabTrigger
+            isActive={activeTab === 'generate'}
+            onClick={() => setActiveTab('generate')}
+          >
+            Generate
+          </TabTrigger>
+          <TabTrigger
+            isActive={activeTab === 'logs'}
+            onClick={() => setActiveTab('logs')}
+          >
+            Logs
+          </TabTrigger>
+          <TabTrigger
+            isActive={activeTab === 'chat'}
+            onClick={() => setActiveTab('chat')}
+          >
+            Chat
+          </TabTrigger>
+        </TabList>
+
+        <CardContent className="pt-6">
+          {/* Overview tab */}
+          <TabContent isActive={activeTab === 'overview'}>
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-sm font-medium text-gray-500 mb-1">eCPA</h3>
+                  <p className="text-2xl font-bold text-gray-900">${artist.metrics?.ecpa.toFixed(2) || '0.00'}</p>
+                  <div className="h-12 mt-2">
+                    {/* Mini chart would go here */}
+                  </div>
+                </div>
+                
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-sm font-medium text-gray-500 mb-1">eCPT</h3>
+                  <p className="text-2xl font-bold text-gray-900">${artist.metrics?.ecpt.toFixed(2) || '0.00'}</p>
+                  <div className="h-12 mt-2">
+                    {/* Mini chart would go here */}
+                  </div>
+                </div>
+                
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-sm font-medium text-gray-500 mb-1">Plays</h3>
+                  <p className="text-2xl font-bold text-gray-900">{formatNumber(artist.metrics?.plays || 0)}</p>
+                  <div className="h-12 mt-2">
+                    {/* Mini chart would go here */}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-base font-medium text-gray-900 mb-4">Recent Releases</h3>
+                  <div className="space-y-4">
+                    {artist.releases?.slice(0, 5).map((release) => (
+                      <div key={release.id} className="flex items-center">
+                        <div className="w-12 h-12 rounded bg-gray-200 overflow-hidden">
+                          <img
+                            src={release.imageUrl || 'https://via.placeholder.com/100'}
+                            alt={release.title}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="ml-4">
+                          <p className="font-medium">{release.title}</p>
+                          <p className="text-sm text-gray-500">
+                            {formatDate(release.date)}
+                          </p>
+                        </div>
+                        <div className="ml-auto text-sm text-gray-500">
+                          {formatNumber(release.plays)} plays
+                        </div>
+                      </div>
+                    ))}
+                    {(!artist.releases || artist.releases.length === 0) && (
+                      <p className="text-gray-500 text-center py-4">No releases yet</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-base font-medium text-gray-900 mb-4">Performance</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span className="text-sm font-medium text-gray-700">Conversion</span>
+                        <span className="text-sm font-medium text-gray-700">
+                          {artist.metrics?.conversionRate || 0}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-primary-500 h-2 rounded-full"
+                          style={{ width: `${artist.metrics?.conversionRate || 0}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span className="text-sm font-medium text-gray-700">Retention</span>
+                        <span className="text-sm font-medium text-gray-700">
+                          {artist.metrics?.retentionRate || 0}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-secondary-500 h-2 rounded-full"
+                          style={{ width: `${artist.metrics?.retentionRate || 0}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <div className="flex justify-between mb-1">
+                        <span className="text-sm font-medium text-gray-700">Completion</span>
+                        <span className="text-sm font-medium text-gray-700">
+                          {artist.metrics?.completionRate || 0}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-green-500 h-2 rounded-full"
+                          style={{ width: `${artist.metrics?.completionRate || 0}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </TabContent>
+
+          {/* Generate tab */}
+          <TabContent isActive={activeTab === 'generate'}>
+            <form onSubmit={handleGenerateSubmit} className="space-y-6 max-w-lg mx-auto">
+              <div>
+                <label htmlFor="genre" className="block text-sm font-medium text-gray-700 mb-1">
+                  Genre
+                </label>
+                <select
+                  id="genre"
+                  name="genre"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  value={generateForm.genre}
+                  onChange={handleFormChange}
+                >
+                  <option value="electronic">Electronic</option>
+                  <option value="pop">Pop</option>
+                  <option value="rock">Rock</option>
+                  <option value="hip-hop">Hip Hop</option>
+                  <option value="ambient">Ambient</option>
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="style" className="block text-sm font-medium text-gray-700 mb-1">
+                  Style
+                </label>
+                <select
+                  id="style"
+                  name="style"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  value={generateForm.style}
+                  onChange={handleFormChange}
+                >
+                  <option value="ambient">Ambient</option>
+                  <option value="dance">Dance</option>
+                  <option value="aggressive">Aggressive</option>
+                  <option value="melodic">Melodic</option>
+                  <option value="experimental">Experimental</option>
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="length" className="block text-sm font-medium text-gray-700 mb-1">
+                  Length
+                </label>
+                <select
+                  id="length"
+                  name="length"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  value={generateForm.length}
+                  onChange={handleFormChange}
+                >
+                  <option value="short">Short (1-2 min)</option>
+                  <option value="medium">Medium (3-4 min)</option>
+                  <option value="long">Long (5+ min)</option>
+                </select>
+              </div>
+
+              <div className="pt-4">
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={generateMutation.isPending}
+                >
+                  {generateMutation.isPending ? 'Generating...' : 'Generate'}
+                </Button>
+              </div>
+
+              {generateMutation.isSuccess && (
+                <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-md">
+                  Content successfully generated!
+                </div>
+              )}
+
+              {generateMutation.isError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md">
+                  Error generating content. Please try again.
+                </div>
+              )}
+            </form>
+          </TabContent>
+
+          {/* Logs tab */}
+          <TabContent isActive={activeTab === 'logs'}>
+            {isLoadingLogs ? (
+              <div className="flex justify-center items-center h-40">Loading logs...</div>
+            ) : logsError ? (
+              <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">
+                Error loading logs. Please try again later.
+              </div>
+            ) : logs && logs.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Time
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Level
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Message
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {logs.map((log: LogEntry) => (
+                      <tr key={log.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(log.timestamp)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            ${log.level === 'ERROR' ? 'bg-red-100 text-red-800' :
+                              log.level === 'WARNING' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-green-100 text-green-800'}`}
+                          >
+                            {log.level}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {log.message}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                No logs available for this artist.
+              </div>
+            )}
+          </TabContent>
+
+          {/* Chat tab */}
+          <TabContent isActive={activeTab === 'chat'}>
+            <ChatWindow artistId={id as string} />
+          </TabContent>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default ArtistDetail;

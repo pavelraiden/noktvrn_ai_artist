@@ -1,31 +1,31 @@
-import { Outlet } from 'react-router-dom';
-import './App.css';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { RouterProvider } from 'react-router-dom';
+import router from './routes';
+import ErrorBoundary from './components/ui/ErrorBoundary';
 
+// Create React Query client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
+
+/**
+ * Root application component
+ * Sets up React Query and routing
+ */
 function App() {
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Header or Sidebar could go here */}
-      <header className="p-4 bg-gray-100 border-b">
-        <h1>AI Artist Dashboard</h1>
-        {/* Basic Navigation Links (can be improved later) */}
-        <nav className="mt-2">
-          <a href="/" className="mr-4">Dashboard</a>
-          <a href="/artists">Artists</a>
-        </nav>
-      </header>
-
-      {/* Main content area where nested routes will render */}
-      <main className="flex-grow p-4">
-        <Outlet />
-      </main>
-
-      {/* Footer could go here */}
-      <footer className="p-4 bg-gray-100 border-t text-center text-sm">
-        AI Artist System © 2025
-      </footer>
-    </div>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
 export default App;
-

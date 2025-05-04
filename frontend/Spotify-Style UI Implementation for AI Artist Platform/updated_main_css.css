@@ -1,0 +1,119 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-spotify-black: #121212;
+    --color-spotify-darkgray: #181818; 
+    --color-spotify-gray: #282828;
+    --color-spotify-lightgray: #b3b3b3;
+    --color-spotify-white: #ffffff;
+    --color-spotify-green: #1DB954;
+    --color-spotify-brightgreen: #1ED760;
+    --color-spotify-blue: #2E77D0;
+    --color-spotify-purple: #7358FF;
+  }
+  
+  html, body {
+    @apply bg-background-base text-text-base;
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, 
+    Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  }
+  
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 12px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: var(--color-spotify-black); 
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-spotify-gray);
+    border-radius: 6px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3e3e3e;
+  }
+}
+
+@layer components {
+  /* Custom button styles */
+  .btn-spotify {
+    @apply bg-spotify-green hover:bg-spotify-brightgreen text-black font-bold py-3 px-4 rounded-pill 
+    transition-colors duration-200 flex items-center justify-center gap-1;
+  }
+  
+  .btn-spotify-secondary {
+    @apply bg-white hover:bg-gray-200 text-black font-bold py-3 px-4 rounded-pill 
+    transition-colors duration-200 flex items-center justify-center gap-1;
+  }
+  
+  /* Card styles */
+  .spotify-card {
+    @apply bg-background-elevated rounded-spotify p-4 transition-all duration-300 
+    hover:bg-background-highlight;
+  }
+  
+  /* Play button overlay */
+  .spotify-play-button {
+    @apply w-12 h-12 bg-spotify-green shadow-spotify rounded-full flex items-center 
+    justify-center text-black hover:scale-105 transition-transform absolute bottom-2 
+    right-2 opacity-0 group-hover:opacity-100 transform translate-y-2 
+    group-hover:translate-y-0 transition-all duration-300;
+  }
+  
+  /* Input styles */
+  .spotify-input {
+    @apply bg-background-highlight text-white placeholder-text-subdued px-3 py-2 
+    rounded-md border border-background-press focus:outline-none focus:ring-2 
+    focus:ring-spotify-green;
+  }
+  
+  /* Gradient backgrounds */
+  .spotify-gradient-green {
+    @apply bg-gradient-to-b from-spotify-green/30 to-background-base;
+  }
+  
+  .spotify-gradient-purple {
+    @apply bg-gradient-to-b from-spotify-purple/30 to-background-base;
+  }
+  
+  .spotify-gradient-blue {
+    @apply bg-gradient-to-b from-spotify-blue/30 to-background-base;
+  }
+}
+
+/* Animation utilities */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+.animate-pulse-spotify {
+  animation: pulse 2s infinite;
+}

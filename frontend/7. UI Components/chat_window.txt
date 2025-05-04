@@ -1,0 +1,55 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { useSocket } from '../../hooks/useSocket';
+import ChatMessage from './ChatMessage';
+import { ChatMessage as ChatMessageType } from '../../types';
+
+interface ChatWindowProps {
+  artistId: string;
+}
+
+/**
+ * ChatWindow component for real-time chat with an artist
+ * @param props ChatWindow properties
+ * @returns ChatWindow component
+ */
+const ChatWindow: React.FC<ChatWindowProps> = ({ artistId }) => {
+  const [inputMessage, setInputMessage] = useState('');
+  const [messages, setMessages] = useState<ChatMessageType[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { socket, connected } = useSocket(`ws://localhost:8000/ws/chat/${artistId}`);
+
+  useEffect(() => {
+    if (socket) {
+      // Listen for incoming messages
+      socket.on('message', (message: ChatMessageType) => {
+        setMessages((prevMessages) => [...prevMessages, message]);
+      });
+
+      // Load message history
+      socket.emit('get_history', { artistId }, (response: { history: ChatMessageType[] }) => {
+        setMessages(response.history);
+      });
+    }
+
+    return () => {
+      if (socket) {
+        socket.off('message');
+      }
+    };
+  }, [socket, artistId]);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  /**
+   * Handles sending a message
+   */
+  const handleSendMessage = () => {
+    if (inputMessage.trim() && socket && connected) {
+      const newMessage: ChatMessageType = {
+        id: Date.now().toString(),
+        type: 'user',
+        content: inputMessage,
+        
