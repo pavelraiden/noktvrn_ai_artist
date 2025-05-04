@@ -5,9 +5,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class AltMusicClientError(Exception):
     """Custom exception for AltMusicClient errors."""
+
     pass
+
 
 class AltMusicClient:
     def __init__(self):
@@ -15,9 +18,15 @@ class AltMusicClient:
         # For Replicate, we need REPLICATE_API_TOKEN
         self.api_key = os.getenv("REPLICATE_API_TOKEN")
         if not self.api_key:
-            logger.warning("REPLICATE_API_TOKEN not found in environment variables. AltMusicClient will use mock fallback.")
+            logger.warning(
+                "REPLICATE_API_TOKEN not found in environment variables. AltMusicClient will use mock fallback."
+            )
 
-    def generate_music(self, prompt: str, model: str = "meta/musicgen:671ac645ce5e552cc63a54a2bbff63fcf798043055d2dac5fc9e36a837eedcfb") -> str | None:
+    def generate_music(
+        self,
+        prompt: str,
+        model: str = "meta/musicgen:671ac645ce5e552cc63a54a2bbff63fcf798043055d2dac5fc9e36a837eedcfb",
+    ) -> str | None:
         """Generates music using the alternative API (Replicate/MusicGen) or returns a mock URL if API key is missing.
 
         Args:
@@ -28,7 +37,9 @@ class AltMusicClient:
             The URL of the generated music file, or a mock URL, or None if generation failed.
         """
         # Corrected f-string (removed newline)
-        logger.info(f"Attempting music generation with model {model} using prompt: {prompt}")
+        logger.info(
+            f"Attempting music generation with model {model} using prompt: {prompt}"
+        )
 
         # Mock fallback if API key is missing
         if not self.api_key:
@@ -38,13 +49,14 @@ class AltMusicClient:
         # Actual API call logic (requires REPLICATE_API_TOKEN)
         try:
             import replicate
+
             client = replicate.Client(api_token=self.api_key)
             # Define input parameters based on Replicate model schema
             input_params = {
                 "prompt": prompt,
-                "model_version": "stereo-large", # Or other model version if needed
+                "model_version": "stereo-large",  # Or other model version if needed
                 "output_format": "mp3",
-                "normalization_strategy": "peak"
+                "normalization_strategy": "peak",
                 # Add other relevant params like duration, temperature etc. if supported/needed
             }
             logger.info(f"Calling Replicate API ({model}) with input: {input_params}")
@@ -67,6 +79,7 @@ class AltMusicClient:
             # raise AltMusicClientError(f"Failed to generate music via Replicate API: {e}") from e
             return None
 
+
 # Example usage (for testing)
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
@@ -78,4 +91,3 @@ if __name__ == "__main__":
         print(f"Generated music URL: {music_url}")
     else:
         print("Music generation failed.")
-

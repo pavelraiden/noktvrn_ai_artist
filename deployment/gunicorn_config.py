@@ -6,7 +6,7 @@ import multiprocessing
 # Bind to a Unix socket (recommended for use with Nginx)
 # Ensure the directory exists and has correct permissions for Gunicorn user
 # Replace /path/to/your/ with the actual deployment path
-bind = "unix:/path/to/your/gunicorn.sock" # <<< ADJUST THIS PATH
+bind = "unix:/path/to/your/gunicorn.sock"  # <<< ADJUST THIS PATH
 # Alternatively, bind to a local port (less common with Nginx)
 # bind = "127.0.0.1:5000"
 
@@ -39,7 +39,7 @@ proc_name = "ai_artist_frontend"
 # --- Application ---
 # Change directory to the application source directory before loading
 # Adjust the path based on your deployment structure
-chdir = "/path/to/your/ai_artist_system_clone/frontend" # <<< ADJUST THIS PATH
+chdir = "/path/to/your/ai_artist_system_clone/frontend"  # <<< ADJUST THIS PATH
 # WSGI application path (module:variable)
 # Assumes your Flask app instance is named `app` in `src/main.py`
 wsgi_app = "src.main:app"
@@ -55,4 +55,3 @@ timeout = 120
 # Helps prevent memory leaks
 # max_requests = 1000
 # max_requests_jitter = 50
-

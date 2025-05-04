@@ -14,6 +14,7 @@ sys.path.insert(0, project_root)
 # Removed streamlit_app path insertion as config is no longer imported
 
 from api_clients.base_client import BaseApiClient, ApiClientError
+
 # Removed config import
 
 logger = logging.getLogger(__name__)
@@ -40,10 +41,14 @@ class SunoApiClient(BaseApiClient):
         """
         resolved_api_key = api_key or os.getenv("SUNO_API_KEY")
         # Allow overriding base_url via env var as well
-        resolved_base_url = base_url or os.getenv("SUNO_BASE_URL", self.DEFAULT_BASE_URL)
+        resolved_base_url = base_url or os.getenv(
+            "SUNO_BASE_URL", self.DEFAULT_BASE_URL
+        )
 
         if not resolved_api_key:
-            logger.error("Suno API Key is not configured in environment variables (SUNO_API_KEY).")
+            logger.error(
+                "Suno API Key is not configured in environment variables (SUNO_API_KEY)."
+            )
             raise ValueError(
                 "Suno API Key must be provided either directly or via SUNO_API_KEY environment variable"
             )
@@ -105,7 +110,7 @@ class SunoApiClient(BaseApiClient):
         if callback_url:
             payload["callback_url"] = callback_url
 
-        logger.info(f"Starting Suno music generation with prompt: \"{prompt[:50]}...\"")
+        logger.info(f'Starting Suno music generation with prompt: "{prompt[:50]}..."')
         try:
             # The unofficial API returns a list directly
             response_data = self._post(endpoint, json_data=payload)
@@ -253,4 +258,3 @@ if __name__ == "__main__":
             print(f"Suno API Error: {e}")
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
-
