@@ -125,8 +125,8 @@ def add_text_overlay(
         # Set the position of the text clip
         # Handle string-based positions with margin
         pos_x, pos_y = position
-        final_pos_x = 0 # Initialize with default
-        final_pos_y = 0 # Initialize with default
+        final_pos_x = 0  # Initialize with default
+        final_pos_y = 0  # Initialize with default
 
         if isinstance(pos_x, str):
             if pos_x == "left":
@@ -147,8 +147,10 @@ def add_text_overlay(
         elif isinstance(pos_x, (int, float)):
             final_pos_x = pos_x
         else:
-             logger.warning(f"Invalid type for position x: {type(pos_x)}. Defaulting to 0.")
-             final_pos_x = 0
+            logger.warning(
+                f"Invalid type for position x: {type(pos_x)}. Defaulting to 0."
+            )
+            final_pos_x = 0
 
         if isinstance(pos_y, str):
             if pos_y == "top":
@@ -165,11 +167,13 @@ def add_text_overlay(
                     logger.warning(
                         f"Invalid string position value for y: {pos_y}. Defaulting to 0."
                     )
-                    final_pos_y = 0 # Default or fallback position
+                    final_pos_y = 0  # Default or fallback position
         elif isinstance(pos_y, (int, float)):
             final_pos_y = pos_y
         else:
-            logger.warning(f"Invalid type for position y: {type(pos_y)}. Defaulting to 0.")
+            logger.warning(
+                f"Invalid type for position y: {type(pos_y)}. Defaulting to 0."
+            )
             final_pos_y = 0
 
         txt_clip = txt_clip.set_position((final_pos_x, final_pos_y))
@@ -244,14 +248,16 @@ if __name__ == "__main__":
         try:
             # Use ffmpeg command that works across platforms
             cmd = (
-                f'ffmpeg -y -f lavfi -i color=c=black:s=1280x720:d=5 '
-                f'-vf "drawtext=text=\'Placeholder Video\':fontcolor=white:fontsize=50:x=(w-text_w)/2:y=(h-text_h)/2" '
-                f'{test_input_video}'
+                f"ffmpeg -y -f lavfi -i color=c=black:s=1280x720:d=5 "
+                f"-vf \"drawtext=text='Placeholder Video':fontcolor=white:fontsize=50:x=(w-text_w)/2:y=(h-text_h)/2\" "
+                f"{test_input_video}"
             )
             logger.info(f"Running command: {cmd}")
             os.system(cmd)
             if not os.path.exists(test_input_video):
-                 raise VideoEditingError("ffmpeg command failed to create placeholder video.")
+                raise VideoEditingError(
+                    "ffmpeg command failed to create placeholder video."
+                )
             logger.info("Placeholder video created.")
         except Exception as e:
             logger.error(
@@ -322,4 +328,3 @@ if __name__ == "__main__":
         logger.error(f"Test Case 3 failed: {e}")
 
     logger.info("Video editing service tests finished.")
-

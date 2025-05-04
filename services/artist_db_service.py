@@ -30,7 +30,9 @@ def get_db_connection():
     conn = None
     try:
         conn = sqlite3.connect(DB_FILE)
-        conn.row_factory = (            sqlite3.Row        )  # Return rows as dictionary-like objects
+        conn.row_factory = (
+            sqlite3.Row
+        )  # Return rows as dictionary-like objects
         logger.debug(f"Connected to database: {DB_FILE}")
         return conn
     except sqlite3.Error as e:
@@ -44,17 +46,27 @@ def _add_column_if_not_exists(cursor, table_name, column_name, column_type):
     columns = [info["name"] for info in cursor.fetchall()]
     if column_name not in columns:
         try:
-            cursor.execute(                f"ALTER TABLE {table_name} ADD COLUMN {column_name}                     {column_type}"            )
-            logger.info(                f"Added column 	{column_name}	 to table 	{table_name}	."            )
+            cursor.execute(
+                f"ALTER TABLE {table_name} ADD COLUMN {column_name}                     {column_type}"
+            )
+            logger.info(
+                f"Added column 	{column_name}	 to table 	{table_name}	."
+            )
         except sqlite3.OperationalError as e:
-            logger.warning(                f"Could not add column 	{column_name}	 to 	{table_name}	 (might                     already exist): {e}"            )
+            logger.warning(
+                f"Could not add column 	{column_name}	 to 	{table_name}	 (might                     already exist): {e}"
+            )
     else:
-        logger.debug(            f"Column 	{column_name}	 already exists in table 	{table_name}	."        )
+        logger.debug(
+            f"Column 	{column_name}	 already exists in table 	{table_name}	."
+        )
 
 
-def _rename_column_if_exists(    cursor, table_name, old_column_name, new_column_name):
+def _rename_column_if_exists(
+    cursor, table_name, old_column_name, new_column_name
+):
     """Helper function to rename a column if it exists and the new name
-        doesn't."""
+    doesn't."""
     cursor.execute(f"PRAGMA table_info({table_name})")
     columns = {info["name"]: info for info in cursor.fetchall()}
     if old_column_name in columns and new_column_name not in columns:
@@ -65,14 +77,24 @@ def _rename_column_if_exists(    cursor, table_name, old_column_name, new_column
             # (create new table, copy data, drop old, rename new)
             # However, modern SQLite versions support it. Assuming modern
             # version for simplicity here.
-            cursor.execute(                f"ALTER TABLE {table_name} RENAME COLUMN {old_column_name} TO                     {new_column_name}"            )
-            logger.info(                f"Renamed column 	{old_column_name}	 to 	{new_column_name}	 in                     table 	{table_name}	."            )
+            cursor.execute(
+                f"ALTER TABLE {table_name} RENAME COLUMN {old_column_name} TO                     {new_column_name}"
+            )
+            logger.info(
+                f"Renamed column 	{old_column_name}	 to 	{new_column_name}	 in                     table 	{table_name}	."
+            )
         except sqlite3.OperationalError as e:
-            logger.error(                f"Failed to rename column 	{old_column_name}	 to                     {new_column_name}	 in 	{table_name}	:                     {e}. Manual migration might be needed if using older SQLite."            )
+            logger.error(
+                f"Failed to rename column 	{old_column_name}	 to                     {new_column_name}	 in 	{table_name}	:                     {e}. Manual migration might be needed if using older SQLite."
+            )
     elif old_column_name in columns and new_column_name in columns:
-        logger.debug(            f"Both 	{old_column_name}	 and 	{new_column_name}	 exist in                 {table_name}	. Skipping rename."        )
+        logger.debug(
+            f"Both 	{old_column_name}	 and 	{new_column_name}	 exist in                 {table_name}	. Skipping rename."
+        )
     elif old_column_name not in columns:
-        logger.debug(            f"Column 	{old_column_name}	 does not exist in 	{table_name}	.                 Skipping rename."        )
+        logger.debug(
+            f"Column 	{old_column_name}	 does not exist in 	{table_name}	.                 Skipping rename."
+        )
 
 
 def initialize_database():
@@ -83,24 +105,42 @@ def initialize_database():
     try:
         cursor = conn.cursor()
         # Artists Table - Updated Schema
-        cursor.execute(            """             CREATE TABLE IF NOT EXISTS artists (                artist_id TEXT PRIMARY KEY,                 name TEXT NOT NULL,                 genre TEXT,                 style_notes TEXT,                 llm_config TEXT, -- Storing LLM details as JSON                 created_at TEXT NOT NULL,                 last_run_at TEXT,                 status TEXT DEFAULT 'Candidate', -- Candidate, Active, Paused,                     Retired, Evolving                 performance_history TEXT, -- Storing as JSON string                 consecutive_rejections INTEGER DEFAULT 0,                 autopilot_enabled BOOLEAN DEFAULT 0,                 voice_url TEXT -- Added for storing voice sample/clone URL            )         """        )
+        cursor.execute(
+            """             CREATE TABLE IF NOT EXISTS artists (                artist_id TEXT PRIMARY KEY,                 name TEXT NOT NULL,                 genre TEXT,                 style_notes TEXT,                 llm_config TEXT, -- Storing LLM details as JSON                 created_at TEXT NOT NULL,                 last_run_at TEXT,                 status TEXT DEFAULT 'Candidate', -- Candidate, Active, Paused,                     Retired, Evolving                 performance_history TEXT, -- Storing as JSON string                 consecutive_rejections INTEGER DEFAULT 0,                 autopilot_enabled BOOLEAN DEFAULT 0,                 voice_url TEXT -- Added for storing voice sample/clone URL            )         """
+        )
         logger.info("Database initialized. 'artists' table checked/created.")
 
         # --- Schema Migrations/Updates ---
         # Add columns if they don't exist (idempotent)
-        _add_column_if_not_exists(            cursor, "artists", "status", "TEXT DEFAULT 'Candidate'"        )
+        _add_column_if_not_exists(
+            cursor, "artists", "status", "TEXT DEFAULT 'Candidate'"
+        )
         _add_column_if_not_exists(cursor, "artists", "llm_config", "TEXT")
-        _add_column_if_not_exists(            cursor, "artists", "autopilot_enabled", "BOOLEAN DEFAULT 0"        )
-        _add_column_if_not_exists(            cursor, "artists", "voice_url", "TEXT"        )  # Add the new voice_url column
+        _add_column_if_not_exists(
+            cursor, "artists", "autopilot_enabled", "BOOLEAN DEFAULT 0"
+        )
+        _add_column_if_not_exists(
+            cursor, "artists", "voice_url", "TEXT"
+        )  # Add the new voice_url column
 
         # Error Reports Table (Unchanged)
-        cursor.execute(            """             CREATE TABLE IF NOT EXISTS error_reports (                report_id INTEGER PRIMARY KEY AUTOINCREMENT,                 timestamp TEXT NOT NULL,                 error_hash TEXT,                 error_log TEXT,                 analysis TEXT,                 fix_suggestion TEXT,                 status TEXT DEFAULT 'new', -- e.g., new, analyzed,                     fix_suggested, fix_attempted, fix_failed, fix_applied,                     ignored                 service_name TEXT -- e.g., batch_runner, error_analysis_service            )         """        )
-        logger.info(            "Database initialized. 'error_reports' table checked/created."        )
+        cursor.execute(
+            """             CREATE TABLE IF NOT EXISTS error_reports (                report_id INTEGER PRIMARY KEY AUTOINCREMENT,                 timestamp TEXT NOT NULL,                 error_hash TEXT,                 error_log TEXT,                 analysis TEXT,                 fix_suggestion TEXT,                 status TEXT DEFAULT 'new', -- e.g., new, analyzed,                     fix_suggested, fix_attempted, fix_failed, fix_applied,                     ignored                 service_name TEXT -- e.g., batch_runner, error_analysis_service            )         """
+        )
+        logger.info(
+            "Database initialized. 'error_reports' table checked/created."
+        )
 
         # Indexes
-        cursor.execute(            "CREATE INDEX IF NOT EXISTS idx_error_timestamp ON error_reports                 (timestamp DESC)"        )
-        cursor.execute(            "CREATE INDEX IF NOT EXISTS idx_error_hash ON error_reports                 (error_hash)"        )
-        cursor.execute(            "CREATE INDEX IF NOT EXISTS idx_artist_status ON artists (status)"        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_error_timestamp ON error_reports                 (timestamp DESC)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_error_hash ON error_reports                 (error_hash)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_artist_status ON artists (status)"
+        )
 
         conn.commit()
     except sqlite3.Error as e:
@@ -156,7 +196,9 @@ def add_artist(artist_data: Dict[str, Any]) -> Optional[str]:
         )
         return artist_id
     except sqlite3.IntegrityError:
-        logger.warning(            f"Artist ID {artist_id} already exists in the database."        )
+        logger.warning(
+            f"Artist ID {artist_id} already exists in the database."
+        )
         return None
     except sqlite3.Error as e:
         logger.error(f"Error adding artist {artist_id}: {e}")
@@ -175,23 +217,37 @@ def get_artist(artist_id: str) -> Optional[Dict[str, Any]]:
     perf_history_str = None  # Initialize for error logging
     try:
         cursor = conn.cursor()
-        cursor.execute(            "SELECT * FROM artists WHERE artist_id = ?", (artist_id,)        )
+        cursor.execute(
+            "SELECT * FROM artists WHERE artist_id = ?", (artist_id,)
+        )
         row = cursor.fetchone()
         if row:
             artist = dict(row)
             # Deserialize JSON fields safely
             perf_history_str = artist.get("performance_history")
-            artist["performance_history"] = (                json.loads(perf_history_str)                 if perf_history_str is not None                 else []            )
+            artist["performance_history"] = (
+                json.loads(perf_history_str)
+                if perf_history_str is not None
+                else []
+            )
             llm_config_str = artist.get("llm_config")
-            artist["llm_config"] = (                json.loads(llm_config_str)                 if llm_config_str is not None                 else {}            )
+            artist["llm_config"] = (
+                json.loads(llm_config_str)
+                if llm_config_str is not None
+                else {}
+            )
             # Convert autopilot_enabled from 0/1 to boolean
-            artist["autopilot_enabled"] = bool(                artist.get("autopilot_enabled", 0)            )
+            artist["autopilot_enabled"] = bool(
+                artist.get("autopilot_enabled", 0)
+            )
             # voice_url is already TEXT, no conversion needed
             return artist
         else:
             return None
     except json.JSONDecodeError as e:
-        logger.error(            f"Error decoding JSON for artist {artist_id}: {e}. Data:                 llm_config=	{llm_config_str}	, history=	{perf_history_str}	"        )
+        logger.error(
+            f"Error decoding JSON for artist {artist_id}: {e}. Data:                 llm_config=	{llm_config_str}	, history=	{perf_history_str}	"
+        )
         return None  # Or handle partially loaded data if needed
     except sqlite3.Error as e:
         logger.error(f"Error getting artist {artist_id}: {e}")
@@ -201,7 +257,9 @@ def get_artist(artist_id: str) -> Optional[Dict[str, Any]]:
             conn.close()
 
 
-def get_all_artists(    status_filter: Optional[str] = None,) -> List[Dict[str, Any]]:
+def get_all_artists(
+    status_filter: Optional[str] = None,
+) -> List[Dict[str, Any]]:
     """Retrieves all artists, optionally filtering by status."""
     conn = get_db_connection()
     if not conn:
@@ -224,16 +282,28 @@ def get_all_artists(    status_filter: Optional[str] = None,) -> List[Dict[str, 
             try:
                 # Deserialize JSON fields safely
                 perf_history_str = artist.get("performance_history")
-                artist["performance_history"] = (                    json.loads(perf_history_str)                     if perf_history_str is not None                     else []                )
+                artist["performance_history"] = (
+                    json.loads(perf_history_str)
+                    if perf_history_str is not None
+                    else []
+                )
                 llm_config_str = artist.get("llm_config")
-                artist["llm_config"] = (                    json.loads(llm_config_str)                     if llm_config_str is not None                     else {}                )
+                artist["llm_config"] = (
+                    json.loads(llm_config_str)
+                    if llm_config_str is not None
+                    else {}
+                )
                 # Convert autopilot_enabled from 0/1 to boolean
-                artist["autopilot_enabled"] = bool(                    artist.get("autopilot_enabled", 0)                )
+                artist["autopilot_enabled"] = bool(
+                    artist.get("autopilot_enabled", 0)
+                )
                 # voice_url is already TEXT, no conversion needed
                 artists.append(artist)
             except json.JSONDecodeError as e:
                 artist_id = artist.get("artist_id", "UNKNOWN")
-                logger.error(                    f"Error decoding JSON for artist {artist_id} in                         get_all_artists: {e}. Skipping this artist. Data:                         llm_config=	{llm_config_str}	, history=	{perf_history_str}	"                )
+                logger.error(
+                    f"Error decoding JSON for artist {artist_id} in                         get_all_artists: {e}. Skipping this artist. Data:                         llm_config=	{llm_config_str}	, history=	{perf_history_str}	"
+                )
                 continue  # Skip this artist if JSON is invalid
         return artists
     except sqlite3.Error as e:
@@ -279,7 +349,9 @@ def update_artist(artist_id: str, update_data: Dict[str, Any]) -> bool:
         cursor.execute(query, tuple(values))
         conn.commit()
         if cursor.rowcount == 0:
-            logger.warning(                f"Attempted to update non-existent artist ID: {artist_id}"            )
+            logger.warning(
+                f"Attempted to update non-existent artist ID: {artist_id}"
+            )
             return False
         logger.debug(f"Updated artist {artist_id} with data: {update_data}")
         return True
@@ -296,7 +368,9 @@ def update_artist_status(artist_id: str, new_status: str) -> bool:
     return update_artist(artist_id, {"status": new_status})
 
 
-def update_artist_performance_db(    artist_id: str, run_id: str, status: str, retirement_threshold: int) -> bool:
+def update_artist_performance_db(
+    artist_id: str, run_id: str, status: str, retirement_threshold: int
+) -> bool:
     """Updates performance history, rejection count,         and potentially status based on run outcome.
 
     Args:
@@ -311,17 +385,26 @@ def update_artist_performance_db(    artist_id: str, run_id: str, status: str, r
     """
     artist = get_artist(artist_id)
     if not artist:
-        logger.warning(            f"Attempted to update performance for non-existent artist ID:                 {artist_id}"        )
+        logger.warning(
+            f"Attempted to update performance for non-existent artist ID:                 {artist_id}"
+        )
         return False
 
     now_iso = datetime.utcnow().isoformat()
-    new_history_entry = {        "run_id": run_id,         "status": status,         "timestamp": now_iso,    }
+    new_history_entry = {
+        "run_id": run_id,
+        "status": status,
+        "timestamp": now_iso,
+    }
     performance_history = artist.get("performance_history", [])
     performance_history.append(new_history_entry)
     # Keep history manageable
     performance_history = performance_history[-MAX_HISTORY_LENGTH:]
 
-    update_payload = {        "last_run_at": now_iso,         "performance_history": performance_history,    }
+    update_payload = {
+        "last_run_at": now_iso,
+        "performance_history": performance_history,
+    }
 
     consecutive_rejections = artist.get("consecutive_rejections", 0)
     current_status = artist.get("status", "Unknown")
@@ -330,8 +413,13 @@ def update_artist_performance_db(    artist_id: str, run_id: str, status: str, r
         consecutive_rejections += 1
         update_payload["consecutive_rejections"] = consecutive_rejections
         # Check for retirement trigger
-        if (            consecutive_rejections >= retirement_threshold             and current_status != "Retired"        ):
-            logger.info(                f"Artist {artist_id} reached {consecutive_rejections}                     consecutive rejections. Retiring."            )
+        if (
+            consecutive_rejections >= retirement_threshold
+            and current_status != "Retired"
+        ):
+            logger.info(
+                f"Artist {artist_id} reached {consecutive_rejections}                     consecutive rejections. Retiring."
+            )
             update_payload["status"] = "Retired"
     elif status == "approved":
         # Reset rejection count on approval
@@ -357,7 +445,9 @@ def delete_artist(artist_id: str) -> bool:
         cursor.execute("DELETE FROM artists WHERE artist_id = ?", (artist_id,))
         conn.commit()
         if cursor.rowcount == 0:
-            logger.warning(                f"Attempted to delete non-existent artist ID: {artist_id}"            )
+            logger.warning(
+                f"Attempted to delete non-existent artist ID: {artist_id}"
+            )
             return False
         logger.info(f"Deleted artist {artist_id}")
         return True
@@ -372,7 +462,14 @@ def delete_artist(artist_id: str) -> bool:
 # --- Error Report CRUD Operations ---
 
 
-def add_error_report(    error_log: str,     error_hash: Optional[str] = None,     analysis: Optional[str] = None,     fix_suggestion: Optional[str] = None,     status: str = "new",     service_name: Optional[str] = None,) -> Optional[int]:
+def add_error_report(
+    error_log: str,
+    error_hash: Optional[str] = None,
+    analysis: Optional[str] = None,
+    fix_suggestion: Optional[str] = None,
+    status: str = "new",
+    service_name: Optional[str] = None,
+) -> Optional[int]:
     """Adds a new error report to the database. Returns report_id if         successful."""
     conn = get_db_connection()
     if not conn:
@@ -382,17 +479,33 @@ def add_error_report(    error_log: str,     error_hash: Optional[str] = None,  
 
     try:
         cursor = conn.cursor()
-        cursor.execute(            """             INSERT INTO error_reports (                timestamp, error_hash, error_log, analysis, fix_suggestion,                     status, service_name            )             VALUES (?, ?, ?, ?, ?, ?, ?)         """,             (                timestamp,                 error_hash,                 error_log,                 analysis,                 fix_suggestion,                 status,                 service_name,            ),        )
+        cursor.execute(
+            """             INSERT INTO error_reports (                timestamp, error_hash, error_log, analysis, fix_suggestion,                     status, service_name            )             VALUES (?, ?, ?, ?, ?, ?, ?)         """,
+            (
+                timestamp,
+                error_hash,
+                error_log,
+                analysis,
+                fix_suggestion,
+                status,
+                service_name,
+            ),
+        )
         report_id = cursor.lastrowid
         conn.commit()
-        logger.info(            f"Added new error report with ID {report_id} from {service_name}."        )
+        logger.info(
+            f"Added new error report with ID {report_id} from {service_name}."
+        )
 
         # --- Prune old reports if limit exceeded ---
         cursor.execute("SELECT COUNT(*) FROM error_reports")
         count = cursor.fetchone()[0]
         if count > MAX_ERROR_REPORTS:
             num_to_delete = count - MAX_ERROR_REPORTS
-            cursor.execute(                "DELETE FROM error_reports WHERE report_id IN (SELECT report_id                     FROM error_reports ORDER BY timestamp ASC LIMIT ?)",                 (num_to_delete,),            )
+            cursor.execute(
+                "DELETE FROM error_reports WHERE report_id IN (SELECT report_id                     FROM error_reports ORDER BY timestamp ASC LIMIT ?)",
+                (num_to_delete,),
+            )
             conn.commit()
             logger.info(f"Pruned {num_to_delete} oldest error reports.")
 
@@ -412,7 +525,9 @@ def get_error_report(report_id: int) -> Optional[Dict[str, Any]]:
         return None
     try:
         cursor = conn.cursor()
-        cursor.execute(            "SELECT * FROM error_reports WHERE report_id = ?", (report_id,)        )
+        cursor.execute(
+            "SELECT * FROM error_reports WHERE report_id = ?", (report_id,)
+        )
         row = cursor.fetchone()
         return dict(row) if row else None
     except sqlite3.Error as e:
@@ -423,7 +538,12 @@ def get_error_report(report_id: int) -> Optional[Dict[str, Any]]:
             conn.close()
 
 
-def get_error_reports(    limit: int = 50,     offset: int = 0,     status_filter: Optional[str] = None,     hash_filter: Optional[str] = None,) -> List[Dict[str, Any]]:
+def get_error_reports(
+    limit: int = 50,
+    offset: int = 0,
+    status_filter: Optional[str] = None,
+    hash_filter: Optional[str] = None,
+) -> List[Dict[str, Any]]:
     """Retrieves a list of error reports, ordered by timestamp descending,         with optional filters."""
     conn = get_db_connection()
     if not conn:
@@ -483,9 +603,13 @@ def update_error_report(report_id: int, update_data: Dict[str, Any]) -> bool:
         cursor.execute(query, tuple(values))
         conn.commit()
         if cursor.rowcount == 0:
-            logger.warning(                f"Attempted to update non-existent error report ID:                     {report_id}"            )
+            logger.warning(
+                f"Attempted to update non-existent error report ID:                     {report_id}"
+            )
             return False
-        logger.debug(            f"Updated error report {report_id} with data: {update_data}"        )
+        logger.debug(
+            f"Updated error report {report_id} with data: {update_data}"
+        )
         return True
     except sqlite3.Error as e:
         logger.error(f"Error updating error report {report_id}: {e}")

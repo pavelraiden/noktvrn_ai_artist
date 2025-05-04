@@ -28,18 +28,35 @@ except ImportError:
     try:
         from schemas import ReleaseMetadata, PromptsUsed
     except ImportError as e:
-        logging.error(            f"Failed to import schemas: {e}. Ensure schemas.py is accessible."        )
+        logging.error(
+            f"Failed to import schemas: {e}. Ensure schemas.py is accessible."
+        )
         sys.exit(1)
 
 # --- Configuration ---
 LOG_LEVEL = os.getenv("RELEASE_CHAIN_LOG_LEVEL", "INFO").upper()
-OUTPUT_BASE_DIR = os.getenv(    "OUTPUT_BASE_DIR", os.path.join(PROJECT_ROOT, "output"))
-RELEASES_DIR = os.getenv(    "RELEASES_DIR", os.path.join(OUTPUT_BASE_DIR, "releases"))
-RUN_STATUS_DIR = os.getenv(    "RUN_STATUS_DIR", os.path.join(OUTPUT_BASE_DIR, "run_status"))
-RELEASE_LOG_FILE = os.getenv(    "RELEASE_LOG_FILE", os.path.join(OUTPUT_BASE_DIR, "release_log.md"))
-RELEASE_QUEUE_FILE = os.getenv(    "RELEASE_QUEUE_FILE", os.path.join(OUTPUT_BASE_DIR, "release_queue.json"))
+OUTPUT_BASE_DIR = os.getenv(
+    "OUTPUT_BASE_DIR", os.path.join(PROJECT_ROOT, "output")
+)
+RELEASES_DIR = os.getenv(
+    "RELEASES_DIR", os.path.join(OUTPUT_BASE_DIR, "releases")
+)
+RUN_STATUS_DIR = os.getenv(
+    "RUN_STATUS_DIR", os.path.join(OUTPUT_BASE_DIR, "run_status")
+)
+RELEASE_LOG_FILE = os.getenv(
+    "RELEASE_LOG_FILE", os.path.join(OUTPUT_BASE_DIR, "release_log.md")
+)
+RELEASE_QUEUE_FILE = os.getenv(
+    "RELEASE_QUEUE_FILE", os.path.join(OUTPUT_BASE_DIR, "release_queue.json")
+)
 # New config for evolution log
-EVOLUTION_LOG_FILE = os.getenv(    "EVOLUTION_LOG_FILE",     os.path.join(        PROJECT_ROOT, "docs", "development", "artist_evolution_log.md"    ),)
+EVOLUTION_LOG_FILE = os.getenv(
+    "EVOLUTION_LOG_FILE",
+    os.path.join(
+        PROJECT_ROOT, "docs", "development", "artist_evolution_log.md"
+    ),
+)
 
 # Ensure directories exist
 os.makedirs(RELEASES_DIR, exist_ok=True)
@@ -49,10 +66,19 @@ if EVOLUTION_LOG_FILE:
     os.makedirs(os.path.dirname(EVOLUTION_LOG_FILE), exist_ok=True)
 
 # --- Logging Setup ---
-log_level_mapping = {    "DEBUG": logging.DEBUG,     "INFO": logging.INFO,     "WARNING": logging.WARNING,     "ERROR": logging.ERROR,     "CRITICAL": logging.CRITICAL,}
+log_level_mapping = {
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "ERROR": logging.ERROR,
+    "CRITICAL": logging.CRITICAL,
+}
 effective_log_level = log_level_mapping.get(LOG_LEVEL, logging.INFO)
 
-logging.basicConfig(    level=effective_log_level,     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",     handlers=[logging.StreamHandler(sys.stdout)],  # Add file handler if needed
+logging.basicConfig(
+    level=effective_log_level,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],  # Add file handler if needed
 )
 logger = logging.getLogger(__name__)
 
@@ -105,7 +131,9 @@ def download_asset(url, save_path):
 
 def generate_cover_art(artist_info, save_path):
     """Placeholder function to simulate cover art generation."""
-    logger.info(        f"Simulating cover art generation for artist {artist_info.get('name')}             to {save_path}"    )
+    logger.info(
+        f"Simulating cover art generation for artist {artist_info.get('name')}             to {save_path}"
+    )
     try:
         Path(save_path).parent.mkdir(parents=True, exist_ok=True)
         with open(save_path, "w") as f:
@@ -120,7 +148,9 @@ def generate_cover_art(artist_info, save_path):
 def analyze_track_structure(audio_path):
     """Placeholder function to simulate track analysis."""
     logger.info(f"Simulating analysis of track structure for {audio_path}")
-    return (        "Intro - Verse - Chorus - Verse - Chorus - Bridge - Outro (Simulated)"    )
+    return (
+        "Intro - Verse - Chorus - Verse - Chorus - Bridge - Outro (Simulated)"
+    )
 
 
 def get_prompts_from_run_data(run_data):
@@ -198,67 +228,118 @@ def create_feedback_placeholder(filepath):
 
 def log_release_to_markdown(metadata, release_dir_path):
     """Appends a summary of the release to the markdown log file."""
-    log_entry = (        f"### Release: {metadata.release_id}\n"         f"- **Artist:** {metadata.artist_name}\n"         f"- **Date:** {metadata.release_date}\n"         f"- **Genre:** {metadata.genre or 'N/A'}\n"         f"- **Track:** {metadata.track_title or 'N/A'}\n"         f"- **Directory:** `{release_dir_path}`\n"         f"- **Run ID:** {metadata.generation_run_id}\n"         f"---\n\n"    )
+    log_entry = (
+        f"### Release: {metadata.release_id}\n"
+        f"- **Artist:** {metadata.artist_name}\n"
+        f"- **Date:** {metadata.release_date}\n"
+        f"- **Genre:** {metadata.genre or 'N/A'}\n"
+        f"- **Track:** {metadata.track_title or 'N/A'}\n"
+        f"- **Directory:** `{release_dir_path}`\n"
+        f"- **Run ID:** {metadata.generation_run_id}\n"
+        f"---\n\n"
+    )
 
     with file_lock:
         try:
             with open(RELEASE_LOG_FILE, "a") as f:
                 f.write(log_entry)
-            logger.info(                f"Appended release {metadata.release_id} to log file:                     {RELEASE_LOG_FILE}"            )
+            logger.info(
+                f"Appended release {metadata.release_id} to log file:                     {RELEASE_LOG_FILE}"
+            )
             return True
         except IOError as e:
-            logger.error(                f"Failed to append to release log file {RELEASE_LOG_FILE}: {e}"            )
+            logger.error(
+                f"Failed to append to release log file {RELEASE_LOG_FILE}: {e}"
+            )
             return False
 
 
 def add_release_to_queue(metadata, release_dir_path):
     """Adds release information to the JSON queue file."""
-    queue_entry = {        "release_id": metadata.release_id,         "artist_name": metadata.artist_name,         "release_directory": str(release_dir_path.resolve()),         "queued_at": datetime.utcnow().isoformat(),    }
+    queue_entry = {
+        "release_id": metadata.release_id,
+        "artist_name": metadata.artist_name,
+        "release_directory": str(release_dir_path.resolve()),
+        "queued_at": datetime.utcnow().isoformat(),
+    }
 
     with file_lock:
         try:
             queue_data = []
-            if (                os.path.exists(RELEASE_QUEUE_FILE)                 and os.path.getsize(RELEASE_QUEUE_FILE) > 0            ):
+            if (
+                os.path.exists(RELEASE_QUEUE_FILE)
+                and os.path.getsize(RELEASE_QUEUE_FILE) > 0
+            ):
                 try:
                     with open(RELEASE_QUEUE_FILE, "r") as f:
                         queue_data = json.load(f)
                     if not isinstance(queue_data, list):
-                        logger.warning(                            f"Queue file {RELEASE_QUEUE_FILE} is not a list.                                 Overwriting."                        )
+                        logger.warning(
+                            f"Queue file {RELEASE_QUEUE_FILE} is not a list.                                 Overwriting."
+                        )
                         queue_data = []
                 except json.JSONDecodeError as e:
-                    logger.error(                        f"Error decoding queue file {RELEASE_QUEUE_FILE},                             will overwrite: {e}"                    )
+                    logger.error(
+                        f"Error decoding queue file {RELEASE_QUEUE_FILE},                             will overwrite: {e}"
+                    )
                     queue_data = []
 
             queue_data.append(queue_entry)
 
             with open(RELEASE_QUEUE_FILE, "w") as f:
                 json.dump(queue_data, f, indent=4)
-            logger.info(                f"Added release {metadata.release_id} to queue file:                     {RELEASE_QUEUE_FILE}"            )
+            logger.info(
+                f"Added release {metadata.release_id} to queue file:                     {RELEASE_QUEUE_FILE}"
+            )
             return True
         except IOError as e:
-            logger.error(                f"Failed to read/write release queue file {RELEASE_QUEUE_FILE}:                     {e}"            )
+            logger.error(
+                f"Failed to read/write release queue file {RELEASE_QUEUE_FILE}:                     {e}"
+            )
             return False
         except Exception as e:
-            logger.error(                f"Unexpected error updating queue file {RELEASE_QUEUE_FILE}:                     {e}"            )
+            logger.error(
+                f"Unexpected error updating queue file {RELEASE_QUEUE_FILE}:                     {e}"
+            )
             return False
 
 
 def log_learning_entry(metadata, prompts, feedback_file_path):
     """Appends a learning entry to the artist evolution log file."""
     if not EVOLUTION_LOG_FILE:
-        logger.warning(            "EVOLUTION_LOG_FILE not set. Skipping learning log entry."        )
+        logger.warning(
+            "EVOLUTION_LOG_FILE not set. Skipping learning log entry."
+        )
         return False
 
-    log_entry = (        f"## Learning Entry: {datetime.utcnow().isoformat()}\n"         f"- **Release ID:** {metadata.release_id}\n"         f"- **Artist ID:** {metadata.artist_id}\n"         f"- **Artist Name:** {metadata.artist_name}\n"         f"- **Genre:** {metadata.genre}\n"         f"- **Generation Run ID:** {metadata.generation_run_id}\n"         f"- **Suno Prompt:** `{prompts.suno_prompt}`\n"         f"- **Video Keywords:** `{prompts.video_keywords}`\n"         f"- **Cover Prompt:** `{prompts.cover_prompt}`\n"        f"- **Metadata File:** `../output/releases/{Path(metadata.release_id).name}/metadata.json`\n"         f"- **Prompts File:** `../output/releases/{Path(metadata.release_id).name}/prompts_used.json`\n"        f"- **Feedback File:**             `../output/releases/{Path(metadata.release_id).name}/{Path(feedback_file_path).name}`\n"         f"---\n\n"    )
+    log_entry = (
+        f"## Learning Entry: {datetime.utcnow().isoformat()}\n"
+        f"- **Release ID:** {metadata.release_id}\n"
+        f"- **Artist ID:** {metadata.artist_id}\n"
+        f"- **Artist Name:** {metadata.artist_name}\n"
+        f"- **Genre:** {metadata.genre}\n"
+        f"- **Generation Run ID:** {metadata.generation_run_id}\n"
+        f"- **Suno Prompt:** `{prompts.suno_prompt}`\n"
+        f"- **Video Keywords:** `{prompts.video_keywords}`\n"
+        f"- **Cover Prompt:** `{prompts.cover_prompt}`\n"
+        f"- **Metadata File:** `../output/releases/{Path(metadata.release_id).name}/metadata.json`\n"
+        f"- **Prompts File:** `../output/releases/{Path(metadata.release_id).name}/prompts_used.json`\n"
+        f"- **Feedback File:**             `../output/releases/{Path(metadata.release_id).name}/{Path(feedback_file_path).name}`\n"
+        f"---\n\n"
+    )
 
     with file_lock:
         try:
             with open(EVOLUTION_LOG_FILE, "a") as f:
                 f.write(log_entry)
-            logger.info(                f"Appended learning entry for release {metadata.release_id} to:                     {EVOLUTION_LOG_FILE}"            )
+            logger.info(
+                f"Appended learning entry for release {metadata.release_id} to:                     {EVOLUTION_LOG_FILE}"
+            )
             return True
         except IOError as e:
-            logger.error(                f"Failed to append to evolution log file {EVOLUTION_LOG_FILE}:                     {e}"            )
+            logger.error(
+                f"Failed to append to evolution log file {EVOLUTION_LOG_FILE}:                     {e}"
+            )
             return False
 
 
@@ -279,14 +360,20 @@ def process_approved_run(run_id):
             run_data = json.load(f)
 
         if run_data.get("status") != "approved":
-            logger.warning(                f"Run {run_id} status is not 'approved'                     ({run_data.get('status')}). Skipping release."            )
+            logger.warning(
+                f"Run {run_id} status is not 'approved'                     ({run_data.get('status')}). Skipping release."
+            )
             return False
 
     except json.JSONDecodeError as e:
-        logger.error(            f"Error decoding run status file {run_status_filepath}: {e}"        )
+        logger.error(
+            f"Error decoding run status file {run_status_filepath}: {e}"
+        )
         return False
     except IOError as e:
-        logger.error(            f"Error reading run status file {run_status_filepath}: {e}"        )
+        logger.error(
+            f"Error reading run status file {run_status_filepath}: {e}"
+        )
         return False
     except Exception as e:
         logger.error(f"Unexpected error loading run data for {run_id}: {e}")
@@ -295,7 +382,9 @@ def process_approved_run(run_id):
     # 2. Prepare Release Info
     artist_name = run_data.get("artist_name", "Unknown Artist")
     artist_slug = generate_artist_slug(artist_name)
-    date_str = datetime.utcnow().strftime(        "%Y%m%d%H%M%S"    )  # Added time for more uniqueness
+    date_str = datetime.utcnow().strftime(
+        "%Y%m%d%H%M%S"
+    )  # Added time for more uniqueness
     release_id = f"{artist_slug}_{date_str}_{run_id[:4]}"
     track_url = run_data.get("track_url")
     video_url = run_data.get("video_url")
@@ -315,10 +404,14 @@ def process_approved_run(run_id):
     cover_save_path = release_dir_path / "cover" / cover_filename
 
     if not track_url or not download_asset(track_url, audio_save_path):
-        logger.error(            f"Failed to download or save audio asset for run {run_id}."        )
+        logger.error(
+            f"Failed to download or save audio asset for run {run_id}."
+        )
         return False
     if not video_url or not download_asset(video_url, video_save_path):
-        logger.error(            f"Failed to download or save video asset for run {run_id}."        )
+        logger.error(
+            f"Failed to download or save video asset for run {run_id}."
+        )
         return False
     if not generate_cover_art(run_data, cover_save_path):
         logger.error(f"Failed to generate cover art for run {run_id}.")
@@ -367,26 +460,38 @@ def process_approved_run(run_id):
             return False
 
     except Exception as e:
-        logger.error(            f"Error creating or saving metadata/prompts for run {run_id}: {e}"        )
+        logger.error(
+            f"Error creating or saving metadata/prompts for run {run_id}: {e}"
+        )
         return False
 
     # 8. Create Feedback Placeholder
     feedback_filepath = release_dir_path / "feedback_score.json"
     if not create_feedback_placeholder(feedback_filepath):
-        logger.warning(            f"Failed to create feedback placeholder for {release_id},                 but continuing."        )
+        logger.warning(
+            f"Failed to create feedback placeholder for {release_id},                 but continuing."
+        )
 
     # 9. Log and Queue
     if not log_release_to_markdown(metadata, release_dir_path):
-        logger.warning(            f"Failed to log release {release_id} to markdown, but continuing."        )
+        logger.warning(
+            f"Failed to log release {release_id} to markdown, but continuing."
+        )
     if not add_release_to_queue(metadata, release_dir_path):
-        logger.error(            f"Failed to add release {release_id} to queue. Release process                 incomplete."        )
+        logger.error(
+            f"Failed to add release {release_id} to queue. Release process                 incomplete."
+        )
         return False
 
     # 10. Log Learning Entry
     if not log_learning_entry(metadata, prompts, feedback_filepath):
-        logger.warning(            f"Failed to log learning entry for release {release_id},                 but continuing."        )
+        logger.warning(
+            f"Failed to log learning entry for release {release_id},                 but continuing."
+        )
 
-    logger.info(        f"--- Successfully Completed Release Chain for Run ID:             {run_id} -> Release ID: {release_id} ---"    )
+    logger.info(
+        f"--- Successfully Completed Release Chain for Run ID:             {run_id} -> Release ID: {release_id} ---"
+    )
     return True
 
 
@@ -394,7 +499,20 @@ def process_approved_run(run_id):
 if __name__ == "__main__":
     logger.info("Running release_chain.py directly for testing.")
     test_run_id = "test_direct_run_phase8"
-    dummy_run_data = {        "run_id": test_run_id,         "status": "approved",         "artist_id": 101,         "artist_name": "Phase Eight Test",         "genre": "ambient-tech",         "track_id": "dummy_track_456",         "track_url": "http://example.com/audio_p8.mp3",         "video_url": "http://example.com/video_p8.mp4",         "video_source": "pexels_test",         "suno_prompt": "An ambient tech track for Phase 8 testing",         "video_keywords": ["phase8", "test", "ambient"],         "make_instrumental": False,    }
+    dummy_run_data = {
+        "run_id": test_run_id,
+        "status": "approved",
+        "artist_id": 101,
+        "artist_name": "Phase Eight Test",
+        "genre": "ambient-tech",
+        "track_id": "dummy_track_456",
+        "track_url": "http://example.com/audio_p8.mp3",
+        "video_url": "http://example.com/video_p8.mp4",
+        "video_source": "pexels_test",
+        "suno_prompt": "An ambient tech track for Phase 8 testing",
+        "video_keywords": ["phase8", "test", "ambient"],
+        "make_instrumental": False,
+    }
     dummy_status_path = Path(RUN_STATUS_DIR) / f"run_{test_run_id}.json"
     try:
         with open(dummy_status_path, "w") as f:
@@ -404,7 +522,9 @@ if __name__ == "__main__":
         success = process_approved_run(test_run_id)
 
         if success:
-            logger.info(                f"Direct test run {test_run_id} processed successfully."            )
+            logger.info(
+                f"Direct test run {test_run_id} processed successfully."
+            )
             date_str = datetime.utcnow().strftime("%Y%m%d%H%M%S")
             artist_slug = generate_artist_slug(dummy_run_data["artist_name"])
             release_id = f"{artist_slug}_{date_str}_{test_run_id[:4]}"
@@ -420,5 +540,7 @@ if __name__ == "__main__":
         logger.critical(f"Error during direct test run: {e}")
     finally:
         if dummy_status_path.exists():
-            logger.info(                f"Kept dummy run status file for inspection:                     {dummy_status_path}"            )
+            logger.info(
+                f"Kept dummy run status file for inspection:                     {dummy_status_path}"
+            )
         pass

@@ -24,21 +24,41 @@ sys.path.append(PROJECT_ROOT)
 
 # --- Configuration ---
 LOG_LEVEL = os.getenv("UPLOADER_LOG_LEVEL", "INFO").upper()
-OUTPUT_BASE_DIR = os.getenv(    "OUTPUT_BASE_DIR", os.path.join(PROJECT_ROOT, "output"))
-RELEASES_DIR = os.getenv(    "RELEASES_DIR", os.path.join(OUTPUT_BASE_DIR, "releases"))
-DEPLOY_READY_DIR = os.getenv(    "DEPLOY_READY_DIR", os.path.join(OUTPUT_BASE_DIR, "deploy_ready"))
-RELEASE_QUEUE_FILE = os.getenv(    "RELEASE_QUEUE_FILE", os.path.join(OUTPUT_BASE_DIR, "release_queue.json"))
-UPLOAD_STATUS_FILE = os.getenv(    "UPLOAD_STATUS_FILE",     os.path.join(OUTPUT_BASE_DIR, "release_upload_status.json"),)
+OUTPUT_BASE_DIR = os.getenv(
+    "OUTPUT_BASE_DIR", os.path.join(PROJECT_ROOT, "output")
+)
+RELEASES_DIR = os.getenv(
+    "RELEASES_DIR", os.path.join(OUTPUT_BASE_DIR, "releases")
+)
+DEPLOY_READY_DIR = os.getenv(
+    "DEPLOY_READY_DIR", os.path.join(OUTPUT_BASE_DIR, "deploy_ready")
+)
+RELEASE_QUEUE_FILE = os.getenv(
+    "RELEASE_QUEUE_FILE", os.path.join(OUTPUT_BASE_DIR, "release_queue.json")
+)
+UPLOAD_STATUS_FILE = os.getenv(
+    "UPLOAD_STATUS_FILE",
+    os.path.join(OUTPUT_BASE_DIR, "release_upload_status.json"),
+)
 
 # Ensure directories exist
 os.makedirs(RELEASES_DIR, exist_ok=True)
 os.makedirs(DEPLOY_READY_DIR, exist_ok=True)
 
 # --- Logging Setup ---
-log_level_mapping = {    "DEBUG": logging.DEBUG,     "INFO": logging.INFO,     "WARNING": logging.WARNING,     "ERROR": logging.ERROR,     "CRITICAL": logging.CRITICAL,}
+log_level_mapping = {
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "ERROR": logging.ERROR,
+    "CRITICAL": logging.CRITICAL,
+}
 effective_log_level = log_level_mapping.get(LOG_LEVEL, logging.INFO)
 
-logging.basicConfig(    level=effective_log_level,     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",     handlers=[logging.StreamHandler(sys.stdout)],  # Add file handler if needed
+logging.basicConfig(
+    level=effective_log_level,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],  # Add file handler if needed
 )
 logger = logging.getLogger(__name__)
 
@@ -92,17 +112,31 @@ def find_releases_to_upload():
 
     releases_to_process = []
     for entry in queued_releases:
-        if (            isinstance(entry, dict)             and "release_id" in entry             and "release_directory" in entry        ):
+        if (
+            isinstance(entry, dict)
+            and "release_id" in entry
+            and "release_directory" in entry
+        ):
             release_id = entry["release_id"]
-            current_status = upload_statuses.get(release_id, {}).get(                "overall_status"            )
-            if current_status not in [                "processed",                 "failed_permanently",                 "prepared_for_deploy",            ]:
+            current_status = upload_statuses.get(release_id, {}).get(
+                "overall_status"
+            )
+            if current_status not in [
+                "processed",
+                "failed_permanently",
+                "prepared_for_deploy",
+            ]:
                 releases_to_process.append(entry)
             else:
-                logger.info(                    f"Skipping release {release_id} with status:                         {current_status}"                )
+                logger.info(
+                    f"Skipping release {release_id} with status:                         {current_status}"
+                )
         else:
             logger.warning(f"Skipping invalid entry in queue: {entry}")
 
-    logger.info(        f"Found {len(releases_to_process)} releases in queue to process."    )
+    logger.info(
+        f"Found {len(releases_to_process)} releases in queue to process."
+    )
     return releases_to_process
 
 
@@ -112,16 +146,26 @@ def find_releases_to_upload():
 def log_upload_status(release_id, overall_status, platform_statuses):
     """Logs the upload status for a release to the status JSON file."""
     with file_lock:
-        logger.debug(            f"Attempting to log status for {release_id}: {overall_status}"        )
+        logger.debug(
+            f"Attempting to log status for {release_id}: {overall_status}"
+        )
         statuses = load_json_file(UPLOAD_STATUS_FILE) or {}
         if not isinstance(statuses, dict):
-            logger.error(                f"Upload status file {UPLOAD_STATUS_FILE} is not a dictionary.                     Resetting."            )
+            logger.error(
+                f"Upload status file {UPLOAD_STATUS_FILE} is not a dictionary.                     Resetting."
+            )
             statuses = {}
 
-        statuses[release_id] = {            "overall_status": overall_status,             "platform_details": platform_statuses,             "last_updated": datetime.utcnow().isoformat(),        }
+        statuses[release_id] = {
+            "overall_status": overall_status,
+            "platform_details": platform_statuses,
+            "last_updated": datetime.utcnow().isoformat(),
+        }
 
         if save_json_file(statuses, UPLOAD_STATUS_FILE):
-            logger.info(                f"Successfully logged upload status for {release_id}:                     {overall_status}"            )
+            logger.info(
+                f"Successfully logged upload status for {release_id}:                     {overall_status}"
+            )
             return True
         else:
             logger.error(f"Failed to log upload status for {release_id}.")
@@ -133,7 +177,9 @@ def log_upload_status(release_id, overall_status, platform_statuses):
 
 def upload_to_tunecore(release_id, release_dir):
     """Placeholder function to simulate uploading to TuneCore."""
-    logger.info(        f"[DUMMY] Simulating upload of release {release_id} from {release_dir}             to TuneCore..."    )
+    logger.info(
+        f"[DUMMY] Simulating upload of release {release_id} from {release_dir}             to TuneCore..."
+    )
     time.sleep(1)
     success = True
     if success:
@@ -146,14 +192,20 @@ def upload_to_tunecore(release_id, release_dir):
 
 def upload_to_web3_platform(release_id, release_dir):
     """Placeholder function to simulate uploading to a Web3 platform."""
-    logger.info(        f"[DUMMY] Simulating upload of release {release_id} from {release_dir}             to Web3 Platform..."    )
+    logger.info(
+        f"[DUMMY] Simulating upload of release {release_id} from {release_dir}             to Web3 Platform..."
+    )
     time.sleep(1)
     success = True
     if success:
-        logger.info(            f"[DUMMY] Successfully uploaded {release_id} to Web3 Platform."        )
+        logger.info(
+            f"[DUMMY] Successfully uploaded {release_id} to Web3 Platform."
+        )
         return "uploaded_web3"
     else:
-        logger.error(            f"[DUMMY] Failed to upload {release_id} to Web3 Platform."        )
+        logger.error(
+            f"[DUMMY] Failed to upload {release_id} to Web3 Platform."
+        )
         return "failed_web3"
 
 
@@ -163,7 +215,9 @@ def upload_to_web3_platform(release_id, release_dir):
 def prepare_deploy_ready_output(release_id, source_release_dir):
     """Copies essential release files to the deploy_ready directory."""
     target_dir = Path(DEPLOY_READY_DIR) / release_id
-    logger.info(        f"Preparing deploy-ready output for {release_id} in {target_dir}"    )
+    logger.info(
+        f"Preparing deploy-ready output for {release_id} in {target_dir}"
+    )
 
     try:
         target_dir.mkdir(parents=True, exist_ok=True)
@@ -183,25 +237,39 @@ def prepare_deploy_ready_output(release_id, source_release_dir):
             target_file = target_dir / filename
             if source_file.exists():
                 try:
-                    shutil.copy2(                        source_file, target_file                    )  # copy2 preserves metadata
+                    shutil.copy2(
+                        source_file, target_file
+                    )  # copy2 preserves metadata
                     copied_files.append(filename)
                     logger.debug(f"Copied {filename} to {target_dir}")
                 except Exception as copy_err:
-                    logger.error(                        f"Failed to copy {filename} for {release_id}:                             {copy_err}"                    )
+                    logger.error(
+                        f"Failed to copy {filename} for {release_id}:                             {copy_err}"
+                    )
                     failed_files.append(filename)
             else:
-                logger.warning(                    f"Source file {filename} not found in {source_release_dir}                         for release {release_id}"                )
+                logger.warning(
+                    f"Source file {filename} not found in {source_release_dir}                         for release {release_id}"
+                )
                 failed_files.append(filename + " (missing)")
 
         if not failed_files:
-            logger.info(                f"Successfully prepared deploy-ready output for {release_id}."            )
+            logger.info(
+                f"Successfully prepared deploy-ready output for {release_id}."
+            )
             return True
         else:
-            logger.error(                f"Failed to prepare some deploy-ready files for {release_id}:                     {failed_files}"            )
+            logger.error(
+                f"Failed to prepare some deploy-ready files for {release_id}:                     {failed_files}"
+            )
             return False
 
     except Exception as e:
-        logger.critical(            "Error creating deploy-ready directory or copying files for "             f"{release_id}: {e}",             exc_info=True,        )
+        logger.critical(
+            "Error creating deploy-ready directory or copying files for "
+            f"{release_id}: {e}",
+            exc_info=True,
+        )
         return False
 
 
@@ -241,21 +309,27 @@ def process_single_release(release_info):
             upload_successful = False
 
     except Exception as e:
-        logger.error(            f"Error during dummy upload for {release_id}: {e}", exc_info=True        )
+        logger.error(
+            f"Error during dummy upload for {release_id}: {e}", exc_info=True
+        )
         log_upload_status(release_id, "failed_upload_error", platform_results)
         return False
 
     # Determine overall status for logging
     overall_log_status = "processed" if upload_successful else "failed"
     if not upload_successful:
-        logger.error(            f"One or more dummy uploads failed for release {release_id}."        )
+        logger.error(
+            f"One or more dummy uploads failed for release {release_id}."
+        )
     else:
         logger.info(f"All dummy uploads completed for release {release_id}.")
 
     # 2. Prepare Deploy Ready Output (if uploads successful)
     deploy_prep_successful = False
     if upload_successful:
-        deploy_prep_successful = prepare_deploy_ready_output(            release_id, release_dir        )
+        deploy_prep_successful = prepare_deploy_ready_output(
+            release_id, release_dir
+        )
         if not deploy_prep_successful:
             overall_log_status = (
                 "failed_deploy_prep"  # Update status if prep fails
@@ -265,7 +339,9 @@ def process_single_release(release_info):
             )
         else:
             overall_log_status = "prepared_for_deploy"  # Final success status
-            logger.info(                f"Successfully prepared deploy-ready output for {release_id}."            )
+            logger.info(
+                f"Successfully prepared deploy-ready output for {release_id}."
+            )
 
     # 3. Log Final Status
     log_upload_status(release_id, overall_log_status, platform_results)
@@ -294,12 +370,19 @@ def main():
             else:
                 failed_count += 1
         except Exception as e:
-            release_id_for_log = release_info.get(                "release_id", "unknown_critical"            )
-            logger.critical(                f"Unexpected error processing release {release_id_for_log}:                     {e}",                 exc_info=True,            )
+            release_id_for_log = release_info.get(
+                "release_id", "unknown_critical"
+            )
+            logger.critical(
+                f"Unexpected error processing release {release_id_for_log}:                     {e}",
+                exc_info=True,
+            )
             failed_count += 1
             log_upload_status(release_id_for_log, "failed_critical_error", [])
 
-    logger.info(        f"Processing complete. Successfully prepared for deploy:             {processed_count}, Failed: {failed_count}"    )
+    logger.info(
+        f"Processing complete. Successfully prepared for deploy:             {processed_count}, Failed: {failed_count}"
+    )
     logger.info("--- Release Uploader Script Finished ---")
 
 

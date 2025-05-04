@@ -77,7 +77,7 @@ def main():
         logger.info(
             f"""Successfully updated artist '{artist_id}' autopilot status to:
                 {enable_autopilot}"""
-        )    # Verify update
+        )  # Verify update
         updated_artist = get_artist(artist_id)
         if updated_artist:
             status = updated_artist.get("autopilot_enabled")

@@ -6,8 +6,8 @@ Mocks the LLMOrchestrator and DatabaseConnectionManager interactions.
 """
 
 import pytest
-import sys # Added
-import os # Added
+import sys  # Added
+import os  # Added
 from unittest.mock import patch, AsyncMock, MagicMock
 
 # --- Add project root to sys.path for imports ---
@@ -19,21 +19,30 @@ sys.path.append(PROJECT_ROOT)
 # This assumes the tests directory is at the same level as the main package directory
 # If not, adjust the path accordingly.
 try:
-    from llm_orchestrator.orchestrator import LLMOrchestrator, LLMOrchestratorError
-    from llm_orchestrator.profile_evolution_manager import ProfileEvolutionManager
+    from llm_orchestrator.orchestrator import (
+        LLMOrchestrator,
+        LLMOrchestratorError,
+    )
+    from llm_orchestrator.profile_evolution_manager import (
+        ProfileEvolutionManager,
+    )
     from database.database_connection_manager import DatabaseConnectionManager
 except ImportError as e:
     print(f"Import Error: {e}. Check PYTHONPATH and project structure.")
+
     # Fallback for potential path issues during testing setup
     # This might indicate a problem with how tests are being discovered or run.
     # For now, define dummy classes to allow tests to be parsed.
     class LLMOrchestrator:
         pass
+
     class LLMOrchestratorError(Exception):
         pass
+
     class ProfileEvolutionManager:
         def __init__(self, db_manager):
             pass
+
     class DatabaseConnectionManager:
         pass
 
@@ -56,9 +65,9 @@ def mock_db_manager():
     manager.get_connection.return_value.__aenter__.return_value = conn
     conn.cursor.return_value.__aenter__.return_value = cur
     # Ensure fetchone returns a tuple or None
-    cur.fetchone.return_value = None # Default to None
+    cur.fetchone.return_value = None  # Default to None
     # Ensure rowcount is available
-    cur.rowcount = -1 # Default
+    cur.rowcount = -1  # Default
     return manager, cur  # Return manager and cursor for setting expectations
 
 
@@ -68,16 +77,20 @@ def mock_llm_orchestrator():
     # Use spec=LLMOrchestrator to ensure the mock has the correct methods
     orchestrator_instance = AsyncMock(spec=LLMOrchestrator)
     # Set default return values if needed
-    orchestrator_instance.evolve_description.return_value = "Mocked Evolved Description"
+    orchestrator_instance.evolve_description.return_value = (
+        "Mocked Evolved Description"
+    )
     return orchestrator_instance
 
 
 @pytest.fixture
-@patch("llm_orchestrator.profile_evolution_manager.LLMOrchestrator") # Patch where it's imported
+@patch(
+    "llm_orchestrator.profile_evolution_manager.LLMOrchestrator"
+)  # Patch where it's imported
 def profile_evolver(
-    MockLLMOrchestratorClass, # The patched class
+    MockLLMOrchestratorClass,  # The patched class
     mock_db_manager,
-    mock_llm_orchestrator # The instance fixture
+    mock_llm_orchestrator,  # The instance fixture
 ):
     """Provides an instance of ProfileEvolutionManager with mocked dependencies."""
     # Configure the mock LLMOrchestrator class to return our instance fixture
@@ -87,13 +100,16 @@ def profile_evolver(
     try:
         manager = ProfileEvolutionManager(db_manager=db_manager)
     except NameError:
-         # Fallback if import failed earlier
-         class DummyProfileEvolutionManager:
-             def __init__(self, db_manager):
-                 self.db_manager = db_manager
-                 # Add mock methods needed for tests if the real class isn't available
-                 self.evolve_artist_profile_description = AsyncMock(return_value=None)
-         manager = DummyProfileEvolutionManager(db_manager=db_manager)
+        # Fallback if import failed earlier
+        class DummyProfileEvolutionManager:
+            def __init__(self, db_manager):
+                self.db_manager = db_manager
+                # Add mock methods needed for tests if the real class isn't available
+                self.evolve_artist_profile_description = AsyncMock(
+                    return_value=None
+                )
+
+        manager = DummyProfileEvolutionManager(db_manager=db_manager)
 
     return manager
 
@@ -134,11 +150,17 @@ async def test_evolve_description_success(
         temperature=0.8,  # Check against default or expected value
     )
     # Verify DB update call (using more robust check)
-    update_sql_start = "UPDATE artist_profiles SET profile = jsonb_set(profile,"
+    update_sql_start = (
+        "UPDATE artist_profiles SET profile = jsonb_set(profile,"
+    )
     update_call_found = False
     for call in mock_cursor.execute.call_args_list:
         args, kwargs = call
-        if args and isinstance(args[0], str) and args[0].strip().startswith(update_sql_start):
+        if (
+            args
+            and isinstance(args[0], str)
+            and args[0].strip().startswith(update_sql_start)
+        ):
             assert args[1] == (f'"{evolved_desc}"', artist_id)
             update_call_found = True
             break
@@ -162,7 +184,7 @@ async def test_evolve_description_fetch_fails(
     )
 
     assert result is None
-    mock_llm_orchestrator.evolve_description.assert_not_awaited() # LLM should not be called
+    mock_llm_orchestrator.evolve_description.assert_not_awaited()  # LLM should not be called
     # Verify fetch was attempted
     fetch_sql = "SELECT profile ->> 'description' FROM artist_profiles WHERE artist_id = %s;"
     mock_cursor.execute.assert_any_call(fetch_sql, (artist_id,))
@@ -181,8 +203,8 @@ async def test_evolve_description_llm_fails(
     # Mock DB fetch success
     mock_cursor.fetchone.return_value = (current_desc,)
     # Mock LLM call failure
-    mock_llm_orchestrator.evolve_description.side_effect = LLMOrchestratorError(
-        "LLM API Error"
+    mock_llm_orchestrator.evolve_description.side_effect = (
+        LLMOrchestratorError("LLM API Error")
     )
 
     result = await profile_evolver.evolve_artist_profile_description(
@@ -190,13 +212,19 @@ async def test_evolve_description_llm_fails(
     )
 
     assert result is None
-    mock_llm_orchestrator.evolve_description.assert_awaited_once() # LLM was called
+    mock_llm_orchestrator.evolve_description.assert_awaited_once()  # LLM was called
     # Verify DB update was NOT called
-    update_sql_start = "UPDATE artist_profiles SET profile = jsonb_set(profile,"
+    update_sql_start = (
+        "UPDATE artist_profiles SET profile = jsonb_set(profile,"
+    )
     update_call_found = False
     for call in mock_cursor.execute.call_args_list:
         args, kwargs = call
-        if args and isinstance(args[0], str) and args[0].strip().startswith(update_sql_start):
+        if (
+            args
+            and isinstance(args[0], str)
+            and args[0].strip().startswith(update_sql_start)
+        ):
             update_call_found = True
             break
     assert not update_call_found, "DB update call should not have been made"
@@ -231,12 +259,17 @@ async def test_evolve_description_db_update_fails(
     assert result == evolved_desc
     mock_llm_orchestrator.evolve_description.assert_awaited_once()
     # Verify DB update was attempted
-    update_sql_start = "UPDATE artist_profiles SET profile = jsonb_set(profile,"
+    update_sql_start = (
+        "UPDATE artist_profiles SET profile = jsonb_set(profile,"
+    )
     update_call_found = False
     for call in mock_cursor.execute.call_args_list:
         args, kwargs = call
-        if args and isinstance(args[0], str) and args[0].strip().startswith(update_sql_start):
+        if (
+            args
+            and isinstance(args[0], str)
+            and args[0].strip().startswith(update_sql_start)
+        ):
             update_call_found = True
             break
     assert update_call_found, "DB update call should have been attempted"
-

@@ -3,7 +3,7 @@
 import os
 import logging
 import tempfile
-import sys # Added
+import sys  # Added
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +14,7 @@ sys.path.append(PROJECT_ROOT)
 
 class VoiceServiceError(Exception):
     """Custom exception for VoiceService errors."""
+
     pass
 
 
@@ -70,7 +71,9 @@ class VoiceService:
             # This doesn't *clone* the voice based on the name, but fulfills
             # the step of generating audio.
             # TODO: Refine this to perform actual cloning if feasible without pre-recorded samples.
-            logger.info(f"Generating audio for text: '{sample_text}' using default voice.")
+            logger.info(
+                f"Generating audio for text: '{sample_text}' using default voice."
+            )
             audio = client.generate(
                 text=sample_text,
                 voice="Rachel",  # Using a standard voice as placeholder for cloned voice
@@ -81,10 +84,12 @@ class VoiceService:
             # In a real app, you'd upload this to cloud storage (e.g., S3) and get a public URL.
             tmp_file_path = None
             with tempfile.NamedTemporaryFile(
-                suffix=".mp3", delete=False, mode="wb" # Ensure binary mode for save
+                suffix=".mp3",
+                delete=False,
+                mode="wb",  # Ensure binary mode for save
             ) as tmp_file:
                 tmp_file_path = tmp_file.name
-                save(audio, tmp_file_path) # Pass the path directly
+                save(audio, tmp_file_path)  # Pass the path directly
 
             if tmp_file_path:
                 logger.info(
@@ -97,9 +102,8 @@ class VoiceService:
                 )
                 return mock_cloud_url
             else:
-                 logger.error("Failed to create or write to temporary file.")
-                 return None
-
+                logger.error("Failed to create or write to temporary file.")
+                return None
 
         except ImportError:
             logger.error(
@@ -107,7 +111,10 @@ class VoiceService:
             )
             return None
         except Exception as e:
-            logger.error(f"Error calling ElevenLabs API or saving file: {e}", exc_info=True) # Added exc_info
+            logger.error(
+                f"Error calling ElevenLabs API or saving file: {e}",
+                exc_info=True,
+            )  # Added exc_info
             # raise VoiceServiceError(f"Failed to generate voice sample: {e}") from e # Keep commented out for now
             return None
 
@@ -125,4 +132,3 @@ if __name__ == "__main__":
         print(f"Generated voice sample URL: {sample_url}")
     else:
         print("Voice sample generation failed.")
-

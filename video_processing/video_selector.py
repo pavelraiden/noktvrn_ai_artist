@@ -1,7 +1,7 @@
 import logging
 import random
 from typing import List, Dict, Any, Optional
-import json # Added
+import json  # Added
 
 # Import the tracker
 try:
@@ -10,7 +10,10 @@ try:
         StockSuccessTracker,
         StockTrackerError,
     )
-except (ImportError, ValueError): # Catch ValueError for potential relative import issues
+except (
+    ImportError,
+    ValueError,
+):  # Catch ValueError for potential relative import issues
     logging.warning(
         "Failed to import StockSuccessTracker. "
         "Performance-based source selection disabled."
@@ -31,16 +34,20 @@ except (ImportError, ValueError): # Catch ValueError for potential relative impo
     class StockTrackerError(Exception):
         pass
 
+
 # Import API clients
 try:
     from ..api_clients.pexels_client import PexelsClient, PexelsApiError
 except (ImportError, ValueError):
     logging.warning("Failed to import PexelsClient.")
+
     class PexelsClient:
         def search_videos(self, *args, **kwargs):
             return {}
+
     class PexelsApiError(Exception):
         pass
+
 
 # Removed unused AudioAnalysisError import
 
@@ -49,16 +56,19 @@ logger = logging.getLogger(__name__)
 
 class VideoSelectionError(Exception):
     """Custom exception for video selection errors."""
+
     pass
 
 
 # Modify function signature to accept tracker
 def select_stock_videos(
     audio_features: Dict[str, Any],
-    query_keywords: Optional[List[str]] = None, # Made keywords optional
+    query_keywords: Optional[List[str]] = None,  # Made keywords optional
     num_videos: int = 1,
     tracker: Optional[StockSuccessTracker] = None,  # Added tracker parameter
-    release_id: Optional[Any] = None,  # Added release_id for logging usage later
+    release_id: Optional[
+        Any
+    ] = None,  # Added release_id for logging usage later
 ) -> List[Dict[str, Any]]:
     """Selects stock videos based on audio features, keywords, and tracker data.
 
@@ -78,7 +88,7 @@ def select_stock_videos(
         VideoSelectionError: If video selection fails.
     """
     if query_keywords is None:
-        query_keywords = [] # Ensure query_keywords is a list
+        query_keywords = []  # Ensure query_keywords is a list
 
     logger.info(
         f"Starting video selection for release {release_id} based on "
@@ -123,7 +133,7 @@ def select_stock_videos(
         logger.error(f"Failed to initialize Pexels client: {e}")
         # No need to check if clients is empty here, handled later
     except NameError:
-         logger.error("PexelsClient class not available.")
+        logger.error("PexelsClient class not available.")
 
     if not clients:
         raise VideoSelectionError(
@@ -170,7 +180,7 @@ def select_stock_videos(
         )
         final_query = "abstract"
 
-    logger.info(f"Generated search query: \"{final_query}\"")
+    logger.info(f'Generated search query: "{final_query}"')
 
     # --- Search Sources ---
     searched_sources_order = []
@@ -189,7 +199,7 @@ def select_stock_videos(
     videos_from_sources = {}
     for source_name in searched_sources_order:
         client = clients[source_name]
-        logger.info(f"Searching {source_name} with query: \"{final_query}\"")
+        logger.info(f'Searching {source_name} with query: "{final_query}"')
         try:
             if source_name == "pexels":
                 search_results = client.search_videos(
@@ -211,7 +221,7 @@ def select_stock_videos(
     # --- Fallback Query Logic ---
     if not videos_from_sources:
         logger.warning(
-            f"No videos found for query: \"{final_query}\". Trying fallbacks."
+            f'No videos found for query: "{final_query}". Trying fallbacks.'
         )
         fallback_queries = [
             "abstract background",
@@ -223,11 +233,11 @@ def select_stock_videos(
         random.shuffle(fallback_queries)
 
         for fallback_query in fallback_queries:
-            logger.info(f"Attempting fallback query: \"{fallback_query}\"")
+            logger.info(f'Attempting fallback query: "{fallback_query}"')
             for source_name in searched_sources_order:
                 client = clients[source_name]
                 logger.info(
-                    f"Searching {source_name} with fallback: \"{fallback_query}\""
+                    f'Searching {source_name} with fallback: "{fallback_query}"'
                 )
                 try:
                     if source_name == "pexels":
@@ -258,7 +268,7 @@ def select_stock_videos(
             f"No videos found even with fallbacks for features: {audio_features}"
         )
         raise VideoSelectionError(
-            f"Could not find videos for query \"{final_query}\" or fallbacks."
+            f'Could not find videos for query "{final_query}" or fallbacks.'
         )
 
     # --- Select Videos ---
@@ -270,8 +280,9 @@ def select_stock_videos(
                 video["source"] = source_name
                 all_potential_videos.append(video)
             else:
-                logger.warning(f"Skipping non-dict item from {source_name}: {type(video)}")
-
+                logger.warning(
+                    f"Skipping non-dict item from {source_name}: {type(video)}"
+                )
 
     logger.info(
         f"Total potential videos gathered: {len(all_potential_videos)}"
@@ -282,7 +293,9 @@ def select_stock_videos(
         v for v in all_potential_videos if v.get("source") in preferred_sources
     ]
     fallback_pool = [
-        v for v in all_potential_videos if v.get("source") not in preferred_sources
+        v
+        for v in all_potential_videos
+        if v.get("source") not in preferred_sources
     ]
 
     random.shuffle(preferred_pool)
@@ -291,7 +304,7 @@ def select_stock_videos(
     combined_pool = preferred_pool + fallback_pool
 
     if not combined_pool:
-         raise VideoSelectionError("No valid videos found after filtering.")
+        raise VideoSelectionError("No valid videos found after filtering.")
 
     if len(combined_pool) < num_videos:
         logger.warning(
@@ -319,12 +332,16 @@ def select_stock_videos(
                 hq_link_info = max(
                     valid_files,
                     key=lambda x: x.get("width", 0) * x.get("height", 0),
-                    default=None, # Should not happen if valid_files is not empty
+                    default=None,  # Should not happen if valid_files is not empty
                 )
             else:
-                 logger.warning(f"No valid dictionary items found in video_files for video {video_id}")
+                logger.warning(
+                    f"No valid dictionary items found in video_files for video {video_id}"
+                )
         elif not isinstance(video_files, list):
-             logger.warning(f"video_files is not a list for video {video_id}: {type(video_files)}")
+            logger.warning(
+                f"video_files is not a list for video {video_id}: {type(video_files)}"
+            )
 
         formatted_video = {
             "source": source_name,
@@ -459,7 +476,7 @@ if __name__ == "__main__":
             query_keywords=["ambient", "nature"],
             num_videos=1,
             # No tracker passed
-            release_id="test_release_002"
+            release_id="test_release_002",
         )
         print("Selected Videos:")
         print(json.dumps(selected, indent=2))
@@ -477,10 +494,10 @@ if __name__ == "__main__":
     # Scenario 3: Query likely to yield no results, triggering fallback
     try:
         selected = select_stock_videos(
-            test_features_calm, # Use calm features
+            test_features_calm,  # Use calm features
             query_keywords=["nonexistentkeywordxyz", "anotheroneabc"],
             num_videos=1,
-            release_id="test_release_003"
+            release_id="test_release_003",
         )
         print("Selected Videos (should be from fallback):")
         print(json.dumps(selected, indent=2))
@@ -493,4 +510,3 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
         logger.error("Unexpected error during test", exc_info=True)
-

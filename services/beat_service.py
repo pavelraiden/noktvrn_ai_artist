@@ -6,11 +6,15 @@ import os  # Add missing import
 
 # Assuming these clients/services exist and are importable
 # Need to structure imports based on actual project layout
-from api_clients.alt_music_client import (    AltMusicClient,     AltMusicClientError,)  # Using the mockable client
+from api_clients.alt_music_client import (
+    AltMusicClient,
+    AltMusicClientError,
+)  # Using the mockable client
 
 # from api_clients.suno_client import SunoClient # Or wherever the primary
 # client logic resides
 from video_processing.audio_analyzer import analyze_audio, AudioAnalysisError
+
 logger = logging.getLogger(__name__)
 
 
@@ -20,10 +24,20 @@ class MockPrimaryMusicClient:
     def __init__(self):
         self.api_key = os.getenv("AIMLAPI_KEY") or os.getenv("SUNO_API_KEY")
         if not self.api_key:
-            logger.warning(                "Primary music API key (AIMLAPI_KEY/SUNO_API_KEY) not found."            )
+            logger.warning(
+                "Primary music API key (AIMLAPI_KEY/SUNO_API_KEY) not found."
+            )
 
-    def generate_music_with_retry(        self,         prompt: str,         models: list,         retries: int = 3,         initial_delay: int = 2,    ) -> dict | None:
-        logger.info(            f"MockPrimaryClient: Attempting generation for prompt: {prompt}"        )
+    def generate_music_with_retry(
+        self,
+        prompt: str,
+        models: list,
+        retries: int = 3,
+        initial_delay: int = 2,
+    ) -> dict | None:
+        logger.info(
+            f"MockPrimaryClient: Attempting generation for prompt: {prompt}"
+        )
         # Simulate failure to trigger fallback in BeatService
         logger.warning("MockPrimaryClient: Simulating failure.")
         return None
@@ -45,7 +59,9 @@ class BeatService:
         self.primary_client = primary_music_client
         self.alt_client = alt_music_client
         # Define retry/fallback parameters
-        self.music_models_order = ["primary_model"] + [            "alt_model"        ]  # Simplified model list
+        self.music_models_order = ["primary_model"] + [
+            "alt_model"
+        ]  # Simplified model list
         self.retries = 3
         self.initial_delay = 2
 
@@ -69,11 +85,15 @@ class BeatService:
             # here
             # track_info = self.primary_client.generate_music_with_retry(prompt,                 self.music_models_order, self.retries, self.initial_delay)
             # Using the mock client which simulates failure:
-            track_info = self.primary_client.generate_music_with_retry(                prompt, [], self.retries, self.initial_delay            )
+            track_info = self.primary_client.generate_music_with_retry(
+                prompt, [], self.retries, self.initial_delay
+            )
 
         # --- Attempt 2: Fallback Client --- #
         if not track_info:
-            logger.warning(                "Primary music generation failed or skipped. Trying alternative                     client..."            )
+            logger.warning(
+                "Primary music generation failed or skipped. Trying alternative                     client..."
+            )
             try:
                 # Alt client doesn't have retry logic in this example, but
                 # could be added
@@ -84,27 +104,40 @@ class BeatService:
                         "track_url": alt_track_url,
                         "model_used": "alternative/mock",
                     }
-                    logger.info(                        f"Successfully generated track via alternative client:                             {alt_track_url}"                    )
+                    logger.info(
+                        f"Successfully generated track via alternative client:                             {alt_track_url}"
+                    )
                 else:
                     logger.error("Alternative music generation also failed.")
             except AltMusicClientError as e:
                 logger.error(f"Error using alternative music client: {e}")
             except Exception as e:
-                logger.error(                    f"Unexpected error during alternative music generation:                         {e}",                     exc_info=True,                )
+                logger.error(
+                    f"Unexpected error during alternative music generation:                         {e}",
+                    exc_info=True,
+                )
 
         # --- Analysis --- #
         if track_info and track_info.get("track_url"):
             # Corrected f-string
-            logger.info(                f"Beat generated ({track_info['model_used']}). Analyzing tempo                     and duration..."            )
+            logger.info(
+                f"Beat generated ({track_info['model_used']}). Analyzing tempo                     and duration..."
+            )
             try:
                 analysis = analyze_audio(track_info["track_url"])
                 if analysis:
-                    track_info.update(                        analysis                    )  # Add tempo and duration to track_info
+                    track_info.update(
+                        analysis
+                    )  # Add tempo and duration to track_info
                     # Corrected f-string
-                    logger.info(                        f"Analysis complete: Tempo={analysis['tempo']:.2f},                             Duration={analysis['duration']:.2f}s"                    )
+                    logger.info(
+                        f"Analysis complete: Tempo={analysis['tempo']:.2f},                             Duration={analysis['duration']:.2f}s"
+                    )
                     return track_info
                 else:
-                    logger.error(                        "Audio analysis failed after successful generation."                    )
+                    logger.error(
+                        "Audio analysis failed after successful generation."
+                    )
                     # Decide how to handle: return partial info or None?
                     # Returning None for now as analysis is crucial for next
                     # step.
@@ -113,7 +146,10 @@ class BeatService:
                 logger.error(f"Audio analysis failed: {e}")
                 return None
             except Exception as e:
-                logger.error(                    f"Unexpected error during audio analysis: {e}",                     exc_info=True,                )
+                logger.error(
+                    f"Unexpected error during audio analysis: {e}",
+                    exc_info=True,
+                )
                 return None
         else:
             logger.error("Failed to generate beat from any source.")
