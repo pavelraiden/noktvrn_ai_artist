@@ -45,10 +45,7 @@ def main():
     if not artist:
         logger.error(f"Artist with ID 	{artist_id}	 not found in the database.")
         sys.exit(1)
-
-    logger.info(f"Artist 	{artist_id}	 (	{artist.get("name")}	) current autopilot status: {artist.get("autopilot_enabled")}")
-
-    # Update artist status
+    logger.info(f"Artist \t{artist_id}\t (\t{artist.get(\'name\')}\t) current autopilot status: {artist.get(\'autopilot_enabled\')}") Update artist status
     update_data = {"autopilot_enabled": enable_autopilot}
     success = update_artist(artist_id, update_data)
 
