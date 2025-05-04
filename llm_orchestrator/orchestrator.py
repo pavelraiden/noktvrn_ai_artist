@@ -33,6 +33,13 @@ if os.path.exists(DOTENV_PATH):
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(PROJECT_ROOT)
 
+# --- Configure logging (Moved Up) ---
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
+
 # --- Import necessary components ---
 try:
     from openai import AsyncOpenAI, APIError, RateLimitError
@@ -40,8 +47,8 @@ except ImportError:
     AsyncOpenAI = None
     APIError = Exception
     RateLimitError = Exception
-    print(
-        "Warning: OpenAI library not found. OpenAI, DeepSeek, Grok functionality will be limited."
+    logger.warning(
+        "OpenAI library not found. OpenAI, DeepSeek, Grok functionality will be limited."
     )
 
 try:
@@ -59,8 +66,8 @@ except ImportError:
     HarmCategory = None
     HarmBlockThreshold = None
     DEFAULT_GEMINI_SAFETY_SETTINGS = {}
-    print(
-        "Warning: google-generativeai library not found. Gemini functionality will be limited."
+    logger.warning(
+        "google-generativeai library not found. Gemini functionality will be limited."
     )
 
 try:
@@ -70,8 +77,8 @@ try:
 except ImportError:
     MistralAsyncClient = None
     ChatMessage = None
-    print(
-        "Warning: mistralai library not found. Mistral functionality will be limited."
+    logger.warning(
+        "mistralai library not found. Mistral functionality will be limited."
     )
 
 try:
@@ -84,15 +91,15 @@ except ImportError:
     AsyncAnthropic = None
     AnthropicAPIError = Exception
     AnthropicRateLimitError = Exception
-    print("Warning: Anthropic library not found. Claude functionality will be limited.")
+    logger.warning("Anthropic library not found. Claude functionality will be limited.")
 
 # Import the registry
 try:
     from llm_orchestrator.llm_registry import LLM_REGISTRY
 except ImportError:
     LLM_REGISTRY = {}
-    print(
-        "Warning: llm_registry.py not found or LLM_REGISTRY not defined. Auto-discovery disabled."
+    logger.warning(
+        "llm_registry.py not found or LLM_REGISTRY not defined. Auto-discovery disabled."
     )
 
 # Import Telegram Service for notifications
@@ -105,13 +112,6 @@ except ImportError:
         logger.debug(f"Telegram notification skipped (service unavailable): {message}")
         await asyncio.sleep(0)  # No-op awaitable
 
-
-# Configure logging
-logging.basicConfig(
-    level=os.getenv("LOG_LEVEL", "INFO").upper(),
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
 
 # --- Provider Configuration --- #
 # Enhanced PROVIDER_CONFIG to include Anthropic and check library presence
@@ -264,7 +264,7 @@ class LLMOrchestrator:
                             self._add_provider(f"{provider}:{model_name}")
                 else:
                     logger.debug(
-                        f"Skipping registry provider \t{provider}\t: Not in PROVIDER_CONFIG"
+                        f'Skipping registry provider "{provider}": Not in PROVIDER_CONFIG'
                     )
 
         if not self.model_preference:
@@ -299,7 +299,7 @@ class LLMOrchestrator:
         for provider, data in LLM_REGISTRY.items():
             if model_name in data.get("models", []):
                 logger.debug(
-                    f"Inferred provider \t{provider}\t for model \t{model_name}\t from registry."
+                    f'Inferred provider "{provider}" for model "{model_name}" from registry.'
                 )
                 return provider
 
@@ -411,79 +411,40 @@ class LLMOrchestrator:
                         if response.choices and response.choices[0].message
                         else None
                     )
-                    usage = response.usage
-                    if content:
-                        if usage:
-                            logger.info(
-                                f"{provider} API call successful. Usage: Prompt={usage.prompt_tokens}, Completion={usage.completion_tokens}, Total={usage.total_tokens}"
-                            )
-                        else:
-                            logger.info(
-                                f"{provider} API call successful. Usage data unavailable."
-                            )
-                        return content.strip()
-                    else:
+                    if content is None:
                         raise LLMOrchestratorError(
-                            f"{provider} response format invalid: {response}"
+                            f"{provider} ({model_name}) returned empty content."
                         )
+                    return content.strip()
 
                 elif provider == "gemini":
                     if not genai:
                         raise ImportError("Gemini library required.")
-                    gen_config = genai.types.GenerationConfig(
-                        max_output_tokens=max_tokens, temperature=temperature
-                    )
-                    safety = self.config.get(
+                    # Ensure safety settings are applied if needed
+                    safety_settings = self.config.get(
                         "gemini_safety_settings", DEFAULT_GEMINI_SAFETY_SETTINGS
                     )
+                    generation_config = genai.types.GenerationConfig(
+                        max_output_tokens=max_tokens, temperature=temperature
+                    )
                     response = await client.generate_content_async(
-                        prompt, generation_config=gen_config, safety_settings=safety
+                        prompt,
+                        generation_config=generation_config,
+                        safety_settings=safety_settings,
                     )
+                    # Handle potential blocks
                     if not response.candidates:
-                        block_reason = (
-                            response.prompt_feedback.block_reason
-                            if response.prompt_feedback
-                            else "Unknown"
-                        )
-                        logger.warning(
-                            f"Gemini blocked prompt for model {model_name}. Reason: {block_reason}"
-                        )
-                        raise LLMOrchestratorError(f"Gemini blocked: {block_reason}")
-                    content = (
-                        response.candidates[0].content.parts[0].text
-                        if response.candidates[0].content
-                        and response.candidates[0].content.parts
-                        else None
-                    )
-                    usage = response.usage_metadata
-                    if content:
-                        if usage:
-                            logger.info(
-                                f"Gemini API call successful. Usage: Prompt={usage.prompt_token_count}, Completion={usage.candidates_token_count}, Total={usage.total_token_count}"
-                            )
-                        else:
-                            logger.info(
-                                "Gemini API call successful. Usage data unavailable."
-                            )
-                        return content.strip()
-                    else:
-                        finish_reason = (
-                            response.candidates[0].finish_reason
-                            if response.candidates
-                            else "Unknown"
-                        )
-                        logger.warning(
-                            f"Gemini returned empty content for model {model_name}. Finish reason: {finish_reason}"
-                        )
+                        block_reason = response.prompt_feedback.block_reason.name
                         raise LLMOrchestratorError(
-                            f"Gemini empty response. Finish reason: {finish_reason}"
+                            f"Gemini ({model_name}) call blocked due to: {block_reason}"
                         )
+                    return response.text.strip()
 
                 elif provider == "mistral":
                     if not MistralAsyncClient or not ChatMessage:
-                        raise ImportError("Mistral library required.")
+                        raise ImportError("MistralAI library required.")
                     messages = [ChatMessage(role="user", content=prompt)]
-                    response = await client.chat_async(
+                    response = await client.chat(
                         model=model_name,
                         messages=messages,
                         max_tokens=max_tokens,
@@ -494,248 +455,220 @@ class LLMOrchestrator:
                         if response.choices and response.choices[0].message
                         else None
                     )
-                    usage = response.usage
-                    if content:
-                        if usage:
-                            logger.info(
-                                f"Mistral API call successful. Usage: Prompt={usage.prompt_tokens}, Completion={usage.completion_tokens}, Total={usage.total_tokens}"
-                            )
-                        else:
-                            logger.info(
-                                "Mistral API call successful. Usage data unavailable."
-                            )
-                        return content.strip()
-                    else:
+                    if content is None:
                         raise LLMOrchestratorError(
-                            f"Mistral response format invalid: {response}"
+                            f"Mistral ({model_name}) returned empty content."
                         )
+                    return content.strip()
 
                 elif provider == "anthropic":
                     if not AsyncAnthropic:
                         raise ImportError("Anthropic library required.")
                     response = await client.messages.create(
                         model=model_name,
-                        messages=[{"role": "user", "content": prompt}],
                         max_tokens=max_tokens,
                         temperature=temperature,
+                        messages=[{"role": "user", "content": prompt}],
                     )
-                    content = response.content[0].text if response.content else None
-                    usage = response.usage
-                    if content:
-                        if usage:
-                            logger.info(
-                                f"Anthropic API call successful. Usage: Input={usage.input_tokens}, Output={usage.output_tokens}"
-                            )
-                        else:
-                            logger.info(
-                                "Anthropic API call successful. Usage data unavailable."
-                            )
-                        return content.strip()
-                    else:
+                    content = (
+                        response.content[0].text if response.content else None
+                    )  # Assuming text content
+                    if content is None:
                         raise LLMOrchestratorError(
-                            f"Anthropic response format invalid: {response}"
+                            f"Anthropic ({model_name}) returned empty content."
                         )
+                    return content.strip()
 
                 else:
-                    # Should not be reached if provider config is correct
-                    raise LLMOrchestratorError(
-                        f"Provider \t{provider}\t logic not implemented."
-                    )
+                    raise LLMOrchestratorError(f"Unsupported provider: {provider}")
 
             except (RateLimitError, AnthropicRateLimitError) as e:
-                retries += 1
-                logger.warning(
-                    f"{provider} rate limit. Retrying in {delay:.1f}s... ({retries}/{self.max_retries_per_provider})"
-                )
                 last_exception = e
-                await asyncio.sleep(delay)
-                delay *= 2
+                logger.warning(
+                    f"Rate limit exceeded for {provider} ({model_name}). Retrying in {delay:.2f}s... ({retries + 1}/{self.max_retries_per_provider})"
+                )
             except (APIError, AnthropicAPIError) as e:
-                retries += 1
-                logger.warning(
-                    f"{provider} API error: {e}. Retrying in {delay:.1f}s... ({retries}/{self.max_retries_per_provider})"
-                )
                 last_exception = e
-                await asyncio.sleep(delay)
-                delay *= 2
+                logger.warning(
+                    f"API error from {provider} ({model_name}): {e}. Retrying in {delay:.2f}s... ({retries + 1}/{self.max_retries_per_provider})"
+                )
             except ImportError as e:
                 logger.error(f"Missing library for {provider}: {e}")
-                last_exception = e
-                break  # Cannot retry missing library
-            except LLMOrchestratorError as e:
-                # Specific errors like blocking or invalid format - don't retry these within the provider
-                logger.error(
-                    f"LLM Orchestrator Error for {provider} model {model_name}: {e}"
-                )
-                last_exception = e
-                break  # Break inner loop to try next provider
+                raise LLMOrchestratorError(f"Missing library for {provider}: {e}")
             except Exception as e:
-                logger.error(
-                    f"Unexpected error for {provider} model {model_name}: {e}",
-                    exc_info=True,
-                )
                 last_exception = e
-                # Maybe retry unexpected errors once?
-                if retries < 1:
-                    retries += 1
-                    logger.warning(f"Retrying unexpected error once in {delay:.1f}s...")
-                    await asyncio.sleep(delay)
-                    delay *= 2
-                else:
-                    break  # Break inner loop after one retry for unexpected errors
+                logger.warning(
+                    f"Unexpected error calling {provider} ({model_name}): {e}. Retrying in {delay:.2f}s... ({retries + 1}/{self.max_retries_per_provider})"
+                )
 
-        # If loop finishes without returning, raise the last known exception or a generic error
+            retries += 1
+            await asyncio.sleep(delay)
+            delay *= 2  # Exponential backoff
+
+        # If loop finishes without success
+        error_message = f"Failed to get response from {provider} ({model_name}) after {self.max_retries_per_provider} retries."
         if last_exception:
-            raise last_exception
-        else:
-            raise LLMOrchestratorError(
-                f"Provider {provider} failed after {self.max_retries_per_provider} retries."
-            )
+            error_message += f" Last error: {last_exception}"
+        logger.error(error_message)
+        raise LLMOrchestratorError(error_message)
 
-    async def generate(
+    async def generate_text(
         self,
         prompt: str,
-        max_tokens: int = 1024,
+        max_tokens: int = 150,
         temperature: float = 0.7,
-        # Add specific_model parameter if needed to target one model
-        # specific_model: Optional[str] = None
+        target_model: Optional[str] = None,  # Allow targeting a specific model
     ) -> str:
         """
-        Generates text using the configured LLM providers with fallback and notifications.
-
-        Iterates through the model_preference list, attempting to call each provider.
-        If a provider fails (after internal retries), it sends a notification (if enabled)
-        and moves to the next in the list.
+        Generates text using the configured LLM providers with fallback and retry logic.
 
         Args:
             prompt: The input prompt for the LLM.
             max_tokens: Maximum number of tokens to generate.
             temperature: Sampling temperature.
+            target_model: (Optional) Specific model identifier (e.g., "gemini:gemini-pro") to use.
+                          If provided, only this model will be attempted (with retries).
+                          If None, uses the primary/fallback preference order.
 
         Returns:
-            The generated text content.
+            The generated text as a string.
 
         Raises:
-            LLMOrchestratorError: If all configured providers fail.
+            LLMOrchestratorError: If all providers fail after retries.
         """
-        last_error = None
-        attempted_models = []
-        for i, (provider, model_name) in enumerate(self.model_preference):
-            provider_key = f"{provider}:{model_name}"
-            attempted_models.append(provider_key)
-            if provider_key in self.providers:
-                provider_instance = self.providers[provider_key]
-                try:
-                    logger.info(f"Attempting generation with: {provider_key}")
-                    result = await self._call_provider_with_retry(
-                        provider_instance,
-                        prompt=prompt,
-                        max_tokens=max_tokens,
-                        temperature=temperature,
-                    )
-                    logger.info(f"Successfully generated content using {provider_key}")
-                    return result
-                except Exception as e:
-                    logger.warning(
-                        f"Generation failed with {provider_key}. Error: {e}."
-                    )
-                    last_error = e
-                    # Send notification if enabled and not the last model
-                    if (
-                        self.enable_fallback_notifications
-                        and i < len(self.model_preference) - 1
-                    ):
-                        next_provider, next_model = self.model_preference[i + 1]
-                        next_key = f"{next_provider}:{next_model}"
-                        message = f"LLM Fallback Alert: Failed with {provider_key} (Error: {type(e).__name__}). Falling back to {next_key}."
-                        logger.info(f"Sending fallback notification: {message}")
-                        try:
-                            # Fire and forget notification
-                            asyncio.create_task(send_notification(message))
-                        except Exception as notify_err:
-                            logger.error(
-                                f"Failed to send Telegram notification: {notify_err}"
-                            )
-                    logger.info("Trying next provider...")
-
+        models_to_try = []
+        if target_model:
+            # Validate and find the target model instance
+            if ":" in target_model:
+                provider, model_name = target_model.split(":", 1)
+                provider = provider.lower()
             else:
-                # This should ideally not happen if initialization is correct
-                logger.error(
-                    f"Provider instance not found for {provider_key} during generation attempt."
-                )
-                last_error = LLMOrchestratorError(
-                    f"Provider instance {provider_key} not found."
-                )
+                model_name = target_model
+                provider = self._infer_provider(model_name)
 
-        # If loop completes without returning, all providers failed
-        logger.critical("All configured LLM providers failed.")
-        error_message = (
-            f"All LLM providers failed. Attempted: {', '.join(attempted_models)}."
-        )
-        if last_error:
-            error_message += f" Last error: {type(last_error).__name__}: {last_error}"
-            # Send final failure notification if enabled
-            if self.enable_fallback_notifications:
-                final_message = f"LLM Critical Failure: All providers failed. Attempted: {', '.join(attempted_models)}. Last error: {type(last_error).__name__}"
-                logger.info(f"Sending final failure notification: {final_message}")
-                try:
-                    # Fire and forget notification
-                    asyncio.create_task(send_notification(final_message))
-                except Exception as notify_err:
-                    logger.error(
-                        f"Failed to send final Telegram notification: {notify_err}"
-                    )
-            raise LLMOrchestratorError(error_message) from last_error
+            provider_key = f"{provider}:{model_name}"
+            if provider_key in self.providers:
+                models_to_try.append((provider, model_name))
+                logger.info(f"Targeting specific model: {provider_key}")
+            else:
+                raise ValueError(
+                    f'Target model "{target_model}" not found or not initialized in the orchestrator.'
+                )
         else:
-            final_message = f"LLM Critical Failure: No providers were available or initialized correctly. Attempted models based on preference: {', '.join(attempted_models)}."
-            if self.enable_fallback_notifications:
-                logger.info(f"Sending final failure notification: {final_message}")
-                try:
-                    asyncio.create_task(send_notification(final_message))
-                except Exception as notify_err:
-                    logger.error(
-                        f"Failed to send final Telegram notification: {notify_err}"
-                    )
-            raise LLMOrchestratorError(error_message)
+            # Use the established preference order
+            models_to_try = self.model_preference
+
+        last_exception = None
+        primary_provider, primary_model_name = self.model_preference[0]
+        primary_key = f"{primary_provider}:{primary_model_name}"
+
+        for provider, model_name in models_to_try:
+            provider_key = f"{provider}:{model_name}"
+            provider_instance = self.providers.get(provider_key)
+
+            if not provider_instance:
+                logger.warning(
+                    f"Skipping {provider_key}: Instance not found (should not happen if initialization was correct)."
+                )
+                continue
+
+            try:
+                # Notify if falling back from primary
+                if (
+                    provider_key != primary_key
+                    and not target_model
+                    and self.enable_fallback_notifications
+                ):
+                    fallback_message = f"⚠️ LLM Fallback Triggered! ⚠️\nPrimary ({primary_key}) failed. Falling back to {provider_key}.\nLast error: {last_exception}"
+                    logger.warning(fallback_message)
+                    try:
+                        await send_notification(fallback_message)
+                    except Exception as notify_err:
+                        logger.error(
+                            f"Failed to send fallback notification: {notify_err}"
+                        )
+
+                logger.info(f"Attempting generation with: {provider_key}")
+                result = await self._call_provider_with_retry(
+                    provider_instance, prompt, max_tokens, temperature
+                )
+                logger.info(f"Successfully generated text using {provider_key}.")
+                return result
+            except LLMOrchestratorError as e:
+                last_exception = e
+                logger.error(f"Provider {provider_key} failed: {e}")
+                # Continue to the next provider in the list
+                continue
+            except Exception as e:
+                # Catch unexpected errors during the orchestration loop
+                last_exception = e
+                logger.error(
+                    f"Unexpected error during orchestration with {provider_key}: {e}",
+                    exc_info=True,
+                )
+                continue
+
+        # If loop finishes without success
+        final_error_message = (
+            "All configured LLM providers failed to generate text after retries."
+        )
+        if last_exception:
+            final_error_message += f" Last error: {last_exception}"
+        logger.critical(final_error_message)
+        # Send critical failure notification
+        if self.enable_fallback_notifications:
+            critical_message = f"🚨 CRITICAL LLM FAILURE! 🚨\nAll providers failed ({[f'{p}:{m}' for p, m in models_to_try]}). Cannot generate text.\nLast error: {last_exception}"
+            try:
+                await send_notification(critical_message)
+            except Exception as notify_err:
+                logger.error(
+                    f"Failed to send critical failure notification: {notify_err}"
+                )
+
+        raise LLMOrchestratorError(final_error_message)
 
 
-# --- Example Usage ---
+# --- Example Usage --- #
 async def main():
-    # Example: Prioritize DeepSeek, fallback to Gemini, then Mistral, auto-discover others
-    primary = "deepseek:deepseek-chat"
-    fallbacks = [
-        "gemini:gemini-1.5-pro-latest",
-        "mistral:mistral-large-latest",
-        "anthropic:claude-3-haiku-20240307",
-    ]
+    # Example: Prioritize DeepSeek, fallback to Gemini, then Mistral
+    # Assumes API keys are in .env file
+    orchestrator = LLMOrchestrator(
+        primary_model="deepseek:deepseek-chat",
+        fallback_models=["gemini:gemini-1.5-flash", "mistral:mistral-large-latest"],
+        enable_auto_discovery=True,  # Try to find others like Claude if configured
+    )
 
-    # Ensure API keys are set in .env for the models you want to test
-    # e.g., DEEPSEEK_API_KEY, GEMINI_API_KEY, MISTRAL_API_KEY, ANTHROPIC_API_KEY etc.
+    test_prompt = "Write a short poem about a futuristic city."
 
     try:
-        # Initialize with fallback notifications enabled (default)
-        orchestrator = LLMOrchestrator(primary_model=primary, fallback_models=fallbacks)
-
-        test_prompt = "Write a short story about a robot who learns to paint."
-        print(f"\n--- Generating with prompt: '{test_prompt}' ---")
-        response = await orchestrator.generate(test_prompt, max_tokens=150)
-        print(f"\n--- Generated Response --- ")
-        print(response)
-        print("-------------------------")
-
-    except ValueError as e:
-        logger.error(f"Initialization Error: {e}")
+        print(f"\n--- Test 1: Standard Generation (Primary: DeepSeek) ---")
+        generated_text = await orchestrator.generate_text(test_prompt, max_tokens=100)
+        print(f"Generated Text:\n{generated_text}")
     except LLMOrchestratorError as e:
-        logger.error(f"Generation Error: {e}")
+        print(f"Generation failed: {e}")
     except Exception as e:
-        logger.error(f"An unexpected error occurred: {e}", exc_info=True)
+        print(f"An unexpected error occurred: {e}")
+
+    try:
+        print(f"\n--- Test 2: Targeting Specific Model (Mistral) ---")
+        generated_text = await orchestrator.generate_text(
+            test_prompt, max_tokens=100, target_model="mistral:mistral-large-latest"
+        )
+        print(f"Generated Text (Mistral Target):\n{generated_text}")
+    except (LLMOrchestratorError, ValueError) as e:
+        print(f"Targeted generation failed: {e}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+
+    # Example of simulating failure (requires modifying a client or API key temporarily)
+    # print("\n--- Test 3: Simulating Fallback (Requires manual intervention) ---")
+    # Temporarily disable primary provider's API key in .env or mock the client to fail
+    # try:
+    #     generated_text = await orchestrator.generate_text(test_prompt, max_tokens=100)
+    #     print(f"Generated Text (Fallback Scenario):\n{generated_text}")
+    # except LLMOrchestratorError as e:
+    #     print(f"Generation failed after fallback attempts: {e}")
 
 
 if __name__ == "__main__":
-    # Check if running in an asyncio event loop
-    try:
-        loop = asyncio.get_running_loop()
-        loop.create_task(main())
-    except RuntimeError:
-        # No running loop, run using asyncio.run()
-        asyncio.run(main())
+    asyncio.run(main())

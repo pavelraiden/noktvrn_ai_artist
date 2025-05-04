@@ -2,6 +2,7 @@
 
 import logging
 import os
+import sys  # Added import sys
 from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
 from moviepy.config import change_settings
 
