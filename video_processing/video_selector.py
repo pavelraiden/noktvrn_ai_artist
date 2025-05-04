@@ -142,11 +142,11 @@ def select_stock_videos(
     final_query = " ".join(list(dict.fromkeys(base_query_parts)))
     if not final_query:
         logger.warning(
-            "Could not generate a meaningful query from features/keywords. Using default 	abstract	."
+            "Could not generate a meaningful query from features/keywords. Using default \"abstract\"."
         )
         final_query = "abstract"
 
-    logger.info(f"Generated search query: 	{final_query}	")
+    logger.info(f"Generated search query: \"{final_query}\"")
 
     # --- Search Sources (Refactor for prioritization - Step 005/006) ---
     found_videos = []
@@ -171,7 +171,7 @@ def select_stock_videos(
 
     for source_name in searched_sources_order:
         client = clients[source_name]
-        logger.info(f"Searching source: {source_name} with query: 	{final_query}	")
+        logger.info(f"Searching source: {source_name} with query: \"{final_query}\"")
         try:
             # Assuming clients have a compatible search_videos method
             # TODO: Adapt this if client methods differ significantly
@@ -179,14 +179,14 @@ def select_stock_videos(
                 search_results = client.search_videos(
                     query=final_query,
                     per_page=max(num_videos * 3, 15),
-                    orientation=landscape,
+                    orientation="landscape",
                 )
                 source_videos = search_results.get("videos", [])
                 logger.info(f"Found {len(source_videos)} videos from {source_name}.")
                 if source_videos:
                     videos_from_sources[source_name] = source_videos
                     # If we found enough videos from a preferred source, maybe stop early?
-                    # For now, let	 s search all available sources to get a wider pool.
+                    # For now, let's search all available sources to get a wider pool.
 
             # Add elif blocks here for other clients (e.g., pixabay) if implemented
 
@@ -200,7 +200,7 @@ def select_stock_videos(
     # --- Fallback Query Logic (If initial search yields nothing) ---
     if not videos_from_sources:
         logger.warning(
-            f"No videos found across sources for query: 	{final_query}	. Trying fallback queries."
+            f"No videos found across sources for query: \"{final_query}\". Trying fallback queries."
         )
         fallback_queries = [
             "abstract background",
@@ -212,20 +212,19 @@ def select_stock_videos(
         random.shuffle(fallback_queries)
 
         for fallback_query in fallback_queries:
-            logger.info(f"Attempting fallback query: 	{fallback_query}	")
+            logger.info(f"Attempting fallback query: \"{fallback_query}\"")
             for (
                 source_name
             ) in searched_sources_order:  # Try sources in the same preferred order
                 client = clients[source_name]
                 logger.info(
-                    f"Searching source: {source_name} with fallback query: 	{fallback_query}	"
-                )
+                    f"Searching source: {source_name} with fallback query: \"{fallback_query}\"")
                 try:
                     if source_name == "pexels":
                         search_results = client.search_videos(
                             query=fallback_query,
                             per_page=max(num_videos * 3, 15),
-                            orientation=landscape,
+                            orientation="landscape",
                         )
                         source_videos = search_results.get("videos", [])
                         logger.info(
@@ -251,7 +250,7 @@ def select_stock_videos(
             f"No videos found even with fallback queries for audio features: {audio_features}"
         )
         raise VideoSelectionError(
-            f"Could not find any suitable videos for query 	{final_query}	 or fallbacks across available sources."
+            f"Could not find any suitable videos for query \"{final_query}\" or fallbacks across available sources."
         )
 
     # --- Select Videos (Refactor to prioritize sources - Step 005) ---
@@ -259,16 +258,16 @@ def select_stock_videos(
     all_potential_videos = []
     for source_name, source_videos in videos_from_sources.items():
         for video in source_videos:
-            video[source] = source_name  # Add source information
+            video["source"] = source_name  # Add source information
             all_potential_videos.append(video)
 
     logger.info(f"Total potential videos gathered: {len(all_potential_videos)}")
 
     # Selection strategy: Prioritize videos from preferred sources first
     selected_videos_data = []
-    preferred_pool = [v for v in all_potential_videos if v[source] in preferred_sources]
+    preferred_pool = [v for v in all_potential_videos if v["source"] in preferred_sources]
     fallback_pool = [
-        v for v in all_potential_videos if v[source] not in preferred_sources
+        v for v in all_potential_videos if v["source"] not in preferred_sources
     ]
 
     # Shuffle within pools to maintain randomness
@@ -298,7 +297,7 @@ def select_stock_videos(
         if video_files:
             hq_link_info = max(
                 video_files,
-                key=lambda x: x.get(width, 0) * x.get(height, 0),
+                key=lambda x: x.get("width", 0) * x.get("height", 0),
                 default=None,
             )
 
@@ -342,7 +341,7 @@ def select_stock_videos(
             )
 
     logger.info(
-        f"Final selected videos ({len(final_selection)}): {[v[	 id	] for v in final_selection]}"
+        f"Final selected videos ({len(final_selection)}): {[v.get('id') for v in final_selection]}"
     )
     return final_selection
 
@@ -379,12 +378,12 @@ if __name__ == "__main__":
             logger.info(f"[MockTracker] log_clip_usage called: {log_entry}")
 
     # --- Test Scenarios ---
-    test_features_energetic = {tempo: 150.0, energy: 0.8, duration: 180.0}
+    test_features_energetic = {"tempo": 150.0, "energy": 0.8, "duration": 180.0}
     test_keywords = ["electronic", "synthwave"]
     test_release_id = "test_release_001"
 
     print("\n--- Testing Energetic Track with Tracker (Pexels Preferred) --- ")
-    # Scenario 1: Tracker prefers 	 pexels
+    # Scenario 1: Tracker prefers "pexels"
     mock_tracker_pexels_pref = MockStockSuccessTracker(top_sources=["pexels"])
     try:
         selected = select_stock_videos(
@@ -402,36 +401,99 @@ if __name__ == "__main__":
         print(json.dumps(mock_tracker_pexels_pref.usage_log, indent=2))
         # Verify source is likely pexels (though API might return nothing)
         if selected:
-            print(f"Selected video sources: {[v.get(	 source	) for v in selected]}")
+            print(f"Selected video sources: {[v.get('source') for v in selected]}")
 
-    except (VideoSelectionError, PexelsApiError) as e:
-        print(f"Error: {e}")
+    except (VideoSelectionError, PexelsApiError, AudioAnalysisError) as e:
+        logger.error(f"Test Scenario 1 failed: {e}")
     except Exception as e:
-        print(f"Unexpected Error: {e}", exc_info=True)
+        logger.error(f"Unexpected error in Test Scenario 1: {e}", exc_info=True)
 
-    print("\n--- Testing Energetic Track with Tracker (No Preference) --- ")
-    # Scenario 2: Tracker has no preference or fails
+    print("\n--- Testing Calm Track with Tracker (No Preference) --- ")
+    # Scenario 2: Tracker has no preference
+    test_features_calm = {"tempo": 80.0, "energy": 0.2, "duration": 240.0}
+    test_keywords_calm = ["ambient", "nature"]
+    test_release_id_2 = "test_release_002"
     mock_tracker_no_pref = MockStockSuccessTracker(top_sources=[])
     try:
         selected = select_stock_videos(
-            test_features_energetic,
-            query_keywords=test_keywords,
-            num_videos=1,
+            test_features_calm,
+            query_keywords=test_keywords_calm,
+            num_videos=3,
             tracker=mock_tracker_no_pref,
-            release_id="test_release_002",
+            release_id=test_release_id_2,
         )
         print("Selected Videos:")
-        import json
+        print(json.dumps(selected, indent=2))
+        print("\nMock Tracker Usage Log:")
+        print(json.dumps(mock_tracker_no_pref.usage_log, indent=2))
+        # Check sources (could be anything available)
+        if selected:
+            print(f"Selected video sources: {[v.get('source') for v in selected]}")
 
+    except (VideoSelectionError, PexelsApiError, AudioAnalysisError) as e:
+        logger.error(f"Test Scenario 2 failed: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error in Test Scenario 2: {e}", exc_info=True)
+
+    print("\n--- Testing with No Keywords (Fallback Expected) --- ")
+    # Scenario 3: No keywords, potentially leading to fallback
+    test_features_moderate = {"tempo": 110.0, "energy": 0.5, "duration": 120.0}
+    test_release_id_3 = "test_release_003"
+    # Assume tracker might prefer something non-existent to test fallback order
+    mock_tracker_bad_pref = MockStockSuccessTracker(top_sources=["nonexistent", "pexels"])
+    try:
+        selected = select_stock_videos(
+            test_features_moderate,
+            query_keywords=[],  # No keywords
+            num_videos=1,
+            tracker=mock_tracker_bad_pref,
+            release_id=test_release_id_3,
+        )
+        print("Selected Videos:")
+        print(json.dumps(selected, indent=2))
+        print("\nMock Tracker Usage Log:")
+        print(json.dumps(mock_tracker_bad_pref.usage_log, indent=2))
+        if selected:
+            print(f"Selected video sources: {[v.get('source') for v in selected]}")
+
+    except (VideoSelectionError, PexelsApiError, AudioAnalysisError) as e:
+        logger.error(f"Test Scenario 3 failed: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error in Test Scenario 3: {e}", exc_info=True)
+
+    print("\n--- Testing Failure Case (No API Key - Mocked) --- ")
+    # Scenario 4: Simulate API failure (e.g., no API key)
+    # This requires modifying PexelsClient or mocking it, which is complex here.
+    # Instead, we'll just note that error handling is present.
+    logger.info(
+        "Scenario 4: API failure simulation (conceptual - relies on PexelsClient error handling)."
+    )
+    # try:
+    #     # Code that would cause PexelsApiError
+    # except VideoSelectionError as e:
+    #     print(f"Expected failure occurred: {e}")
+
+    print("\n--- Testing Missing Audio Features --- ")
+    # Scenario 5: Missing essential audio features (should use defaults or handle gracefully)
+    test_features_missing = {"duration": 60.0}  # Missing tempo and energy
+    test_release_id_5 = "test_release_005"
+    try:
+        selected = select_stock_videos(
+            test_features_missing,
+            query_keywords=["simple"],
+            num_videos=1,
+            tracker=mock_tracker_no_pref,  # Use no preference tracker
+            release_id=test_release_id_5,
+        )
+        print("Selected Videos (Missing Features Test):")
         print(json.dumps(selected, indent=2))
         print("\nMock Tracker Usage Log:")
         print(json.dumps(mock_tracker_no_pref.usage_log, indent=2))
         if selected:
-            print(f"Selected video sources: {[v.get(	 source	) for v in selected]}")
+            print(f"Selected video sources: {[v.get('source') for v in selected]}")
 
-    except (VideoSelectionError, PexelsApiError) as e:
-        print(f"Error: {e}")
+    except (VideoSelectionError, PexelsApiError, AudioAnalysisError) as e:
+        logger.error(f"Test Scenario 5 failed: {e}")
     except Exception as e:
-        print(f"Unexpected Error: {e}", exc_info=True)
+        logger.error(f"Unexpected error in Test Scenario 5: {e}", exc_info=True)
 
-    # Note: Still requires PEXELS_API_KEY
