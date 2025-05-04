@@ -142,11 +142,11 @@ def select_stock_videos(
     final_query = " ".join(list(dict.fromkeys(base_query_parts)))
     if not final_query:
         logger.warning(
-            "Could not generate a meaningful query from features/keywords. Using default \"abstract\"."
+            'Could not generate a meaningful query from features/keywords. Using default "abstract".'
         )
         final_query = "abstract"
 
-    logger.info(f"Generated search query: \"{final_query}\"")
+    logger.info(f'Generated search query: "{final_query}"')
 
     # --- Search Sources (Refactor for prioritization - Step 005/006) ---
     found_videos = []
@@ -171,7 +171,7 @@ def select_stock_videos(
 
     for source_name in searched_sources_order:
         client = clients[source_name]
-        logger.info(f"Searching source: {source_name} with query: \"{final_query}\"")
+        logger.info(f'Searching source: {source_name} with query: "{final_query}"')
         try:
             # Assuming clients have a compatible search_videos method
             # TODO: Adapt this if client methods differ significantly
@@ -200,7 +200,7 @@ def select_stock_videos(
     # --- Fallback Query Logic (If initial search yields nothing) ---
     if not videos_from_sources:
         logger.warning(
-            f"No videos found across sources for query: \"{final_query}\". Trying fallback queries."
+            f'No videos found across sources for query: "{final_query}". Trying fallback queries.'
         )
         fallback_queries = [
             "abstract background",
@@ -212,13 +212,14 @@ def select_stock_videos(
         random.shuffle(fallback_queries)
 
         for fallback_query in fallback_queries:
-            logger.info(f"Attempting fallback query: \"{fallback_query}\"")
+            logger.info(f'Attempting fallback query: "{fallback_query}"')
             for (
                 source_name
             ) in searched_sources_order:  # Try sources in the same preferred order
                 client = clients[source_name]
                 logger.info(
-                    f"Searching source: {source_name} with fallback query: \"{fallback_query}\"")
+                    f'Searching source: {source_name} with fallback query: "{fallback_query}"'
+                )
                 try:
                     if source_name == "pexels":
                         search_results = client.search_videos(
@@ -250,7 +251,7 @@ def select_stock_videos(
             f"No videos found even with fallback queries for audio features: {audio_features}"
         )
         raise VideoSelectionError(
-            f"Could not find any suitable videos for query \"{final_query}\" or fallbacks across available sources."
+            f'Could not find any suitable videos for query "{final_query}" or fallbacks across available sources.'
         )
 
     # --- Select Videos (Refactor to prioritize sources - Step 005) ---
@@ -265,7 +266,9 @@ def select_stock_videos(
 
     # Selection strategy: Prioritize videos from preferred sources first
     selected_videos_data = []
-    preferred_pool = [v for v in all_potential_videos if v["source"] in preferred_sources]
+    preferred_pool = [
+        v for v in all_potential_videos if v["source"] in preferred_sources
+    ]
     fallback_pool = [
         v for v in all_potential_videos if v["source"] not in preferred_sources
     ]
@@ -440,7 +443,9 @@ if __name__ == "__main__":
     test_features_moderate = {"tempo": 110.0, "energy": 0.5, "duration": 120.0}
     test_release_id_3 = "test_release_003"
     # Assume tracker might prefer something non-existent to test fallback order
-    mock_tracker_bad_pref = MockStockSuccessTracker(top_sources=["nonexistent", "pexels"])
+    mock_tracker_bad_pref = MockStockSuccessTracker(
+        top_sources=["nonexistent", "pexels"]
+    )
     try:
         selected = select_stock_videos(
             test_features_moderate,
@@ -496,4 +501,3 @@ if __name__ == "__main__":
         logger.error(f"Test Scenario 5 failed: {e}")
     except Exception as e:
         logger.error(f"Unexpected error in Test Scenario 5: {e}", exc_info=True)
-
