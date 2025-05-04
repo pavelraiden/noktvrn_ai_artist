@@ -24,9 +24,12 @@ def _download_audio(audio_url: str) -> str | None:
         response.raise_for_status()
 
         # Create a temporary file
-        # Note: Ensure the temp file has an appropriate extension if librosa/soundfile needs it.
+        # Note: Ensure the temp file has an appropriate extension if
+        # librosa/soundfile needs it.
         # Using .wav as a common intermediate format.
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
+        with tempfile.NamedTemporaryFile(
+            suffix=".wav", delete=False
+        ) as tmp_file:
             for chunk in response.iter_content(chunk_size=8192):
                 tmp_file.write(chunk)
             logger.info(f"Audio downloaded temporarily to: {tmp_file.name}")
@@ -35,18 +38,20 @@ def _download_audio(audio_url: str) -> str | None:
         logger.error(f"Failed to download audio from {audio_url}: {e}")
         return None
     except IOError as e:
-        logger.error(f"Failed to write downloaded audio to temporary file: {e}")
+        logger.error(
+            f"Failed to write downloaded audio to temporary file: {e}"
+        )
         return None
 
 
 def analyze_audio(audio_path_or_url: str) -> dict | None:
-    """Analyzes an audio file (local path or URL) to extract tempo and duration.
+    """Analyzes an audio file (local path or URL) to extract tempo and         duration.
 
     Args:
         audio_path_or_url: Local path or URL to the audio file.
 
     Returns:
-        A dictionary containing {"tempo": float, "duration": float} or None if analysis fails.
+        A dictionary containing {"tempo": float, "duration":             float} or None if analysis fails.
     """
     local_path = None
     downloaded = False
@@ -54,7 +59,9 @@ def analyze_audio(audio_path_or_url: str) -> dict | None:
     if audio_path_or_url.startswith("http://") or audio_path_or_url.startswith(
         "https://"
     ):
-        logger.info(f"Downloading audio for analysis from: {audio_path_or_url}")
+        logger.info(
+            f"Downloading audio for analysis from: {audio_path_or_url}"
+        )
         local_path = _download_audio(audio_path_or_url)
         if not local_path:
             return None
@@ -67,12 +74,15 @@ def analyze_audio(audio_path_or_url: str) -> dict | None:
     elif os.path.exists(audio_path_or_url):
         local_path = audio_path_or_url
     else:
-        logger.error(f"Invalid audio path or URL provided: {audio_path_or_url}")
+        logger.error(
+            f"Invalid audio path or URL provided: {audio_path_or_url}"
+        )
         return None
 
     try:
         logger.info(f"Analyzing audio file: {local_path}")
-        # Load audio file using soundfile (more robust for different formats) and convert to mono if needed
+        # Load audio file using soundfile (more robust for different formats)
+        # and convert to mono if needed
         y, sr = sf.read(local_path)
         if y.ndim > 1:
             y = np.mean(y, axis=1)  # Convert to mono by averaging channels
@@ -85,12 +95,14 @@ def analyze_audio(audio_path_or_url: str) -> dict | None:
         tempo = float(tempo)  # Ensure tempo is float
 
         logger.info(
-            f"Analysis complete: Duration={duration:.2f}s, Tempo={tempo:.2f} BPM"
+            f"Analysis complete: Duration={duration:.2f}s, Tempo={tempo:                .2f} BPM"
         )
         return {"tempo": tempo, "duration": duration}
 
     except Exception as e:
-        logger.error(f"Error analyzing audio file {local_path}: {e}", exc_info=True)
+        logger.error(
+            f"Error analyzing audio file {local_path}: {e}", exc_info=True
+        )
         raise AudioAnalysisError(f"Failed to analyze audio: {e}") from e
     finally:
         # Clean up temporary file if downloaded
@@ -100,18 +112,16 @@ def analyze_audio(audio_path_or_url: str) -> dict | None:
                 logger.info(f"Cleaned up temporary audio file: {local_path}")
             except OSError as e:
                 logger.warning(
-                    f"Failed to clean up temporary audio file {local_path}: {e}"
+                    f"Failed to clean up temporary audio file {local_path}:                         {e}"
                 )
 
 
 # Example Usage
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    # Test with a known URL (replace with a valid, accessible audio URL for real testing)
+    # Test with a known URL (replace with a valid, accessible audio URL for     # real testing)
     # test_url = "https://example.com/some_audio.mp3" # Replace this
-    test_url = (
-        "https://example.com/mock-beat.mp3"  # Using the mock URL for structure test
-    )
+    test_url = "https://example.com/mock-beat.mp3"  # Using the mock URL for         structure test
 
     # Test with a local file (create a dummy file or use a real one)
     # dummy_file = "/tmp/dummy_audio.wav"
@@ -119,12 +129,13 @@ if __name__ == "__main__":
     # import numpy as np
     # sr_dummy = 22050
     # duration_dummy = 5
-    # y_dummy = np.sin(2 * np.pi * 440.0 * np.arange(sr_dummy * duration_dummy) / sr_dummy)
+    # y_dummy = np.sin(2 * np.pi * 440.0 * np.arange(sr_dummy * duration_dummy)     # / sr_dummy)
     # sf.write(dummy_file, y_dummy, sr_dummy)
     # test_local = dummy_file
 
     print(f"--- Testing URL Analysis ({test_url}) ---")
-    # This will fail download unless mock URL is replaced or server allows download
+    # This will fail download unless mock URL is replaced or server allows
+    # download
     analysis_result_url = analyze_audio(test_url)
     if analysis_result_url:
         print(f"URL Analysis Result: {analysis_result_url}")

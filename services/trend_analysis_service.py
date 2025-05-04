@@ -4,7 +4,7 @@ Service for analyzing trends using external data sources like social media.
 """
 
 import sys
-import json
+
 import logging
 
 # Add the data_api path
@@ -22,7 +22,9 @@ class TrendAnalysisService:
         self.api_client = ApiClient()
         logging.info("Trend Analysis Service initialized.")
 
-    def get_twitter_trends(self, query: str, count: int = 20, search_type: str = "Top"):
+    def get_twitter_trends(
+        self, query: str, count: int = 20, search_type: str = "Top"
+    ):
         """Fetches trends from Twitter based on a query."""
         try:
             logging.info(f"Fetching Twitter trends for query: {query}")
@@ -31,25 +33,31 @@ class TrendAnalysisService:
                 query={"query": query, "count": count, "type": search_type},
             )
             # Basic check for successful response structure
-            if response and "result" in response and "timeline" in response["result"]:
+            if (
+                response
+                and "result" in response
+                and "timeline" in response["result"]
+            ):
                 logging.info(
-                    f"Successfully fetched {len(response['result']['timeline'].get('instructions', []))} instructions from Twitter."
+                    f"Successfully fetched                         {len(response['result']['timeline'].get('instructions',                         []))} instructions from Twitter."
                 )
                 return response
             else:
                 logging.error(
-                    f"Unexpected response structure from Twitter API: {response}"
+                    f"Unexpected response structure from Twitter API:                         {response}"
                 )
                 return None
         except Exception as e:
-            logging.error(f"Error fetching Twitter trends for query '{query}': {e}")
+            logging.error(
+                f"Error fetching Twitter trends for query '{query}': {e}"
+            )
             return None
 
     def calculate_trend_score(self, twitter_data):
         """Calculates a basic trend score based on Twitter data.
 
         Placeholder implementation: Counts the number of tweets found.
-        More sophisticated scoring can be added later (e.g., engagement, velocity).
+        More sophisticated scoring can be added later (e.g., engagement,             velocity).
         """
         if (
             not twitter_data
@@ -63,7 +71,9 @@ class TrendAnalysisService:
 
         tweet_count = 0
         try:
-            instructions = twitter_data["result"]["timeline"].get("instructions", [])
+            instructions = twitter_data["result"]["timeline"].get(
+                "instructions", []
+            )
             for instruction in instructions:
                 if "entries" in instruction:
                     for entry in instruction["entries"]:
@@ -73,7 +83,9 @@ class TrendAnalysisService:
                             == "TimelineTimelineItem"
                         ):
                             tweet_count += 1
-            logging.info(f"Calculated trend score based on {tweet_count} tweets.")
+            logging.info(
+                f"Calculated trend score based on {tweet_count} tweets."
+            )
             return tweet_count
         except Exception as e:
             logging.error(f"Error calculating trend score: {e}")

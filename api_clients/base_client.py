@@ -36,10 +36,13 @@ class BaseApiClient:
             "Accept": "application/json",
         }
         logger.info(
-            f"{self.__class__.__name__} initialized for base URL: {self.base_url}"
+            f"{self.__class__.__name__} initialized "
+            f"for base URL: {self.base_url}"
         )
 
-    def _request(self, method: str, endpoint: str, **kwargs) -> requests.Response:
+    def _request(
+        self, method: str, endpoint: str, **kwargs
+    ) -> requests.Response:
         """Makes an HTTP request to the API.
 
         Args:
@@ -51,7 +54,8 @@ class BaseApiClient:
             The requests.Response object.
 
         Raises:
-            ApiClientError: If the request fails or returns an error status code.
+            ApiClientError: If the request fails or returns an error \
+                          status code.
         """
         # Fixed syntax error: Added missing closing parenthesis for lstrip
         url = f"{self.base_url}/{endpoint.lstrip('/')}"
@@ -84,21 +88,26 @@ class BaseApiClient:
         try:
             response = requests.request(method, url, headers=headers, **kwargs)
             logger.debug(f"Response Status Code: {response.status_code}")
-            # Log response body only if debugging is needed and content is not too large
+            # Log response body only if debugging is needed and content \
+            # is not too large
             # logger.debug(f"Response Body: {response.text[:500]}...")
 
-            response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
+            response.raise_for_status()  # Raise HTTPError for bad responses \
+            # (4xx or 5xx)
             return response
         except requests.exceptions.RequestException as e:
             logger.error(f"HTTP request failed: {e}", exc_info=True)
             raise ApiClientError(f"Request failed: {e}") from e
         except Exception as e:
             logger.error(
-                f"An unexpected error occurred during the request: {e}", exc_info=True
+                f"An unexpected error occurred during the request: {e}",
+                exc_info=True,
             )
             raise ApiClientError(f"An unexpected error occurred: {e}") from e
 
-    def _get(self, endpoint: str, params: dict | None = None, **kwargs) -> dict:
+    def _get(
+        self, endpoint: str, params: dict | None = None, **kwargs
+    ) -> dict:
         """Performs a GET request.
 
         Args:
@@ -114,7 +123,8 @@ class BaseApiClient:
             return response.json()
         except json.JSONDecodeError as e:
             logger.error(
-                f"Failed to decode JSON response from GET {endpoint}: {response.text[:500]}...",
+                f"Failed to decode JSON response from GET {endpoint}: "
+                f"{response.text[:500]}...",
                 exc_info=True,
             )
             raise ApiClientError(f"Invalid JSON response: {e}") from e
@@ -137,15 +147,19 @@ class BaseApiClient:
         Returns:
             The JSON response as a dictionary.
         """
-        response = self._request("POST", endpoint, json=json_data, data=data, **kwargs)
+        response = self._request(
+            "POST", endpoint, json=json_data, data=data, **kwargs
+        )
         try:
-            # Handle cases where POST might return empty body on success (e.g., 204 No Content)
+            # Handle cases where POST might return empty body on success
+            # (e.g., 204 No Content)
             if response.status_code == 204:
                 return {}
             return response.json()
         except json.JSONDecodeError as e:
             logger.error(
-                f"Failed to decode JSON response from POST {endpoint}: {response.text[:500]}...",
+                f"Failed to decode JSON response from POST {endpoint}: "
+                f"{response.text[:500]}...",
                 exc_info=True,
             )
             raise ApiClientError(f"Invalid JSON response: {e}") from e

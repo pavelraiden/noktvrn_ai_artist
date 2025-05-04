@@ -33,7 +33,8 @@ def mock_llm_orchestrator():
     "ai_artist_system.noktvrn_ai_artist.artist_builder.prompt_adaptation.prompt_adaptation_pipeline.LLMOrchestrator"
 )
 def prompt_adapter(MockLLMOrchestrator, mock_llm_orchestrator):
-    """Provides an instance of PromptAdaptationPipeline with mocked LLMOrchestrator."""
+    """Provides an instance of PromptAdaptationPipeline with mocked
+    LLMOrchestrator."""
     # Configure the mock LLMOrchestrator class to return our instance
     MockLLMOrchestrator.return_value = mock_llm_orchestrator
     return PromptAdaptationPipeline()

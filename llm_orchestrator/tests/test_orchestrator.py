@@ -9,18 +9,14 @@ import sys
 import os
 import unittest
 import asyncio
-import json
-import uuid
 import tempfile
 import shutil
 from pathlib import Path
-from typing import Dict, Any, Optional
 
 # Add the parent directory to the path to import the modules
 sys.path.append(str(Path(__file__).parent.parent))
 
 from llm_orchestrator.llm_interface import (
-    LLMProvider,
     LLMRequest,
     LLMResponse,
     LLMRequestType,
@@ -36,7 +32,11 @@ from llm_orchestrator.orchestrator import (
     OrchestratorFactory,
 )
 
-from llm_orchestrator.session_manager import Session, SessionStatus, SessionManager
+from llm_orchestrator.session_manager import (
+    Session,
+    SessionStatus,
+    SessionManager,
+)
 
 
 class TestLLMInterface(unittest.TestCase):
@@ -186,9 +186,13 @@ class TestOrchestrator(unittest.TestCase):
         self.assertEqual(recreated_result.status, result.status)
         self.assertEqual(recreated_result.content, result.content)
         self.assertEqual(recreated_result.iterations, result.iterations)
-        self.assertEqual(recreated_result.confidence_score, result.confidence_score)
+        self.assertEqual(
+            recreated_result.confidence_score, result.confidence_score
+        )
         self.assertEqual(len(recreated_result.history), len(result.history))
-        self.assertEqual(recreated_result.history[0]["type"], result.history[0]["type"])
+        self.assertEqual(
+            recreated_result.history[0]["type"], result.history[0]["type"]
+        )
 
     async def test_orchestrator_factory(self):
         """Test OrchestratorFactory functionality."""
@@ -223,14 +227,17 @@ class TestOrchestrator(unittest.TestCase):
             "max_iterations": 3,
         }
 
-        orchestrator = OrchestratorFactory.create_orchestrator_from_config(config)
+        orchestrator = OrchestratorFactory.create_orchestrator_from_config(
+            config
+        )
         self.assertIsInstance(orchestrator, Orchestrator)
         self.assertEqual(orchestrator.confidence_threshold, 0.8)
         self.assertEqual(orchestrator.max_iterations, 3)
 
     async def test_orchestrate_prompt(self):
         """Test orchestrating a prompt."""
-        # Create an orchestrator with a high confidence threshold to ensure multiple iterations
+        # Create an orchestrator with a high confidence threshold to ensure
+        # multiple iterations
         orchestrator = OrchestratorFactory.create_default_orchestrator(
             confidence_threshold=0.95, max_iterations=3
         )
@@ -307,7 +314,9 @@ class TestSessionManager(unittest.TestCase):
     def test_create_session(self):
         """Test creating a session."""
         # Create a session
-        session = self.session_manager.create_session(metadata={"user_id": "test_user"})
+        session = self.session_manager.create_session(
+            metadata={"user_id": "test_user"}
+        )
 
         # Check the session
         self.assertIsNotNone(session)
@@ -331,7 +340,9 @@ class TestSessionManager(unittest.TestCase):
         self.assertEqual(retrieved_session.id, session.id)
 
         # Try to get a non-existent session
-        non_existent_session = self.session_manager.get_session("non_existent_id")
+        non_existent_session = self.session_manager.get_session(
+            "non_existent_id"
+        )
         self.assertIsNone(non_existent_session)
 
     def test_add_orchestration_to_session(self):
@@ -361,7 +372,9 @@ class TestSessionManager(unittest.TestCase):
         # Check the retrieved orchestration
         self.assertIsNotNone(retrieved_orchestration)
         self.assertEqual(retrieved_orchestration.id, orchestration.id)
-        self.assertEqual(retrieved_orchestration.content, orchestration.content)
+        self.assertEqual(
+            retrieved_orchestration.content, orchestration.content
+        )
 
     def test_session_lifecycle(self):
         """Test the session lifecycle."""
@@ -386,9 +399,15 @@ class TestSessionManager(unittest.TestCase):
         self.assertEqual(failed_session.status, SessionStatus.FAILED)
 
         # List sessions
-        active_sessions = self.session_manager.list_sessions(SessionStatus.ACTIVE)
-        completed_sessions = self.session_manager.list_sessions(SessionStatus.COMPLETED)
-        failed_sessions = self.session_manager.list_sessions(SessionStatus.FAILED)
+        active_sessions = self.session_manager.list_sessions(
+            SessionStatus.ACTIVE
+        )
+        completed_sessions = self.session_manager.list_sessions(
+            SessionStatus.COMPLETED
+        )
+        failed_sessions = self.session_manager.list_sessions(
+            SessionStatus.FAILED
+        )
 
         # Check the session lists
         self.assertEqual(len(active_sessions), 0)
@@ -437,13 +456,17 @@ class TestIntegration(unittest.TestCase):
         self.assertIn(result.id, updated_session.orchestrations)
 
         # Get the orchestration from the session
-        retrieved_result = self.session_manager.get_orchestration(session.id, result.id)
+        retrieved_result = self.session_manager.get_orchestration(
+            session.id, result.id
+        )
 
         # Check the retrieved result
         self.assertIsNotNone(retrieved_result)
         self.assertEqual(retrieved_result.id, result.id)
         self.assertEqual(retrieved_result.content, result.content)
-        self.assertEqual(retrieved_result.confidence_score, result.confidence_score)
+        self.assertEqual(
+            retrieved_result.confidence_score, result.confidence_score
+        )
 
 
 def run_async_test(test_func):

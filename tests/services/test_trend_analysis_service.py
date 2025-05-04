@@ -7,11 +7,14 @@ import sys
 import json
 
 # Add project root to sys.path to allow importing services
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+PROJECT_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..")
+)
 sys.path.append(PROJECT_ROOT)
 
 # Mock the data_api module before importing the service
-# This prevents the service from trying to import the real ApiClient during test collection
+# This prevents the service from trying to import the real ApiClient during
+# test collection
 from unittest.mock import Mock
 
 sys.modules["data_api"] = Mock()
@@ -34,13 +37,19 @@ def mock_api_client(mocker):
                     {
                         "entries": [
                             {
-                                "content": {"entryType": "TimelineTimelineItem"}
+                                "content": {
+                                    "entryType": "TimelineTimelineItem"
+                                }
                             },  # Tweet 1
                             {
-                                "content": {"entryType": "TimelineTimelineItem"}
+                                "content": {
+                                    "entryType": "TimelineTimelineItem"
+                                }
                             },  # Tweet 2
                             {
-                                "content": {"entryType": "TimelineTimelineCursor"}
+                                "content": {
+                                    "entryType": "TimelineTimelineCursor"
+                                }
                             },  # Cursor
                         ]
                     }
@@ -50,14 +59,16 @@ def mock_api_client(mocker):
     }
     # Patch the ApiClient class within the trend_analysis_service module
     mocker.patch(
-        "services.trend_analysis_service.ApiClient", return_value=mock_client_instance
+        "services.trend_analysis_service.ApiClient",
+        return_value=mock_client_instance,
     )
     return mock_client_instance
 
 
 @pytest.fixture
 def trend_service(mock_api_client):  # Depends on the mock_api_client fixture
-    """Provides an instance of the TrendAnalysisService with a mocked ApiClient."""
+    """Provides an instance of the TrendAnalysisService with a mocked
+    ApiClient."""
     # The ApiClient is already patched by mock_api_client fixture
     service = TrendAnalysisService()
     # Attach the mock client instance for inspection if needed
@@ -119,7 +130,9 @@ def test_calculate_trend_score_no_tweets(trend_service):
                     {
                         "entries": [
                             {
-                                "content": {"entryType": "TimelineTimelineCursor"}
+                                "content": {
+                                    "entryType": "TimelineTimelineCursor"
+                                }
                             }  # Only cursor
                         ]
                     }
@@ -136,7 +149,9 @@ def test_calculate_trend_score_empty_response(trend_service):
     assert trend_service.calculate_trend_score(None) == 0
     assert trend_service.calculate_trend_score({}) == 0
     assert trend_service.calculate_trend_score({"result": {}}) == 0
-    assert trend_service.calculate_trend_score({"result": {"timeline": {}}}) == 0
+    assert (
+        trend_service.calculate_trend_score({"result": {"timeline": {}}}) == 0
+    )
     assert (
         trend_service.calculate_trend_score(
             {"result": {"timeline": {"instructions": []}}}
@@ -158,7 +173,11 @@ def test_get_twitter_trends_api_error(trend_service):
     # Assert that call_api was called
     trend_service.mock_api_client.call_api.assert_called_once_with(
         "Twitter/search_twitter",
-        query={"query": query, "count": 20, "type": "Top"},  # Default count/type
+        query={
+            "query": query,
+            "count": 20,
+            "type": "Top",
+        },  # Default count/type
     )
 
     # Assert that the method returned None or handled the error appropriately
@@ -166,6 +185,7 @@ def test_get_twitter_trends_api_error(trend_service):
 
 
 def test_calculate_trend_score_after_api_error(trend_service):
-    """Test calculating score when the input is None (simulating previous API error)."""
+    """Test calculating score when the input is None (simulating previous API
+    error)."""
     score = trend_service.calculate_trend_score(None)
     assert score == 0

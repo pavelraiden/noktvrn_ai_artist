@@ -1,16 +1,14 @@
 # /home/ubuntu/ai_artist_system_clone/services/error_analysis_service.py
 """
-Service for analyzing log files, identifying errors, attempting auto-fixing,
-and logging results to the database.
+Service for analyzing log files, identifying errors, attempting auto-fixing, and logging results to the database.
 """
 
 import logging
 import os
 import sys
 import asyncio
-import re
-import time
 import traceback
+import tempfile # Added import
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 
@@ -20,17 +18,27 @@ sys.path.append(PROJECT_ROOT)
 
 # --- Import necessary components ---
 try:
-    from llm_orchestrator.orchestrator import LLMOrchestrator, LLMOrchestratorError
+    from llm_orchestrator.orchestrator import (
+        LLMOrchestrator,
+        LLMOrchestratorError,
+    )
     from services.telegram_service import send_notification
 
     # Import DB functions for error reporting
-    from services.artist_db_service import add_error_report, update_error_report_status
+    from services.artist_db_service import (
+        add_error_report,
+        update_error_report_status,
+    )
+    db_imports_successful = True # Added flag
 except ImportError as e:
     logging.basicConfig(level=logging.ERROR)
-    logging.error(f"Failed to import core modules for ErrorAnalysisService: {e}")
+    logging.error(
+        f"Failed to import core modules for ErrorAnalysisService: {e}"
+    )
     # Define dummy functions if imports fail to allow basic structure
     LLMOrchestrator = None
     LLMOrchestratorError = Exception
+    db_imports_successful = False # Added flag
 
     async def send_notification(message: str):
         print(f"[Dummy Notify] {message}")
@@ -41,7 +49,9 @@ except ImportError as e:
         return 1  # Dummy ID
 
     def update_error_report_status(
-        report_id: int, new_status: str, update_data: Optional[Dict[str, Any]] = None
+        report_id: int,
+        new_status: str,
+        update_data: Optional[Dict[str, Any]] = None,
     ) -> bool:
         # Modified dummy to accept update_data
         print(
@@ -63,9 +73,9 @@ ERROR_ANALYSIS_TEMPERATURE = float(os.getenv("ERROR_ANALYSIS_TEMPERATURE", 0.5))
 ENGINEER_LLM_PRIMARY = os.getenv(
     "ENGINEER_LLM_PRIMARY", "deepseek:deepseek-coder"
 )  # Use a coder model if available
-ENGINEER_LLM_FALLBACKS = os.getenv("ENGINEER_LLM_FALLBACKS", "gemini:gemini-pro").split(
-    ","
-)
+ENGINEER_LLM_FALLBACKS = os.getenv(
+    "ENGINEER_LLM_FALLBACKS", "gemini:gemini-pro"
+).split(",")
 ENGINEER_MAX_TOKENS = int(os.getenv("ENGINEER_MAX_TOKENS", 1500))
 ENGINEER_TEMPERATURE = float(os.getenv("ENGINEER_TEMPERATURE", 0.3))
 AUTO_FIX_ENABLED = os.getenv("AUTO_FIX_ENABLED", "False").lower() == "true"
@@ -101,7 +111,9 @@ class ErrorAnalysisService:
                 )
                 logger.info("Log Analyzer LLM Orchestrator initialized.")
             except Exception as e:
-                logger.error(f"Failed to initialize Log Analyzer LLM Orchestrator: {e}")
+                logger.error(
+                    f"Failed to initialize Log Analyzer LLM Orchestrator: {e}"
+                )
 
             try:
                 self.llm_engineer = LLMOrchestrator(
@@ -112,7 +124,9 @@ class ErrorAnalysisService:
                 )
                 logger.info("Engineer LLM Orchestrator initialized.")
             except Exception as e:
-                logger.error(f"Failed to initialize Engineer LLM Orchestrator: {e}")
+                logger.error(
+                    f"Failed to initialize Engineer LLM Orchestrator: {e}"
+                )
         else:
             logger.error(
                 "LLM Orchestrator not available. Error analysis and fixing disabled."
@@ -125,29 +139,41 @@ class ErrorAnalysisService:
             try:
                 await self.check_for_errors()
             except Exception as e:
-                logger.error(f"Error during log monitoring cycle: {e}", exc_info=True)
+                logger.error(
+                    f"Error during log monitoring cycle: {e}", exc_info=True
+                )
                 # Log monitoring failure to DB and notify
-                error_report_id = add_error_report(
-                    {
-                        "timestamp": datetime.utcnow().isoformat(),
-                        "error_log": f"Monitoring loop failed: {traceback.format_exc()}",
-                        "status": "monitor_failed",
-                        "service_name": SERVICE_NAME,
-                    }
-                )
-                await send_notification(
-                    f"🚨 Error Analysis Service Alert: Monitoring loop failed! Error: {e}. Report ID: {error_report_id}"
-                )
+                if db_imports_successful: # Check if DB functions available
+                    error_report_id = add_error_report(
+                        {
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "error_log": f"Monitoring loop failed: {traceback.format_exc()}",
+                            "status": "monitor_failed",
+                            "service_name": SERVICE_NAME,
+                        }
+                    )
+                    await send_notification(
+                        f"🚨 Error Analysis Service Alert: Monitoring loop failed! Error: {e}. Report ID: {error_report_id}"
+                    )
+                else:
+                    await send_notification(
+                        f"🚨 Error Analysis Service Alert: Monitoring loop failed! Error: {e}. DB logging unavailable."
+                    )
+
             await asyncio.sleep(MONITOR_INTERVAL_SECONDS)
 
     async def check_for_errors(self):
         """Checks the log file for errors since the last check."""
         if not os.path.exists(LOG_FILE_TO_MONITOR):
-            logger.warning(f"Log file {LOG_FILE_TO_MONITOR} not found. Skipping check.")
+            logger.warning(
+                f"Log file {LOG_FILE_TO_MONITOR} not found. Skipping check."
+            )
             return
 
         current_check_time = datetime.utcnow()
         new_errors = []
+        current_service = "unknown" # Track current service context
+
         try:
             with open(LOG_FILE_TO_MONITOR, "r") as f:
                 lines = f.readlines()
@@ -177,11 +203,13 @@ class ErrorAnalysisService:
                             "ERROR",
                             "CRITICAL",
                         ]:
-                            current_service = potential_service
+                            current_service = potential_service # Update current service context
 
                 except (ValueError, IndexError):
                     # If parsing fails or line format is wrong, check if part of a traceback
-                    if in_error_block and line.startswith((" ", "\t", "Traceback")):
+                    if in_error_block and line.startswith(
+                        (" ", "\t", "Traceback")
+                    ):
                         error_block.append(line.strip())
                     else:
                         if in_error_block:
@@ -204,15 +232,18 @@ class ErrorAnalysisService:
                             # Start of a new error block, include context lines before
                             start_context = max(0, i - ERROR_CONTEXT_LINES)
                             error_block.extend(
-                                [l.strip() for l in lines[start_context:i]]
+                                [
+                                    log_line.strip()
+                                    for log_line in lines[start_context:i]
+                                ]
                             )
                             in_error_block = True
                             error_timestamp = log_timestamp.isoformat()
-                            error_service = (
-                                current_service  # Capture service at error start
-                            )
+                            error_service = current_service  # Capture service at error start
                         error_block.append(line.strip())
-                    elif in_error_block and line.startswith((" ", "\t", "Traceback")):
+                    elif in_error_block and line.startswith(
+                        (" ", "\t", "Traceback")
+                    ):
                         # Part of a traceback for a recent error
                         error_block.append(line.strip())
                     elif in_error_block:
@@ -244,24 +275,31 @@ class ErrorAnalysisService:
                 f"Error reading or parsing log file {LOG_FILE_TO_MONITOR}: {e}"
             )
             # Log parsing failure to DB and notify
-            error_report_id = add_error_report(
-                {
-                    "timestamp": datetime.utcnow().isoformat(),
-                    "error_log": f"Log file parsing failed: {traceback.format_exc()}",
-                    "status": "parse_failed",
-                    "service_name": SERVICE_NAME,
-                }
-            )
-            await send_notification(
-                f"🚨 Error Analysis Service Alert: Failed to read/parse log file {LOG_FILE_TO_MONITOR}. Error: {e}. Report ID: {error_report_id}"
-            )
+            if db_imports_successful:
+                error_report_id = add_error_report(
+                    {
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "error_log": f"Log file parsing failed: {traceback.format_exc()}",
+                        "status": "parse_failed",
+                        "service_name": SERVICE_NAME,
+                    }
+                )
+                await send_notification(
+                    f"🚨 Error Analysis Service Alert: Failed to read/parse log file {LOG_FILE_TO_MONITOR}. Error: {e}. Report ID: {error_report_id}"
+                )
+            else:
+                 await send_notification(
+                    f"🚨 Error Analysis Service Alert: Failed to read/parse log file {LOG_FILE_TO_MONITOR}. Error: {e}. DB logging unavailable."
+                )
             self.last_check_time = current_check_time
             return
 
         self.last_check_time = current_check_time
 
         if new_errors:
-            logger.info(f"Found {len(new_errors)} new error block(s) in log file.")
+            logger.info(
+                f"Found {len(new_errors)} new error block(s) in log file."
+            )
             # Process the first significant new error to avoid spamming
             first_error = new_errors[0]
             error_log_content = first_error["log"]
@@ -271,18 +309,24 @@ class ErrorAnalysisService:
                 self.last_error_hash = error_hash
                 self.error_count = 1
                 # Add initial report to DB
-                report_id = add_error_report(
-                    {
-                        "timestamp": first_error["timestamp"],
-                        "error_hash": error_hash,
-                        "error_log": error_log_content,
-                        "status": "new",
-                        "service_name": first_error["service"],
-                    }
-                )
+                report_id = None
+                if db_imports_successful:
+                    report_id = add_error_report(
+                        {
+                            "timestamp": first_error["timestamp"],
+                            "error_hash": error_hash,
+                            "error_log": error_log_content,
+                            "status": "new",
+                            "service_name": first_error["service"],
+                        }
+                    )
+
                 if report_id:
-                    await self.analyze_and_fix_error(report_id, error_log_content)
+                    await self.analyze_and_fix_error(
+                        report_id, error_log_content
+                    )
                 else:
+                    # Log locally and notify if DB add failed or unavailable
                     logger.error(
                         "Failed to add initial error report to database. Aborting analysis."
                     )
@@ -314,9 +358,12 @@ class ErrorAnalysisService:
             logger.error(
                 "LLM Orchestrators not available. Cannot analyze or fix error."
             )
-            update_error_report_status(
-                report_id, "analysis_failed", {"analysis": "LLM services unavailable"}
-            )
+            if db_imports_successful:
+                update_error_report_status(
+                    report_id,
+                    "analysis_failed",
+                    {"analysis": "LLM services unavailable"},
+                )
             await send_notification(
                 f"🚨 Error Analysis Failed (Report ID: {report_id}): LLM services unavailable. Manual intervention required."
             )
@@ -326,7 +373,7 @@ class ErrorAnalysisService:
         analysis_result = None
         analysis_status = "analyzed"
         analysis_prompt = f"""
-        Analyze the following error log from a Python application (AI Artist System). 
+        Analyze the following error log from a Python application (AI Artist System).
         Identify the root cause, the affected module/function, and suggest a general approach to fix it.
         Focus on actionable insights.
 
@@ -346,223 +393,277 @@ class ErrorAnalysisService:
             if not analysis_result:
                 logger.error("LLM analysis returned empty result.")
                 analysis_status = "analysis_failed"
-                analysis_result = "LLM analysis returned empty."
-            else:
-                logger.info(
-                    f"LLM Analysis Result (Report ID: {report_id}): {analysis_result}"
-                )
-                await send_notification(
-                    f"📊 Error Analysis Complete (Report ID: {report_id}):\n{analysis_result}"
-                )
-        except Exception as e:
+                analysis_result = "LLM analysis returned empty result."
+        except LLMOrchestratorError as e:
             logger.error(f"LLM analysis failed: {e}")
             analysis_status = "analysis_failed"
-            analysis_result = f"LLM analysis step encountered an error: {e}"
+            analysis_result = f"LLM analysis failed: {e}"
+        except Exception as e:
+            logger.error(f"Unexpected error during LLM analysis: {e}", exc_info=True)
+            analysis_status = "analysis_failed"
+            analysis_result = f"Unexpected error during analysis: {e}"
+
+        # Log analysis result
+        if db_imports_successful:
+            update_error_report_status(
+                report_id, analysis_status, {"analysis": analysis_result}
+            )
+
+        if analysis_status == "analysis_failed":
             await send_notification(
                 f"🚨 Error Analysis Failed (Report ID: {report_id}): {analysis_result}. Manual intervention required."
             )
+            return
 
-        # Update DB with analysis result and status
-        update_error_report_status(
-            report_id, analysis_status, {"analysis": analysis_result}
+        logger.info(f"Error analysis complete (Report ID: {report_id}). Result:\n{analysis_result}")
+        await send_notification(
+            f"ℹ️ Error Analysis Complete (Report ID: {report_id}). Analysis:\n{analysis_result}"
         )
 
-        if analysis_status == "analysis_failed":
-            return  # Stop if analysis failed
+        # 2. Attempt Auto-Fix (if enabled and analysis successful)
+        if AUTO_FIX_ENABLED and analysis_status == "analyzed":
+            logger.info(f"Attempting auto-fix for error (Report ID: {report_id})...")
+            fix_status = "fix_attempted"
+            fix_details = ""
 
-        # 2. Generate Fix (if analysis successful)
-        fix_suggestion = None
-        fix_status = "fix_suggested"
-        engineer_prompt = f"""
-        Based on the following error log and analysis, generate a potential code patch in `diff` format to fix the issue.
-        If a code patch is not feasible, suggest specific configuration changes or manual steps.
-        Prioritize simple, targeted fixes.
-        Ensure the patch applies cleanly to standard Python code.
-        If suggesting code, provide ONLY the diff block starting with --- and +++ lines, including relative file paths (e.g., --- a/services/some_service.py).
-
-        Error Log:
-        ```
-        {error_log}
-        ```
-
-        Analysis:
-        ```
-        {analysis_result}
-        ```
-
-        Suggested Fix (Diff format or steps):
-        """
-        try:
-            fix_suggestion = await self.llm_engineer.generate(
-                prompt=engineer_prompt,
-                max_tokens=ENGINEER_MAX_TOKENS,
-                temperature=ENGINEER_TEMPERATURE,
+            # Extract relevant file path from error log (simple approach)
+            file_path_match = next(
+                (line for line in error_log.splitlines() if 'File "' in line), None
             )
-            if not fix_suggestion:
-                logger.error("LLM fix generation returned empty result.")
+            target_file = None
+            if file_path_match:
+                try:
+                    # Extract path between quotes
+                    target_file = file_path_match.split('"')[1]
+                    # Make path absolute if relative to project root
+                    if not os.path.isabs(target_file) and PROJECT_ROOT:
+                         potential_path = os.path.join(PROJECT_ROOT, target_file)
+                         if os.path.exists(potential_path):
+                              target_file = potential_path
+                         else:
+                              logger.warning(f"Could not resolve relative path: {target_file}")
+                              target_file = None # Reset if path invalid
+                except IndexError:
+                    logger.warning("Could not parse file path from error log line.")
+
+            if not target_file or not os.path.exists(target_file):
                 fix_status = "fix_failed"
-                fix_suggestion = "LLM fix generation returned empty."
+                fix_details = "Could not identify or find the affected file from the error log."
+                logger.error(fix_details)
             else:
-                logger.info(
-                    f"LLM Fix Suggestion (Report ID: {report_id}): {fix_suggestion}"
-                )
-                # Assume diff format for notification, but log full suggestion
-                await send_notification(
-                    f"🛠️ Potential Fix Suggested (Report ID: {report_id}):\n```diff\n{fix_suggestion}\n```"
-                )
-        except Exception as e:
-            logger.error(f"LLM fix generation failed: {e}")
-            fix_status = "fix_failed"
-            fix_suggestion = f"LLM engineer step encountered an error: {e}"
-            await send_notification(
-                f"🚨 Fix Generation Failed (Report ID: {report_id}): {fix_suggestion}. Manual intervention required."
-            )
+                logger.info(f"Identified target file for patching: {target_file}")
+                try:
+                    with open(target_file, "r") as f:
+                        file_content = f.read()
 
-        # Update DB with fix suggestion and status
-        update_error_report_status(
-            report_id, fix_status, {"fix_suggestion": fix_suggestion}
-        )
+                    fix_prompt = f"""
+                    Given the following Python code from file '{target_file}' and the error log analysis, generate a patch in standard diff format (`diff -u`) to fix the error.
+                    Only output the patch content, nothing else.
 
-        if fix_status == "fix_failed":
-            return  # Stop if fix generation failed
+                    File Content (`{target_file}`):
+                    ```python
+                    {file_content}
+                    ```
 
-        # 3. Apply Fix (Optional)
-        apply_status = "fix_skipped"
-        if (
-            AUTO_FIX_ENABLED
-            and fix_suggestion
-            and "--- a/" in fix_suggestion
-            and "+++ b/" in fix_suggestion
-        ):
-            logger.info(
-                f"Auto-fix enabled. Attempting to apply patch (Report ID: {report_id})..."
-            )
-            apply_status = "fix_attempted"
-            update_error_report_status(report_id, apply_status)
-            success = await self.apply_git_patch(fix_suggestion)
-            if success:
-                apply_status = "fix_applied"
-                logger.info(
-                    f"Auto-fix patch applied successfully (Report ID: {report_id})."
-                )
-                await send_notification(
-                    f"✅ Auto-Fix Applied Successfully (Report ID: {report_id})! Monitoring for recurrence."
-                )
-            else:
-                apply_status = "fix_failed"
-                logger.error(
-                    f"Auto-fix patch application failed (Report ID: {report_id})."
-                )
-                await send_notification(
-                    f"❌ Auto-Fix Failed (Report ID: {report_id}): Could not apply suggested patch. Manual intervention required."
-                )
-            # Update DB with final apply status
-            update_error_report_status(report_id, apply_status)
-        elif AUTO_FIX_ENABLED:
-            apply_status = "fix_skipped_invalid"
-            logger.warning(
-                f"Auto-fix enabled, but suggestion is not a valid diff patch (Report ID: {report_id}). Manual intervention required."
-            )
-            await send_notification(
-                f"⚠️ Auto-Fix Skipped (Report ID: {report_id}): Suggestion is not a diff patch. Manual intervention required."
-            )
-            update_error_report_status(report_id, apply_status)
-        else:
-            logger.info(
-                f"Auto-fix disabled (Report ID: {report_id}). Manual intervention required to apply the fix."
-            )
-            # Status remains 'fix_suggested' or 'fix_failed' from previous step
+                    Error Log:
+                    ```
+                    {error_log}
+                    ```
 
-    async def apply_git_patch(self, patch_content: str) -> bool:
-        """Applies a patch using git apply. Assumes running in the repo root."""
-        # Caution: This is a simplified example. Real implementation needs robust error handling,
-        # path validation, and potentially running in a specific directory.
-        patch_file = os.path.join(PROJECT_ROOT, "temp_fix.patch")
+                    Error Analysis:
+                    ```
+                    {analysis_result}
+                    ```
+
+                    Patch:
+                    """
+                    patch_content = await self.llm_engineer.generate(
+                        prompt=fix_prompt,
+                        max_tokens=ENGINEER_MAX_TOKENS,
+                        temperature=ENGINEER_TEMPERATURE,
+                    )
+
+                    if not patch_content or not patch_content.strip().startswith(("--- ", "+++ ")):
+                        fix_status = "fix_failed"
+                        fix_details = "LLM did not generate a valid patch."
+                        logger.error(f"{fix_details} Raw output: {patch_content}")
+                    else:
+                        logger.info(f"Generated patch:\n{patch_content}")
+                        fix_details = patch_content # Store the generated patch
+                        # Apply the patch
+                        patch_applied = await self._apply_patch(report_id, patch_content)
+                        if patch_applied:
+                            fix_status = "fix_applied"
+                            logger.info("Auto-fix patch applied successfully.")
+                            await send_notification(
+                                f"✅ Auto-fix Applied (Report ID: {report_id})! Patch applied successfully."
+                            )
+                        else:
+                            fix_status = "fix_failed"
+                            # Details already logged in _apply_patch
+                            logger.error("Auto-fix patch application failed.")
+                            # Notification sent by _apply_patch on failure
+
+                except FileNotFoundError:
+                    fix_status = "fix_failed"
+                    fix_details = f"Target file {target_file} not found during fix attempt."
+                    logger.error(fix_details)
+                except LLMOrchestratorError as e:
+                    fix_status = "fix_failed"
+                    fix_details = f"LLM patch generation failed: {e}"
+                    logger.error(fix_details)
+                except Exception as e:
+                    fix_status = "fix_failed"
+                    fix_details = f"Unexpected error during auto-fix attempt: {e}"
+                    logger.error(fix_details, exc_info=True)
+
+            # Update DB with fix status
+            if db_imports_successful:
+                update_error_report_status(
+                    report_id, fix_status, {"fix_details": fix_details}
+                )
+            if fix_status == "fix_failed":
+                 await send_notification(
+                     f"❌ Auto-fix Failed (Report ID: {report_id}): {fix_details}. Manual intervention required."
+                 )
+
+        elif not AUTO_FIX_ENABLED:
+            logger.info("Auto-fix is disabled. Skipping fix attempt.")
+            if db_imports_successful:
+                update_error_report_status(report_id, "fix_skipped_disabled")
+        else: # analysis failed previously
+             logger.info("Skipping fix attempt due to failed analysis.")
+             # Status already updated during analysis failure
+
+
+    async def _apply_patch(self, report_id: int, patch_content: str) -> bool:
+        """Applies the generated patch using git apply."""
+        patch_file = None
         try:
-            # Ensure patch content ends with a newline for git apply
-            if not patch_content.endswith("\n"):
-                patch_content += "\n"
-
-            with open(patch_file, "w") as f:
+            # Create a temporary file for the patch
+            with tempfile.NamedTemporaryFile(
+                mode="w", delete=False, suffix=".patch", prefix=f"errorfix_{report_id}_"
+            ) as f:
+                patch_file = f.name
                 f.write(patch_content)
+            logger.debug(f"Patch content written to temporary file: {patch_file}")
 
+            # --- Corrected Block Start ---
             # Run git apply --check first
+            logger.debug(f"Running git apply --check --verbose {patch_file}")
             proc_check = await asyncio.create_subprocess_shell(
                 f"git apply --check --verbose {patch_file}",  # Add verbose for more info
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=PROJECT_ROOT,
+                cwd=PROJECT_ROOT, # Ensure command runs in the correct directory
             )
             stdout_check, stderr_check = await proc_check.communicate()
-            logger.debug(f"git apply --check stdout:\n{stdout_check.decode()}")
+
+            # Log stdout and stderr for debugging
+            stdout_decoded = stdout_check.decode().strip()
+            stderr_decoded = stderr_check.decode().strip()
+            if stdout_decoded:
+                logger.debug(f"git apply --check stdout:\n{stdout_decoded}")
+            if stderr_decoded:
+                 # Stderr might contain warnings even on success, log as debug/info
+                logger.debug(f"git apply --check stderr:\n{stderr_decoded}")
 
             if proc_check.returncode != 0:
-                logger.error(f"git apply --check failed:\n{stderr_check.decode()}")
+                logger.error(
+                    f"git apply --check failed with return code {proc_check.returncode}."
+                )
+                # Log stderr specifically on failure
+                if stderr_decoded:
+                     logger.error(f"Error details:\n{stderr_decoded}")
+                # Update DB status for check failure
+                if db_imports_successful:
+                    update_error_report_status(
+                        report_id,
+                        "fix_failed",
+                        {"fix_details": f"git apply --check failed: {stderr_decoded}"},
+                    )
+                await send_notification(
+                     f"❌ Auto-fix Failed (Report ID: {report_id}): git apply --check command failed."
+                 )
                 return False
             else:
-                logger.info("git apply --check successful.")
+                logger.info("git apply --check passed successfully.")
+            # --- Corrected Block End ---
 
-            # Apply the patch
+
+            # If check passes, apply the patch
+            logger.info(f"Applying patch from {patch_file}...")
             proc_apply = await asyncio.create_subprocess_shell(
-                f"git apply --verbose {patch_file}",  # Add verbose
+                f"git apply {patch_file}",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=PROJECT_ROOT,
+                cwd=PROJECT_ROOT, # Ensure command runs in the correct directory
             )
             stdout_apply, stderr_apply = await proc_apply.communicate()
-            logger.debug(f"git apply stdout:\n{stdout_apply.decode()}")
 
             if proc_apply.returncode == 0:
-                logger.info("git apply successful.")
-                return True
+                logger.info("Patch applied successfully.")
+                # Log stdout/stderr from apply as debug info
+                if stdout_apply:
+                    logger.debug(f"git apply stdout:\n{stdout_apply.decode().strip()}")
+                if stderr_apply:
+                    logger.debug(f"git apply stderr:\n{stderr_apply.decode().strip()}")
+                return True # Success
             else:
-                logger.error(f"git apply failed:\n{stderr_apply.decode()}")
-                # Attempt to reverse if apply failed mid-way (best effort)
-                logger.warning("Attempting to reverse failed patch application...")
-                proc_reverse = await asyncio.create_subprocess_shell(
-                    f"git apply --reverse {patch_file}",
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    cwd=PROJECT_ROOT,
+                apply_stderr_decoded = stderr_apply.decode().strip()
+                logger.error(
+                    f"git apply failed with return code {proc_apply.returncode}."
                 )
-                await proc_reverse.communicate()
-                logger.warning(
-                    f"Reversal attempt finished with code {proc_reverse.returncode}"
+                if apply_stderr_decoded:
+                    logger.error(f"Error details:\n{apply_stderr_decoded}")
+
+                # Log failure details to DB
+                if db_imports_successful:
+                    update_error_report_status(
+                        report_id,
+                        "fix_failed",
+                        {"fix_details": f"git apply failed: {apply_stderr_decoded}"},
+                    )
+                await send_notification(
+                    f"❌ Auto-fix Failed (Report ID: {report_id}): git apply command failed."
                 )
                 return False
+
         except Exception as e:
-            logger.error(f"Error applying git patch: {e}", exc_info=True)
+            logger.error(f"Error during patch application: {e}", exc_info=True)
+            if db_imports_successful:
+                update_error_report_status(
+                    report_id,
+                    "fix_failed",
+                    {"fix_details": f"Exception during patch application: {e}"},
+                )
+            await send_notification(
+                f"❌ Auto-fix Failed (Report ID: {report_id}): Exception during patch application."
+            )
             return False
         finally:
-            # Clean up patch file
-            if os.path.exists(patch_file):
-                try:
-                    os.remove(patch_file)
-                except OSError as e:
-                    logger.error(
-                        f"Failed to remove temporary patch file {patch_file}: {e}"
-                    )
+            # Ensure patch file is removed
+            if patch_file and os.path.exists(patch_file):
+                 try:
+                     os.remove(patch_file)
+                     logger.debug(f"Removed temporary patch file: {patch_file}")
+                 except OSError as e:
+                     logger.warning(f"Failed to remove patch file {patch_file} in finally block: {e}")
 
 
-# --- Main Execution (for running as a separate service) ---
+# --- Main Execution / Service Runner ---
 async def main():
-    # Ensure DB is initialized before starting monitor
-    from services.artist_db_service import initialize_database
-
-    initialize_database()
-
+    # Basic logging config if not already set
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logger.info("Initializing Error Analysis Service...")
     service = ErrorAnalysisService()
-    await service.monitor_log_file()
-
+    await service.monitor_log_file() # Start the monitoring loop
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=os.getenv("LOG_LEVEL", "INFO").upper(),
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[logging.StreamHandler(sys.stdout)],  # Log to stdout when run directly
-    )
-    logger.info("Starting Error Analysis Service...")
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
         logger.info("Error Analysis Service stopped by user.")
+    except Exception as e:
+        logger.critical(f"Error Analysis Service crashed: {e}", exc_info=True)
+

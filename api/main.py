@@ -10,9 +10,12 @@ try:
     logging.config.dictConfig(logging_config)
 except FileNotFoundError:
     logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s"
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
-    logging.warning("logging_config.json not found, using basic logging configuration.")
+    logging.warning(
+        "logging_config.json not found, using basic logging configuration."
+    )
 
 logger = logging.getLogger("api")
 

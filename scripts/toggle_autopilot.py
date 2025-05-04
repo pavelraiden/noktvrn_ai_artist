@@ -24,13 +24,17 @@ except ImportError as e:
     sys.exit(1)
 
 # --- Logging Setup ---
+# Configure logging globally
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
-logger = logging.getLogger(__name__)
+# Logger will be initialized in main()
 
 
 def main():
+    # Initialize logger within the main function scope
+    logger = logging.getLogger(__name__)
+
     parser = argparse.ArgumentParser(
         description="Toggle autopilot mode for an AI artist."
     )
@@ -57,19 +61,23 @@ def main():
     # Check if artist exists
     artist = get_artist(artist_id)
     if not artist:
-        logger.error(f"Artist with ID 	{artist_id}	 not found in the database.")
+        logger.error(
+            f"Artist with ID '{artist_id}' not found in the database."
+        )
         sys.exit(1)
     logger.info(
-        f"Artist \t{artist_id}\t ({artist.get('name')}) current autopilot status: {artist.get('autopilot_enabled')}"
-    )  # Update artist status
+        f"""Artist '{artist_id}' ({artist.get('name')}) current autopilot status:
+            {artist.get('autopilot_enabled')}"""
+    )
+    # Update artist status
     update_data = {"autopilot_enabled": enable_autopilot}
     success = update_artist(artist_id, update_data)
 
     if success:
         logger.info(
-            f"Successfully updated artist 	{artist_id}	 autopilot status to: {enable_autopilot}"
-        )
-        # Verify update
+            f"""Successfully updated artist '{artist_id}' autopilot status to:
+                {enable_autopilot}"""
+        )    # Verify update
         updated_artist = get_artist(artist_id)
         if updated_artist:
             status = updated_artist.get("autopilot_enabled")
@@ -77,7 +85,9 @@ def main():
         else:
             logger.warning("Could not re-fetch artist to verify update.")
     else:
-        logger.error(f"Failed to update autopilot status for artist 	{artist_id}	.")
+        logger.error(
+            f"Failed to update autopilot status for artist '{artist_id}'."
+        )
         sys.exit(1)
 
 

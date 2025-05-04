@@ -43,7 +43,9 @@ def mock_llm_orchestrator():
 @patch(
     "ai_artist_system.noktvrn_ai_artist.artist_builder.trend_analyzer.competitor_trend_analyzer.LLMOrchestrator"
 )
-def trend_analyzer(MockLLMOrchestrator, mock_db_manager, mock_llm_orchestrator):
+def trend_analyzer(
+    MockLLMOrchestrator, mock_db_manager, mock_llm_orchestrator
+):
     """Provides an instance of CompetitorTrendAnalyzer with mocked dependencies."""
     # Configure the mock LLMOrchestrator class to return our instance
     MockLLMOrchestrator.return_value = mock_llm_orchestrator
@@ -81,7 +83,9 @@ async def test_summarize_strategies_success(
     artist_id = "artist_xyz"
     genre = "Synthwave"
     country = "US"
-    llm_summary = "- Competitor 1 uses retro visuals.\n- Competitor 2 uses influencers."
+    llm_summary = (
+        "- Competitor 1 uses retro visuals.\n- Competitor 2 uses influencers."
+    )
 
     # Mock DB fetch
     mock_cursor.fetchall.return_value = [
@@ -128,7 +132,9 @@ async def test_identify_gaps_success(
     # Mock LLM call
     mock_llm_orchestrator.generate_text.return_value = llm_gap_analysis
 
-    result = await trend_analyzer.identify_market_gaps(artist_id, genre, country)
+    result = await trend_analyzer.identify_market_gaps(
+        artist_id, genre, country
+    )
 
     assert result == llm_gap_analysis
     # Verify DB fetch call
@@ -174,7 +180,9 @@ async def test_identify_gaps_no_data(
     # Mock DB fetch returning no data
     mock_cursor.fetchall.return_value = []
 
-    result = await trend_analyzer.identify_market_gaps(artist_id, genre, country)
+    result = await trend_analyzer.identify_market_gaps(
+        artist_id, genre, country
+    )
 
     assert result == "No competitor data available for market gap analysis."
     mock_llm_orchestrator.generate_text.assert_not_awaited()  # LLM should not be called
@@ -191,9 +199,13 @@ async def test_summarize_strategies_llm_fails(
     country = "US"
 
     # Mock DB fetch success
-    mock_cursor.fetchall.return_value = [("comp1", MOCK_COMPETITOR_DATA[0]["data"])]
+    mock_cursor.fetchall.return_value = [
+        ("comp1", MOCK_COMPETITOR_DATA[0]["data"])
+    ]
     # Mock LLM call failure
-    mock_llm_orchestrator.generate_text.side_effect = Exception("LLM API Error")
+    mock_llm_orchestrator.generate_text.side_effect = Exception(
+        "LLM API Error"
+    )
 
     result = await trend_analyzer.summarize_competitor_strategies(
         artist_id, genre, country
@@ -214,11 +226,17 @@ async def test_identify_gaps_llm_fails(
     country = "US"
 
     # Mock DB fetch success
-    mock_cursor.fetchall.return_value = [("comp1", MOCK_COMPETITOR_DATA[0]["data"])]
+    mock_cursor.fetchall.return_value = [
+        ("comp1", MOCK_COMPETITOR_DATA[0]["data"])
+    ]
     # Mock LLM call failure
-    mock_llm_orchestrator.generate_text.side_effect = Exception("LLM API Error")
+    mock_llm_orchestrator.generate_text.side_effect = Exception(
+        "LLM API Error"
+    )
 
-    result = await trend_analyzer.identify_market_gaps(artist_id, genre, country)
+    result = await trend_analyzer.identify_market_gaps(
+        artist_id, genre, country
+    )
 
     assert result is None
     mock_llm_orchestrator.generate_text.assert_awaited_once()  # LLM was called
@@ -230,7 +248,8 @@ async def test_identify_gaps_llm_fails(
     None,
 )  # Simulate LLMOrchestrator import failure
 def test_analyzer_init_no_llm(mock_db_manager):
-    """Test analyzer initialization works but logs warning if LLMOrchestrator is unavailable."""
+    """Test analyzer initialization works but logs warning if LLMOrchestrator
+    is unavailable."""
     db_manager, _ = mock_db_manager
     # Should not raise an error, but llm_orchestrator should be None
     analyzer = CompetitorTrendAnalyzer(db_manager=db_manager)
@@ -238,7 +257,9 @@ def test_analyzer_init_no_llm(mock_db_manager):
 
 
 @pytest.mark.asyncio
-async def test_summarize_strategies_no_llm_support(trend_analyzer, mock_db_manager):
+async def test_summarize_strategies_no_llm_support(
+    trend_analyzer, mock_db_manager
+):
     """Test summarization returns warning if LLM support is disabled."""
     # Manually disable LLM support for this test instance
     trend_analyzer.llm_orchestrator = None
@@ -252,4 +273,5 @@ async def test_summarize_strategies_no_llm_support(trend_analyzer, mock_db_manag
     )
 
     assert result is None  # Should return None when LLM is disabled
-    # DB fetch might still happen depending on implementation, but LLM call shouldn't
+    # DB fetch might still happen depending on implementation, but LLM call
+    # shouldn't

@@ -9,7 +9,9 @@ from datetime import datetime
 import sys
 
 # Add project root to sys.path to allow importing services
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+PROJECT_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..")
+)
 sys.path.append(PROJECT_ROOT)
 
 # Import the service module AFTER potentially patching
@@ -51,8 +53,10 @@ def db_service_module(monkeypatch):
 def db_service(db_service_module):
     """Fixture to provide the initialized service module to each test."""
     # This fixture simply passes through the module-scoped fixture
-    # and ensures the DB is clean for each test (by re-initializing, though :memory: is usually clean)
-    # Re-initializing might be redundant for :memory: but ensures table exists if tests somehow drop it.
+    # and ensures the DB is clean for each test (by re-initializing, though
+    # :memory: is usually clean)
+    # Re-initializing might be redundant for :memory: but ensures table exists
+    # if tests somehow drop it.
     try:
         db_service_module.initialize_database()
     except Exception as e:
@@ -114,7 +118,11 @@ def test_add_artist_duplicate(db_service):
     """Test that adding an artist with a duplicate ID fails gracefully."""
     artist_id = "artist_dup_test"
     now_iso = datetime.utcnow().isoformat()
-    artist_data = {"artist_id": artist_id, "name": "Dup Test", "created_at": now_iso}
+    artist_data = {
+        "artist_id": artist_id,
+        "name": "Dup Test",
+        "created_at": now_iso,
+    }
 
     added1 = db_service.add_artist(artist_data)
     assert added1 is True
@@ -193,7 +201,9 @@ def test_update_artist(db_service):
 
 def test_update_nonexistent_artist(db_service):
     """Test that updating a non-existent artist fails."""
-    updated = db_service.update_artist("nonexistent_update", {"name": "Wont Work"})
+    updated = db_service.update_artist(
+        "nonexistent_update", {"name": "Wont Work"}
+    )
     assert updated is False
 
 
@@ -301,11 +311,15 @@ def test_update_artist_performance_history_limit(db_service):
 
     # Add more history entries than the limit
     for i in range(db_service.MAX_HISTORY_LENGTH + 2):
-        db_service.update_artist_performance_db(artist_id, f"run_{i}", "approved", 5)
+        db_service.update_artist_performance_db(
+            artist_id, f"run_{i}", "approved", 5
+        )
 
     retrieved = db_service.get_artist(artist_id)
     assert retrieved is not None
-    assert len(retrieved["performance_history"]) == db_service.MAX_HISTORY_LENGTH
+    assert (
+        len(retrieved["performance_history"]) == db_service.MAX_HISTORY_LENGTH
+    )
     # Check if the oldest entries were removed
     assert retrieved["performance_history"][0]["run_id"] == "run_2"
     assert (
@@ -313,8 +327,10 @@ def test_update_artist_performance_history_limit(db_service):
         == f"run_{db_service.MAX_HISTORY_LENGTH + 1}"
     )
 
-    # Restore original value (important if MAX_HISTORY_LENGTH is used elsewhere)
-    # In a real scenario, might need a better way to manage this constant for testing
+    # Restore original value (important if MAX_HISTORY_LENGTH is used
+    # elsewhere)
+    # In a real scenario, might need a better way to manage this constant for
+    # testing
     import services.artist_db_service
 
     services.artist_db_service.MAX_HISTORY_LENGTH = 20  # Restore default

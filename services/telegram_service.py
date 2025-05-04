@@ -8,6 +8,8 @@ import os
 import asyncio
 from dotenv import load_dotenv
 
+# Removed unused aiohttp
+
 # --- Load Environment Variables ---
 DOTENV_PATH = os.path.join(os.path.dirname(__file__), ".env")
 load_dotenv(dotenv_path=DOTENV_PATH)
@@ -29,11 +31,11 @@ async def send_preview_to_telegram(
     Args:
         run_id: The ID of the generation run.
         caption: The message content to send.
-        release_id: (Optional) The ID associated with the release, if applicable.
+        release_id: (Optional) The ID associated with the release,             if applicable.
     """
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         logger.warning(
-            "Telegram Bot Token or Chat ID not configured. Cannot send preview."
+            "Telegram Bot Token or Chat ID not configured. Cannot send                 preview."
         )
         return False
 
@@ -55,7 +57,9 @@ async def send_preview_to_telegram(
     # In a real implementation, use a library like python-telegram-bot or httpx
     # await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=caption)
     await asyncio.sleep(0.5)  # Simulate network delay
-    logger.info(f"Successfully simulated sending preview for run {run_id} to Telegram.")
+    logger.info(
+        f"Successfully simulated sending preview for run {run_id} to Telegram."
+    )
     return True
 
 
@@ -63,17 +67,17 @@ async def send_notification(message: str):
     """Sends a generic notification message to the configured Telegram chat."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         logger.warning(
-            "Telegram Bot Token or Chat ID not configured. Cannot send notification."
+            "Telegram Bot Token or Chat ID not configured. Cannot send                 notification."
         )
         return False
 
-    logger.info(f"Simulating sending notification to Telegram...")
+    logger.info("Simulating sending notification to Telegram...")
     logger.info(f"Message: {message}")
     # In a real implementation, use a library like python-telegram-bot or httpx
     # await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
     await asyncio.sleep(0.2)  # Simulate network delay
-    logger.info(f"Successfully simulated sending notification to Telegram.")
+    logger.info("Successfully simulated sending notification to Telegram.")
     return True
 
 
-# Add other functions for control panel later (e.g., listen_for_commands, send_status)
+# Add other functions for control panel later (e.g., listen_for_commands, # send_status)

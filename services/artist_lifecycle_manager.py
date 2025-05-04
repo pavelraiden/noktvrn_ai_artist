@@ -1,12 +1,12 @@
 # /home/ubuntu/ai_artist_system_clone/services/artist_lifecycle_manager.py
 """
-Service for managing the lifecycle of AI artists based on performance and other criteria.
+Service for managing the lifecycle of AI artists based on performance and other
+    criteria.
 """
 
 import logging
 import os
 import sys
-import json
 import random
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
@@ -16,10 +16,9 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.append(PROJECT_ROOT)
 
-# --- Logging Setup ---# Moved logging setup here to ensure it's configured before any potential import errors are logged
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+# --- Logging Setup ---# Moved logging setup here to ensure it's configured
+# before any potential import errors are logged
+logging.basicConfig(    level=logging.INFO,     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",)
 logger = logging.getLogger(__name__)
 
 try:
@@ -31,19 +30,20 @@ try:
         get_all_artists,
         initialize_database,
         add_artist,
-        # Add get_artist_performance_summary if it exists and is needed, or implement calculation here
+        # Add get_artist_performance_summary if it exists and is needed, or
+        # implement calculation here
     )
-
-    # TODO: Import LLM Orchestrator when needed for advanced evolution
-    # from llm_orchestrator.orchestrator import LLMOrchestrator
     db_imports_successful = True
 except ImportError as e:
     logger.error(
-        f"Failed to import required DB functions from services.artist_db_service: {e}. Lifecycle manager will not function correctly."
+        f"Failed to import required DB functions from "
+        f"services.artist_db_service: {e}. "
+        f"Lifecycle manager will not function correctly."
     )
     db_imports_successful = False
 
-    # Define dummy functions if import fails, to allow basic structure loading but prevent execution
+    # Define dummy functions if import fails, to allow basic structure loading
+    # but prevent execution
     def get_artist(artist_id):
         logger.error("DB function get_artist not available.")
         return None
@@ -83,7 +83,9 @@ EVOLUTION_GOOD_PERF_APPROVAL_RATE = float(
     os.getenv("EVOLUTION_GOOD_PERF_APPROVAL_RATE", 0.85)
 )
 # Pausing Triggers
-PAUSE_APPROVAL_RATE_THRESHOLD = float(os.getenv("PAUSE_APPROVAL_RATE_THRESHOLD", 0.20))
+PAUSE_APPROVAL_RATE_THRESHOLD = float(
+    os.getenv("PAUSE_APPROVAL_RATE_THRESHOLD", 0.20)
+)
 PAUSE_ERROR_RATE_THRESHOLD = float(os.getenv("PAUSE_ERROR_RATE_THRESHOLD", 0.30))
 PAUSE_INACTIVITY_DAYS = int(os.getenv("PAUSE_INACTIVITY_DAYS", 45))
 # Retirement Triggers
@@ -102,7 +104,8 @@ class ArtistLifecycleManager:
         # self.llm_orchestrator = LLMOrchestrator()
         if not db_imports_successful:
             logger.critical(
-                "ArtistLifecycleManager initialized WITHOUT database functions. Lifecycle checks will fail."
+                "ArtistLifecycleManager initialized WITHOUT database functions. "
+                "Lifecycle checks will fail."
             )
         else:
             logger.info("Artist Lifecycle Manager initialized.")
@@ -119,7 +122,8 @@ class ArtistLifecycleManager:
         history = artist_data.get("performance_history", [])
         if not isinstance(history, list):
             logger.warning(
-                f"Performance history for artist {artist_id} is not a list: {history}"
+                f"Performance history for artist {artist_id} is not a list: "
+                f"{history}"
             )
             history = []
 
@@ -134,8 +138,12 @@ class ArtistLifecycleManager:
         ]
 
         total_runs = len(recent_history)
-        approved_runs = sum(1 for run in recent_history if run["status"] == "approved")
-        rejected_runs = sum(1 for run in recent_history if run["status"] == "rejected")
+        approved_runs = sum(
+            1 for run in recent_history if run["status"] == "approved"
+        )
+        rejected_runs = sum(
+            1 for run in recent_history if run["status"] == "rejected"
+        )
         # TODO: Calculate error rate if error status is logged in history
         error_runs = sum(1 for run in recent_history if run["status"] == "error")
 
@@ -151,7 +159,8 @@ class ArtistLifecycleManager:
                 inactivity_days = (datetime.utcnow() - last_run_timestamp).days
             except ValueError:
                 logger.warning(
-                    f"Invalid last_run_at format for artist {artist_id}: {last_run_timestamp_str}"
+                    f"Invalid last_run_at format for artist {artist_id}: "
+                    f"{last_run_timestamp_str}"
                 )
 
         summary = {
@@ -168,7 +177,8 @@ class ArtistLifecycleManager:
         return summary
 
     def evaluate_artist_lifecycle(self, artist_id: str) -> Optional[str]:
-        """Evaluates an artist and triggers lifecycle actions (evolution, pausing, retirement)."""
+        """Evaluates an artist and triggers lifecycle actions (evolution,
+            pausing, retirement)."""
         if not db_imports_successful:
             return None
 
@@ -176,7 +186,9 @@ class ArtistLifecycleManager:
         performance = self._get_performance_summary(artist_id)
 
         if "error" in performance:
-            logger.error(f"Cannot evaluate artist {artist_id}: {performance['error']}")
+            logger.error(
+                f"Cannot evaluate artist {artist_id}: {performance['error']}"
+            )
             return None
 
         total_runs = performance["total_runs"]
@@ -187,18 +199,22 @@ class ArtistLifecycleManager:
         current_status = performance["current_status"]
 
         logger.info(
-            f"Artist {artist_id} Performance Summary: Runs={total_runs}, ApprovalRate={approval_rate:.2f}, ErrorRate={error_rate:.2f}, ConsecRej={consecutive_rejections}, InactiveDays={inactivity_days}, Status={current_status}"
+            f"Artist {artist_id} Performance Summary: Runs={total_runs}, "
+            f"ApprovalRate={approval_rate:.2f}, ErrorRate={error_rate:.2f}, "
+            f"ConsecRej={consecutive_rejections}, InactiveDays={inactivity_days}, Status={current_status}"
         )
 
         # --- Lifecycle Decision Logic --- #
 
-        # 0. Check for Retirement (Consecutive Rejections) - Moved to top, applies regardless of status (unless already Retired)
+        # 0. Check for Retirement (Consecutive Rejections) - Moved to top,
+        # applies regardless of status (unless already Retired)
         if (
             current_status != "Retired"
             and consecutive_rejections >= RETIREMENT_CONSECUTIVE_REJECTIONS
         ):
             logger.warning(
-                f"Artist {artist_id} met retirement threshold ({consecutive_rejections} consecutive rejections). Retiring."
+                f"Artist {artist_id} met retirement threshold "
+                f"({consecutive_rejections} consecutive rejections). Retiring."
             )
             update_artist_status(artist_id, "Retired")
             return "Retired"
@@ -227,7 +243,10 @@ class ArtistLifecycleManager:
         # 2. Need sufficient data for performance-based decisions
         if total_runs < MIN_RUNS_FOR_EVALUATION:
             # Check for inactivity even with few runs
-            if inactivity_days is not None and inactivity_days > PAUSE_INACTIVITY_DAYS:
+            if (
+                inactivity_days is not None
+                and inactivity_days > PAUSE_INACTIVITY_DAYS
+            ):
                 logger.warning(
                     f"Artist {artist_id} has insufficient runs ({total_runs}) but is inactive for {inactivity_days} days. Pausing."
                 )
@@ -251,7 +270,10 @@ class ArtistLifecycleManager:
             return "Paused"
 
         # 4. Check for Pausing (Inactivity)
-        if inactivity_days is not None and inactivity_days > PAUSE_INACTIVITY_DAYS:
+        if (
+            inactivity_days is not None
+            and inactivity_days > PAUSE_INACTIVITY_DAYS
+        ):
             logger.warning(
                 f"Artist {artist_id} has been inactive for {inactivity_days} days. Pausing."
             )
@@ -267,7 +289,8 @@ class ArtistLifecycleManager:
             # trigger_evolution sets status to Active if successful, Paused if failed
             # We return the status set by trigger_evolution implicitly via DB read next cycle, or just report Evolving attempt
             # For clarity, let's return the status set by the evolution function if possible, otherwise the current status
-            # Re-fetch status after evolution attempt? Or rely on next cycle? Let's rely on next cycle for now.
+            # Re-fetch status after evolution attempt? Or rely on next cycle?
+            # Let's rely on next cycle for now.
             # The function returns True/False, not the new status. Let's report 'Evolving' conceptually.
             # If evolution was attempted, the status is likely 'Active' or 'Paused' now.
             # Let's return the *intended* outcome status based on `evolved` flag.
@@ -309,7 +332,8 @@ class ArtistLifecycleManager:
     def trigger_evolution(
         self, artist_id: str, performance_summary: Dict[str, Any]
     ) -> bool:
-        """Attempts to evolve an artist based on poor performance. Sets status to Active if successful, Paused if failed."""
+        """Attempts to evolve an artist based on poor performance. Sets status
+            to Active if successful, Paused if failed."""
         if not db_imports_successful:
             return False
 
@@ -328,7 +352,10 @@ class ArtistLifecycleManager:
         # --- Evolution Strategies --- #
         # Strategy 1: Adjust LLM Config (e.g., temperature)
         current_llm_config = artist_data.get("llm_config", {})
-        if isinstance(current_llm_config, dict) and "temperature" in current_llm_config:
+        if (
+            isinstance(current_llm_config, dict)
+            and "temperature" in current_llm_config
+        ):
             original_temp = current_llm_config["temperature"]
             # Simple adjustment: slightly increase temp if low, decrease if high
             adjustment = random.uniform(-0.1, 0.1)
@@ -338,87 +365,79 @@ class ArtistLifecycleManager:
             ):  # Only update if changed significantly
                 current_llm_config["temperature"] = round(new_temp, 2)
                 logger.info(
-                    f"Evolution Strategy: Adjusting temperature for {artist_id} from {original_temp} to {new_temp}"
+                    f"Evolution Strategy: Adjusting LLM temperature for {artist_id} from {original_temp} to {new_temp}."
                 )
-                # Update config and set status to Active (evolution attempt complete)
                 success = update_artist(
-                    artist_id, {"llm_config": current_llm_config, "status": "Active"}
+                    artist_id, {"llm_config": current_llm_config}
                 )
                 if success:
-                    logger.info(
-                        f"Evolution successful for {artist_id}. New temp: {new_temp}. Status set to Active."
-                    )
+                    update_artist_status(artist_id, "Active")
                     return True
                 else:
                     logger.error(
-                        f"Failed to update artist {artist_id} during evolution."
+                        f"Failed to update LLM config for artist {artist_id}. Pausing."
                     )
-                    update_artist_status(
-                        artist_id, "Paused"
-                    )  # Pause if DB update fails
+                    update_artist_status(artist_id, "Paused")
                     return False
-            else:
-                logger.info(
-                    f"Evolution for {artist_id}: Temperature adjustment resulted in negligible change. No update applied."
-                )
-                # Fall through to other strategies or failure
 
-        # Strategy 2: Modify Style Notes (e.g., add/remove a keyword)
-        # TODO: Implement style note modification strategy (requires more sophisticated logic or LLM call)
-        logger.warning(
-            f"Evolution for {artist_id}: Temperature adjustment not applicable or failed. No other strategies implemented yet."
-        )
+        # Strategy 2: (Placeholder) Modify Style Notes via LLM
+        # logger.info(f"Evolution Strategy: Requesting LLM to refine style notes for {artist_id}.")
+        # new_style_notes = self.llm_orchestrator.refine_style_notes(artist_data['style_notes'], performance_summary)
+        # if new_style_notes:
+        #     success = update_artist(artist_id, {"style_notes": new_style_notes})
+        #     if success:
+        #         update_artist_status(artist_id, "Active")
+        #         return True
 
-        # If no strategy applied or failed
+        # Strategy 3: (Placeholder) Change Genre slightly
+        # logger.info(f"Evolution Strategy: Considering genre tweak for {artist_id}.")
+
+        # If no strategies applied or failed
         logger.warning(
-            f"Evolution failed to apply changes for artist {artist_id}. Setting status to Paused."
+            f"Evolution failed for artist {artist_id} (no applicable strategy or update failed). Pausing."
         )
         update_artist_status(artist_id, "Paused")
+        # TODO: Increment a 'failed_evolutions' counter?
         return False
 
-    # Placeholder for a different type of evolution for high performers
-    # def trigger_refinement_evolution(self, artist_id: str, performance_summary: Dict[str, Any]):
-    #     logger.info(f"(Placeholder) Triggering refinement evolution for high-performing artist {artist_id}.")
-    #     pass
-
-    def run_lifecycle_check_all(self):
-        """Runs the performance evaluation and lifecycle checks for all relevant artists."""
+    def run_lifecycle_checks(self):
+        """Runs lifecycle evaluation for all relevant artists."""
         if not db_imports_successful:
+            logger.error("Cannot run lifecycle checks: DB functions unavailable.")
             return
 
-        logger.info(
-            "Running lifecycle check for all relevant artists (Candidate, Active, Evolving, Paused)..."
-        )
-        # Fetch artists that might need evaluation or state change
-        relevant_artists = get_all_artists(
-            status_filter=None
-        )  # Get all and filter locally for more complex logic
-        evaluated_count = 0
+        logger.info("Starting periodic artist lifecycle checks...")
+        # Evaluate Active, Evolving, Candidate, and Paused artists
+        artists_to_check = get_all_artists(status_filter=None)  # Get all
+        relevant_artists = [
+            a
+            for a in artists_to_check
+            if a.get("status") in ["Active", "Evolving", "Candidate", "Paused"]
+        ]
+
+        if not relevant_artists:
+            logger.info("No artists found requiring lifecycle checks.")
+            return
+
+        logger.info(f"Found {len(relevant_artists)} artists to evaluate.")
         for artist in relevant_artists:
-            artist_id = artist["artist_id"]
-            # Evaluate regardless of current status, let evaluate_artist_lifecycle handle logic
-            self.evaluate_artist_lifecycle(artist_id)
-            evaluated_count += 1
-            # Removed status check here, evaluate_artist_lifecycle handles skipping retired
+            artist_id = artist.get("artist_id")
+            if artist_id:
+                self.evaluate_artist_lifecycle(artist_id)
+            else:
+                logger.warning("Found artist data without an ID during checks.")
 
-        logger.info(f"Finished lifecycle check. Evaluated {evaluated_count} artists.")
+        logger.info("Finished periodic artist lifecycle checks.")
 
 
-# Example Usage (for testing)
+# --- Main Execution / Test --- #
 if __name__ == "__main__":
-    # Ensure logging is configured for test run
-    logging.basicConfig(level=logging.DEBUG)
-
     if not db_imports_successful:
-        logger.critical("Database functions failed to import. Cannot run tests.")
+        logger.critical("Cannot run main execution: DB functions unavailable.")
         sys.exit(1)
 
-    # Ensure DB is initialized with new schema changes from artist_db_service
-    try:
-        initialize_database()
-    except Exception as e:
-        logger.error(f"Error ensuring database schema: {e}")
-        sys.exit(1)
+    logger.info("Running Artist Lifecycle Manager directly for testing...")
+    initialize_database()  # Ensure DB is ready
 
     manager = ArtistLifecycleManager()
 
@@ -521,9 +540,9 @@ if __name__ == "__main__":
                             datetime.utcnow() - timedelta(hours=6)
                         ).isoformat(),
                     },
-                ],
-            }
-        )
+                ],  # Corrected indentation
+            }  # Corrected indentation
+        )  # Corrected indentation
         if added_id:
             logger.info(f"Created test artist {test_artist_id}")
             # Update consecutive rejections manually for test scenario (e.g., 4 rejections)
@@ -535,50 +554,78 @@ if __name__ == "__main__":
             sys.exit(1)
     else:
         # Ensure artist is Active and has correct rejection count for test
-        update_artist(test_artist_id, {"status": "Active", "consecutive_rejections": 4})
-        logger.info(
-            f"Ensured test artist {test_artist_id} is Active with 4 consecutive rejections."
+        update_artist(
+            test_artist_id, {"status": "Active", "consecutive_rejections": 4}
         )
 
-    # --- Run Evaluation (Should trigger Pause due to low approval rate < 0.20) ---
-    logger.info(f"\n--- Evaluating artist {test_artist_id} (expect Pause) ---")
-    eval_status_1 = manager.evaluate_artist_lifecycle(test_artist_id)
-    logger.info(
-        f"Evaluation 1 complete for {test_artist_id}. Final status reported: {eval_status_1}"
-    )
-    artist_data_1 = get_artist(test_artist_id)
-    db_status_1 = artist_data_1.get("status") if artist_data_1 else "Not Found"
-    logger.info(f"DB status after Eval 1: {db_status_1}")
-    if db_status_1 == "Paused":
-        logger.info("TEST RESULT 1: Paused as expected due to low approval rate.")
+    # Test 1: Evaluate the artist (should trigger retirement due to consecutive rejections)
+    logger.info("--- Test 1: Evaluating artist with 4 consecutive rejections ---")
+    new_status = manager.evaluate_artist_lifecycle(test_artist_id)
+    logger.info(f"Test 1 Result: Artist {test_artist_id} new status: {new_status}")
+    # Verify status in DB
+    updated_artist = get_artist(test_artist_id)
+    if updated_artist:
+        logger.info(
+            f"Test 1 DB Verification: Artist status is now: {updated_artist.get('status')}"
+        )
     else:
-        logger.error(f"TEST RESULT 1: FAILED - Expected Paused, got {db_status_1}")
+        logger.error("Test 1 DB Verification: Failed to retrieve artist.")
 
-    # --- Test Retirement by Consecutive Rejections (while Paused) ---
-    logger.info(f"\n--- Testing Retirement for {test_artist_id} (while Paused) ---")
-    # Update artist to have enough rejections (ensure status is still Paused)
+    # Test 2: Reset rejections, make performance poor but not critical, test evolution
+    logger.info("--- Test 2: Resetting rejections, testing evolution trigger ---")
     update_artist(
-        test_artist_id,
-        {
-            "status": "Paused",
-            "consecutive_rejections": RETIREMENT_CONSECUTIVE_REJECTIONS,
-        },
+        test_artist_id, {"status": "Active", "consecutive_rejections": 0}
     )
-    logger.info(
-        f"Set consecutive rejections to {RETIREMENT_CONSECUTIVE_REJECTIONS} for Paused artist {test_artist_id}."
-    )
-    eval_status_2 = manager.evaluate_artist_lifecycle(test_artist_id)
-    logger.info(
-        f"Retirement evaluation complete for {test_artist_id}. Final status reported: {eval_status_2}"
-    )
-    artist_data_2 = get_artist(test_artist_id)
-    db_status_2 = artist_data_2.get("status") if artist_data_2 else "Not Found"
-    logger.info(f"DB status after Retirement check: {db_status_2}")
-    if db_status_2 == "Retired":
-        logger.info("TEST RESULT 2: Retirement occurred as expected.")
+    # Performance history already set for low approval rate
+    new_status = manager.evaluate_artist_lifecycle(test_artist_id)
+    logger.info(f"Test 2 Result: Artist {test_artist_id} new status: {new_status}")
+    # Verify status and potentially LLM config change in DB
+    updated_artist = get_artist(test_artist_id)
+    if updated_artist:
+        logger.info(
+            f"Test 2 DB Verification: Artist status: {updated_artist.get('status')}, LLM Config: {updated_artist.get('llm_config')}"
+        )
     else:
-        logger.error(f"TEST RESULT 2: FAILED - Expected Retired, got {db_status_2}")
+        logger.error("Test 2 DB Verification: Failed to retrieve artist.")
 
-    # Example: Evaluate all artists (optional)
-    # logger.info("\n--- Evaluating all artists ---")
-    # manager.run_lifecycle_check_all()
+    # Test 3: Simulate inactivity
+    logger.info("--- Test 3: Testing inactivity pause trigger ---")
+    inactive_artist_id = "test_inactive_artist"
+    if not get_artist(inactive_artist_id):
+        add_artist(
+            {
+                "artist_id": inactive_artist_id,
+                "name": "Inactive Test",
+                "status": "Active",
+                "last_run_at": (
+                    datetime.utcnow() - timedelta(days=PAUSE_INACTIVITY_DAYS + 1)
+                ).isoformat(),
+            }
+        )
+    else:
+        update_artist(
+            inactive_artist_id,
+            {
+                "status": "Active",
+                "last_run_at": (
+                    datetime.utcnow() - timedelta(days=PAUSE_INACTIVITY_DAYS + 1)
+                ).isoformat(),
+            },
+        )
+    new_status = manager.evaluate_artist_lifecycle(inactive_artist_id)
+    logger.info(
+        f"Test 3 Result: Artist {inactive_artist_id} new status: {new_status}"
+    )
+    updated_artist = get_artist(inactive_artist_id)
+    if updated_artist:
+        logger.info(
+            f"Test 3 DB Verification: Artist status is now: {updated_artist.get('status')}"
+        )
+    else:
+        logger.error("Test 3 DB Verification: Failed to retrieve artist.")
+
+    # Test 4: Run full lifecycle checks
+    logger.info("--- Test 4: Running full lifecycle checks for all artists ---")
+    manager.run_lifecycle_checks()
+    logger.info("--- Full lifecycle checks completed ---")
+

@@ -1,6 +1,6 @@
 # Gunicorn configuration file for AI Artist Platform Frontend (Flask)
 
-import multiprocessing
+# Removed unused os, multiprocessing imports
 
 # --- Server Socket ---
 # Bind to a Unix socket (recommended for use with Nginx)
@@ -13,14 +13,19 @@ bind = "unix:/path/to/your/gunicorn.sock"  # <<< ADJUST THIS PATH
 # --- Worker Processes ---
 # Number of worker processes. A common recommendation is (2 * cpu_cores) + 1.
 # Adjust based on server resources and expected load.
-workers = multiprocessing.cpu_count() * 2 + 1
+# Use a fixed number or dynamically calculate if multiprocessing is needed
+# elsewhere
+workers = 5  # Example: (2 * 2 cores) + 1, adjust as needed
 
-# Type of workers (sync is default, consider gevent for I/O bound apps if needed)
+# Type of workers (sync is default, consider gevent for I/O bound apps if
+# needed)
 # worker_class = "sync"
 
 # --- Security ---
-# User and group to run as. Create a dedicated user or use www-data if appropriate.
-# Ensure this user has permissions to access the socket file and application code.
+# User and group to run as. Create a dedicated user or use www-data if
+# appropriate.
+# Ensure this user has permissions to access the socket file and application
+# code.
 # user = "ai_artist_user" # <<< ADJUST OR CREATE THIS USER
 # group = "www-data" # <<< ADJUST OR CREATE THIS GROUP
 

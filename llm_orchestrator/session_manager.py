@@ -1,26 +1,24 @@
 """
 Session Manager Module
 
-This module provides session management functionality for the orchestrator,
-allowing tracking and persistence of orchestration sessions.
+This module provides session management functionality for the orchestrator, allowing tracking and persistence of orchestration sessions.
 """
 
 import os
 import json
 import uuid
-import time
 import asyncio
-from typing import Dict, List, Any, Optional, Union, Set
+from typing import Dict, List, Any, Optional, Set
 from datetime import datetime, timedelta
 from enum import Enum
 import logging
-from pathlib import Path
 
 from .orchestrator import OrchestrationResult, OrchestrationStatus
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger("session_manager")
 
@@ -48,12 +46,7 @@ class Session:
         orchestrations: Map of orchestration IDs to results
     """
 
-    def __init__(
-        self,
-        session_id: Optional[str] = None,
-        ttl_seconds: int = 3600,  # 1 hour default TTL
-        metadata: Optional[Dict[str, Any]] = None,
-    ):
+    def __init__(self, session_id=None, ttl_seconds=3600, metadata=None):
         """
         Initialize a new session.
 
@@ -66,7 +59,9 @@ class Session:
         self.status = SessionStatus.ACTIVE
         self.created_at = datetime.now().isoformat()
         self.updated_at = self.created_at
-        self.expires_at = (datetime.now() + timedelta(seconds=ttl_seconds)).isoformat()
+        self.expires_at = (
+            datetime.now() + timedelta(seconds=ttl_seconds)
+        ).isoformat()
         self.metadata = metadata or {}
         self.orchestrations: Dict[str, OrchestrationResult] = {}
 
@@ -80,7 +75,8 @@ class Session:
             "expires_at": self.expires_at,
             "metadata": self.metadata,
             "orchestrations": {
-                orch_id: orch.to_dict() for orch_id, orch in self.orchestrations.items()
+                orch_id: orch.to_dict()
+                for orch_id, orch in self.orchestrations.items()
             },
         }
 
@@ -95,7 +91,9 @@ class Session:
 
         # Load orchestrations
         for orch_id, orch_data in data.get("orchestrations", {}).items():
-            session.orchestrations[orch_id] = OrchestrationResult.from_dict(orch_data)
+            session.orchestrations[orch_id] = OrchestrationResult.from_dict(
+                orch_data
+            )
 
         return session
 
@@ -109,7 +107,9 @@ class Session:
         self.orchestrations[orchestration.id] = orchestration
         self.updated_at = datetime.now().isoformat()
 
-    def get_orchestration(self, orchestration_id: str) -> Optional[OrchestrationResult]:
+    def get_orchestration(
+        self, orchestration_id: str
+    ) -> Optional[OrchestrationResult]:
         """
         Get an orchestration result by ID.
 
@@ -174,15 +174,14 @@ class SessionManager:
     """
     Manages orchestration sessions.
 
-    This class provides functionality for creating, retrieving, updating,
-    and persisting sessions.
+    This class provides functionality for creating, retrieving, updating,     and persisting sessions.
     """
 
     def __init__(
         self,
-        storage_dir: str = "/tmp/llm_orchestrator/sessions",
-        default_ttl_seconds: int = 3600,  # 1 hour default TTL
-        cleanup_interval_seconds: int = 300,  # 5 minutes default cleanup interval
+        storage_dir="/tmp/llm_orchestrator/sessions",
+        default_ttl_seconds=3600,
+        cleanup_interval_seconds=300,
     ):
         """
         Initialize a new session manager.
@@ -207,7 +206,8 @@ class SessionManager:
         self._start_cleanup_task()
 
         logger.info(
-            f"Initialized session manager with storage directory: {storage_dir}"
+            "Initialized session manager with storage directory: "
+            f"{storage_dir}"
         )
 
     def create_session(
@@ -228,10 +228,16 @@ class SessionManager:
             The newly created session
         """
         # Use default TTL if not specified
-        ttl = ttl_seconds if ttl_seconds is not None else self.default_ttl_seconds
+        ttl = (
+            ttl_seconds
+            if ttl_seconds is not None
+            else self.default_ttl_seconds
+        )
 
         # Create the session
-        session = Session(session_id=session_id, ttl_seconds=ttl, metadata=metadata)
+        session = Session(
+            session_id=session_id, ttl_seconds=ttl, metadata=metadata
+        )
 
         # Store the session
         self.active_sessions[session.id] = session
@@ -486,7 +492,9 @@ class SessionManager:
                         self.active_sessions[session.id] = session
 
                 except Exception as e:
-                    logger.error(f"Error loading session file {session_file}: {str(e)}")
+                    logger.error(
+                        f"Error loading session file {session_file}: {str(e)}"
+                    )
 
             logger.info(f"Loaded {len(self.active_sessions)} active sessions")
 
@@ -516,7 +524,7 @@ class SessionManager:
         # This would normally be an async task, but for simplicity
         # we'll just log that it would be started
         logger.info(
-            f"Cleanup task would run every {self.cleanup_interval_seconds} seconds"
+            f"Cleanup task would run every {self.cleanup_interval_seconds}                 seconds"
         )
 
     async def _cleanup_task(self) -> None:
@@ -557,7 +565,9 @@ if __name__ == "__main__":
     retrieved_session = manager.get_session(session.id)
     if retrieved_session:
         print(f"Retrieved session: {retrieved_session.id}")
-        print(f"Session has {len(retrieved_session.orchestrations)} orchestrations")
+        print(
+            f"Session has {len(retrieved_session.orchestrations)}                 orchestrations"
+        )
 
     # Complete the session
     manager.complete_session(session.id)

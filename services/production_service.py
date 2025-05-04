@@ -4,7 +4,6 @@ import logging
 import os
 import requests
 import tempfile
-import random
 import numpy as np
 from pydub import AudioSegment
 from pydub.effects import normalize
@@ -45,11 +44,15 @@ def _download_audio(audio_url: str) -> tuple[str | None, str | None]:
         logger.error(f"Failed to download audio from {audio_url}: {e}")
         return None, None
     except IOError as e:
-        logger.error(f"Failed to write downloaded audio to temporary file: {e}")
+        logger.error(
+            f"Failed to write downloaded audio to temporary file: {e}"
+        )
         return None, None
 
 
-def _generate_noise_file(duration_ms: int, volume_db: float = -40.0) -> str | None:
+def _generate_noise_file(
+    duration_ms: int, volume_db: float = -40.0
+) -> str | None:
     """Generates a temporary white noise file."""
     try:
         sample_rate = 44100
@@ -65,7 +68,9 @@ def _generate_noise_file(duration_ms: int, volume_db: float = -40.0) -> str | No
         # Adjust volume
         noise_segment = noise_segment + volume_db
 
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_file:
+        with tempfile.NamedTemporaryFile(
+            suffix=".wav", delete=False
+        ) as tmp_file:
             noise_segment.export(tmp_file.name, format="wav")
             logger.info(f"Generated temporary noise file: {tmp_file.name}")
             return tmp_file.name
@@ -122,18 +127,21 @@ class ProductionService:
 
             # 2. Load Audio
             logger.info(f"Loading audio file: {local_path}")
-            # Explicitly specify format if needed, otherwise pydub tries to guess
+            # Explicitly specify format if needed, otherwise pydub tries to
+            # guess
             try:
                 audio = AudioSegment.from_file(local_path)
             except Exception as load_err:
                 # Try common formats if guessing failed
                 try:
                     audio = AudioSegment.from_mp3(local_path)
-                except:
+                except Exception as e:
+                    logger.warning(f"Could not load {local_path} as MP3: {e}")
                     pass
                 try:
                     audio = AudioSegment.from_wav(local_path)
-                except:
+                except Exception as e:
+                    logger.warning(f"Could not load {local_path} as WAV: {e}")
                     pass
                 if "audio" not in locals():  # If still not loaded
                     raise ProductionServiceError(
@@ -148,7 +156,7 @@ class ProductionService:
 
             # 4. Add Subtle Background Noise
             logger.info(
-                f"Generating and adding background noise (level: {self.noise_level_db} dB)..."
+                f"Generating and adding background noise (level:                     {self.noise_level_db} dB)..."
             )
             noise_path = _generate_noise_file(
                 duration_ms=len(processed_audio), volume_db=self.noise_level_db
@@ -168,7 +176,7 @@ class ProductionService:
                     logger.info("Background noise added.")
                 except Exception as noise_err:
                     logger.warning(
-                        f"Failed to load or overlay noise file {noise_path}: {noise_err}. Skipping noise addition."
+                        f"Failed to load or overlay noise file {noise_path}:                             {noise_err}. Skipping noise addition."
                     )
             else:
                 logger.warning(
@@ -176,20 +184,22 @@ class ProductionService:
                 )
 
             # --- Placeholder for Future Effects --- #
-            # TODO: Implement Timing Jitter (complex, requires slicing/shifting)
+            # TODO: Implement Timing Jitter (complex, requires             # slicing/shifting)
             # logger.info("Applying timing jitter... (Placeholder)")
 
-            # TODO: Implement Reverb (likely requires ffmpeg or external library)
+            # TODO: Implement Reverb (likely requires ffmpeg or external             # library)
             # logger.info("Applying reverb... (Placeholder)")
 
             # TODO: Implement EQ (requires ffmpeg or external library)
             # logger.info("Applying EQ... (Placeholder)")
 
             # 5. Export Processed Audio
-            output_format = file_extension.lstrip(".") if file_extension else "mp3"
+            output_format = (
+                file_extension.lstrip(".") if file_extension else "mp3"
+            )
             if output_format not in ["mp3", "wav", "ogg", "flac"]:
                 # Rewritten line 165 again, removing the newline completely
-                log_message = f"Original format '{output_format}' not ideal for export, defaulting to mp3."
+                log_message = f"Original format '{output_format}' not ideal for                     export, defaulting to mp3."
                 logger.warning(log_message)
                 output_format = "mp3"
 
@@ -198,19 +208,21 @@ class ProductionService:
             ) as tmp_out_file:
                 processed_path = tmp_out_file.name
                 logger.info(
-                    f"Exporting processed audio to: {processed_path} (format: {output_format})"
+                    f"Exporting processed audio to: {processed_path} (format:                         {output_format})"
                 )
                 processed_audio.export(processed_path, format=output_format)
 
             # Return mock file URL for local testing
             mock_cloud_url = f"file://{processed_path}"
             logger.info(
-                f"Humanization complete. Returning mock file URL: {mock_cloud_url}"
+                f"Humanization complete. Returning mock file URL:                     {mock_cloud_url}"
             )
             return mock_cloud_url
 
         except Exception as e:
-            logger.error(f"Error during audio humanization: {e}", exc_info=True)
+            logger.error(
+                f"Error during audio humanization: {e}", exc_info=True
+            )
             # Raise or return None based on desired error handling
             # raise ProductionServiceError(f"Humanization failed: {e}") from e
             return None
@@ -221,15 +233,21 @@ class ProductionService:
                     os.remove(local_path)
                     logger.debug(f"Cleaned up input file: {local_path}")
                 except OSError as e:
-                    logger.warning(f"Failed to clean up input file {local_path}: {e}")
+                    logger.warning(
+                        f"Failed to clean up input file {local_path}: {e}"
+                    )
             if noise_path and os.path.exists(noise_path):
                 try:
                     os.remove(noise_path)
                     logger.debug(f"Cleaned up noise file: {noise_path}")
                 except OSError as e:
-                    logger.warning(f"Failed to clean up noise file {noise_path}: {e}")
-            # Note: The final processed file (processed_path) is NOT deleted here,
-            # as its path is returned. The caller needs to manage it or upload it.
+                    logger.warning(
+                        f"Failed to clean up noise file {noise_path}: {e}"
+                    )
+            # Note: The final processed file (processed_path) is NOT deleted
+            # here,
+            # as its path is returned. The caller needs to manage it or upload
+            # it.
 
 
 # Example Usage
@@ -238,7 +256,7 @@ if __name__ == "__main__":
     # load_dotenv() # If using .env
     production_service = ProductionService()
 
-    # Test with the mock beat URL (will likely fail download unless server allows)
+    # Test with the mock beat URL (will likely fail download unless server     # allows)
     # Replace with a real, accessible audio URL for proper testing
     test_audio_url = "https://example.com/mock-beat.mp3"
 
@@ -251,5 +269,5 @@ if __name__ == "__main__":
         # print(f"Local path: {humanized_url[7:]}")
     else:
         print(
-            "Audio humanization failed (check logs for details, download might have failed)."
+            "Audio humanization failed (check logs for details,                 download might have failed)."
         )

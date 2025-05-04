@@ -1,5 +1,6 @@
 """
-Environment utilities for loading .env files and accessing environment variables.
+Environment utilities for loading .env files and accessing environment
+    variables.
 """
 
 import os
@@ -14,7 +15,8 @@ def load_env_file(env_file_path=None):
     Load environment variables from .env file.
 
     Args:
-        env_file_path (str, optional): Path to .env file. Defaults to ".env" in current directory.
+        env_file_path (str, optional):
+            Path to .env file. Defaults to ".env" in current directory.
 
     Returns:
         bool: True if successful, False otherwise
@@ -47,7 +49,9 @@ def load_env_file(env_file_path=None):
 
                 os.environ[key] = value
 
-        logger.info(f"Successfully loaded environment variables from {env_file_path}")
+        logger.info(
+            f"Successfully loaded environment variables from {env_file_path}"
+        )
         return True
     except Exception as e:
         logger.error(f"Error loading .env file: {str(e)}")

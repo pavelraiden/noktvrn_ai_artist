@@ -8,7 +8,9 @@ def generate_calendar(start_date, days, profile_data, strategy_data):
     cta = strategy_data.get(
         "cta_templates", ["Listen now", "Available on all platforms"]
     )
-    platforms = strategy_data.get("platforms", ["TikTok", "Threads", "YouTube Shorts"])
+    platforms = strategy_data.get(
+        "platforms", ["TikTok", "Threads", "YouTube Shorts"]
+    )
     tones = strategy_data.get("tone", "mysterious")
 
     for i in range(days):

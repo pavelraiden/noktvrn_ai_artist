@@ -61,14 +61,10 @@ try:
     from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
     DEFAULT_GEMINI_SAFETY_SETTINGS = {
-        HarmCategory.HARM_CATEGORY_HARASSMENT:
-            HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-        HarmCategory.HARM_CATEGORY_HATE_SPEECH:
-            HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT:
-            HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT:
-            HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
     }
 except ImportError:
     genai = None
@@ -110,8 +106,7 @@ except ImportError:
         pass
 
     logger.warning(
-        "Anthropic library not found. Claude functionality "
-        "will be limited."
+        "Anthropic library not found. Claude functionality " "will be limited."
     )
 
 # Import the registry
@@ -218,9 +213,7 @@ class LLMProviderInstance:
         if self.provider == "gemini":
             if not genai:
                 raise ImportError("Gemini library required.")
-            genai.configure(
-                api_key=self.api_key
-            )
+            genai.configure(api_key=self.api_key)
             return genai.GenerativeModel(self.model_name)
         elif client_class:
             client_args = {"api_key": self.api_key}
@@ -247,9 +240,7 @@ class LLMOrchestrator:
     def __init__(
         self,
         primary_model: str,  # e.g., "deepseek:deepseek-chat"
-        fallback_models: Optional[
-            List[str]
-        ] = None,
+        fallback_models: Optional[List[str]] = None,
         # e.g., ["gemini-pro", "mistral-large-latest"]
         config: Optional[Dict[str, Any]] = None,
         enable_auto_discovery: bool = True,
@@ -300,9 +291,7 @@ class LLMOrchestrator:
         if enable_auto_discovery and LLM_REGISTRY:
             logger.info("Attempting auto-discovery of models from registry...")
             for provider, data in LLM_REGISTRY.items():
-                if (
-                    provider in PROVIDER_CONFIG
-                ):
+                if provider in PROVIDER_CONFIG:
                     # Only consider providers we know how to handle
                     for model_name in data.get("models", []):
                         if (
@@ -318,13 +307,11 @@ class LLMOrchestrator:
                 else:
                     logger.debug(
                         f'Skipping registry provider "{provider}": '
-                        f'Not in PROVIDER_CONFIG'
+                        f"Not in PROVIDER_CONFIG"
                     )
 
         if not self.model_preference:
-            raise ValueError(
-                "No valid LLM providers could be initialized."
-            )
+            raise ValueError("No valid LLM providers could be initialized.")
 
         logger.info(
             f"LLM Orchestrator initialized. "
@@ -367,7 +354,7 @@ class LLMOrchestrator:
         logger.warning(
             f'Could not infer provider for "{model_name}". '
             f'Specify provider if ambiguous (e.g., "openai:gpt-3.5-turbo"). '
-            f'Defaulting to openai.'
+            f"Defaulting to openai."
         )
         return "openai"
 
@@ -392,7 +379,7 @@ class LLMOrchestrator:
             logger.warning(f"Skipping unsupported provider: {provider}")
             self.initialized_models.add(
                 (provider, model_name)
-             )  # Mark as processed even if skipped
+            )  # Mark as processed even if skipped
             return
 
         provider_info = PROVIDER_CONFIG[provider]
@@ -433,7 +420,9 @@ class LLMOrchestrator:
             except (ImportError, ValueError, OrchestratorError) as e:
                 logger.error(
                     "Failed to initialize provider %s model %s: %s",
-                    provider, model_name, e
+                    provider,
+                    model_name,
+                    e,
                 )
                 self.initialized_models.add(
                     (provider, model_name)
@@ -489,9 +478,9 @@ class LLMOrchestrator:
                         content = response.choices[0].message.content
                     if content is None:
                         raise OrchestratorError(
-                            "%s (%s) returned empty content." % (
-                                provider, model_name
-                            ))
+                            "%s (%s) returned empty content."
+                            % (provider, model_name)
+                        )
                     return content.strip()
 
                 elif provider == "gemini":
@@ -631,8 +620,7 @@ class LLMOrchestrator:
                 )
                 continue
 
-            provider_instance = \
-                self.providers[provider_key]
+            provider_instance = self.providers[provider_key]
             try:
                 logger.info(
                     f"Attempting generation with: {provider}:{model_name}"

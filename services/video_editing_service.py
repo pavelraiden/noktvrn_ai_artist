@@ -83,6 +83,9 @@ def add_text_overlay(
     if not os.path.exists(input_video_path):
         raise FileNotFoundError(f"Input video not found: {input_video_path}")
 
+    video_clip = None
+    txt_clip = None
+    video_with_overlay = None
     try:
         # Load the main video clip
         video_clip = VideoFileClip(input_video_path)
@@ -96,18 +99,14 @@ def add_text_overlay(
         else:
             text_duration = duration
         # Ensure duration doesn't exceed video length
-        text_duration = max(0, min(text_duration, video_clip.duration - start_time))
+        text_duration = max(
+            0, min(text_duration, video_clip.duration - start_time)
+        )
 
         if text_duration <= 0:
             logger.warning(
                 "Calculated text duration is zero or negative. Skipping overlay."
             )
-            # Optionally copy the original video if no overlay is added
-            # For now, we'll just return the original path or handle error
-            # Copying might be safer:
-            # import shutil
-            # shutil.copy2(input_video_path, output_video_path)
-            # return output_video_path
             raise VideoEditingError("Text duration is zero or negative.")
 
         # Create the text clip
@@ -126,6 +125,9 @@ def add_text_overlay(
         # Set the position of the text clip
         # Handle string-based positions with margin
         pos_x, pos_y = position
+        final_pos_x = 0 # Initialize with default
+        final_pos_y = 0 # Initialize with default
+
         if isinstance(pos_x, str):
             if pos_x == "left":
                 final_pos_x = margin
@@ -134,9 +136,19 @@ def add_text_overlay(
             elif pos_x == "right":
                 final_pos_x = video_clip.w - txt_clip.w - margin
             else:
-                final_pos_x = pos_x  # Assume it's a numeric value passed as string?
-        else:  # Assume numeric
+                try:
+                    # Attempt to convert string to float if it's a number
+                    final_pos_x = float(pos_x)
+                except ValueError:
+                    logger.warning(
+                        f"Invalid string position value for x: {pos_x}. Defaulting to 0."
+                    )
+                    final_pos_x = 0  # Default or fallback position
+        elif isinstance(pos_x, (int, float)):
             final_pos_x = pos_x
+        else:
+             logger.warning(f"Invalid type for position x: {type(pos_x)}. Defaulting to 0.")
+             final_pos_x = 0
 
         if isinstance(pos_y, str):
             if pos_y == "top":
@@ -146,9 +158,19 @@ def add_text_overlay(
             elif pos_y == "bottom":
                 final_pos_y = video_clip.h - txt_clip.h - margin
             else:
-                final_pos_y = pos_y
-        else:  # Assume numeric
+                try:
+                    # Attempt to convert string to float if it's a number
+                    final_pos_y = float(pos_y)
+                except ValueError:
+                    logger.warning(
+                        f"Invalid string position value for y: {pos_y}. Defaulting to 0."
+                    )
+                    final_pos_y = 0 # Default or fallback position
+        elif isinstance(pos_y, (int, float)):
             final_pos_y = pos_y
+        else:
+            logger.warning(f"Invalid type for position y: {type(pos_y)}. Defaulting to 0.")
+            final_pos_y = 0
 
         txt_clip = txt_clip.set_position((final_pos_x, final_pos_y))
         txt_clip = txt_clip.set_start(start_time)
@@ -175,11 +197,6 @@ def add_text_overlay(
             logger="bar",  # Show progress bar
         )
 
-        # Close clips to release resources
-        txt_clip.close()
-        video_clip.close()
-        video_with_overlay.close()
-
         logger.info("Video editing completed successfully.")
         return output_video_path
 
@@ -188,14 +205,15 @@ def add_text_overlay(
         raise e  # Re-raise FileNotFoundError
     except Exception as e:
         logger.error(f"Video editing failed: {e}", exc_info=True)
-        # Clean up clips if they exist
-        if "video_clip" in locals() and video_clip:
-            video_clip.close()
-        if "txt_clip" in locals() and txt_clip:
-            txt_clip.close()
-        if "video_with_overlay" in locals() and video_with_overlay:
-            video_with_overlay.close()
         raise VideoEditingError(f"Failed to add text overlay: {e}")
+    finally:
+        # Clean up clips to release resources
+        if txt_clip:
+            txt_clip.close()
+        if video_clip:
+            video_clip.close()
+        if video_with_overlay:
+            video_with_overlay.close()
 
 
 # --- Example Usage (for testing) --- #
@@ -214,28 +232,40 @@ if __name__ == "__main__":
 
     # Define input and output paths (using the placeholder created earlier)
     test_input_video = os.path.join(input_dir, "placeholder_video.mp4")
-    test_output_video = os.path.join(output_dir, "placeholder_video_with_overlay.mp4")
+    test_output_video = os.path.join(
+        output_dir, "placeholder_video_with_overlay.mp4"
+    )
 
-    # Check if placeholder exists, create if not (redundant if previous step worked)
+    # Check if placeholder exists, create if not
     if not os.path.exists(test_input_video):
         logger.warning(
             f"Placeholder video not found at {test_input_video}. Attempting to create."
         )
         try:
-            os.system(
-                f"ffmpeg -y -f lavfi -i color=c=black:s=1280x720:d=5 -vf \"drawtext=text='Placeholder Video':fontcolor=white:fontsize=50:x=(w-text_w)/2:y=(h-text_h)/2\" {test_input_video}"
+            # Use ffmpeg command that works across platforms
+            cmd = (
+                f'ffmpeg -y -f lavfi -i color=c=black:s=1280x720:d=5 '
+                f'-vf "drawtext=text=\'Placeholder Video\':fontcolor=white:fontsize=50:x=(w-text_w)/2:y=(h-text_h)/2" '
+                f'{test_input_video}'
             )
+            logger.info(f"Running command: {cmd}")
+            os.system(cmd)
+            if not os.path.exists(test_input_video):
+                 raise VideoEditingError("ffmpeg command failed to create placeholder video.")
             logger.info("Placeholder video created.")
         except Exception as e:
-            logger.error(f"Failed to create placeholder video: {e}. Cannot run test.")
+            logger.error(
+                f"Failed to create placeholder video: {e}. Cannot run test."
+            )
             sys.exit(1)
 
     # --- Test Case 1: Simple Centered Text --- #
     try:
         logger.info("--- Running Test Case 1: Simple Centered Text ---")
+        output_path_1 = test_output_video.replace(".mp4", "_test1.mp4")
         output_path = add_text_overlay(
             input_video_path=test_input_video,
-            output_video_path=test_output_video.replace(".mp4", "_test1.mp4"),
+            output_video_path=output_path_1,
             text="AI Artist: Synthwave Dreamer",
             fontsize=40,
             color="cyan",
@@ -250,10 +280,13 @@ if __name__ == "__main__":
 
     # --- Test Case 2: Top-Left Text with Background --- #
     try:
-        logger.info("--- Running Test Case 2: Top-Left Text with Background ---")
+        logger.info(
+            "--- Running Test Case 2: Top-Left Text with Background ---"
+        )
+        output_path_2 = test_output_video.replace(".mp4", "_test2.mp4")
         output_path = add_text_overlay(
             input_video_path=test_input_video,
-            output_video_path=test_output_video.replace(".mp4", "_test2.mp4"),
+            output_video_path=output_path_2,
             text="Track: Midnight Drive",
             fontsize=30,
             color="yellow",
@@ -273,9 +306,10 @@ if __name__ == "__main__":
     # --- Test Case 3: Specific Coordinates --- #
     try:
         logger.info("--- Running Test Case 3: Specific Coordinates ---")
+        output_path_3 = test_output_video.replace(".mp4", "_test3.mp4")
         output_path = add_text_overlay(
             input_video_path=test_input_video,
-            output_video_path=test_output_video.replace(".mp4", "_test3.mp4"),
+            output_video_path=output_path_3,
             text="v1.1",
             fontsize=18,
             color="grey",
@@ -288,3 +322,4 @@ if __name__ == "__main__":
         logger.error(f"Test Case 3 failed: {e}")
 
     logger.info("Video editing service tests finished.")
+

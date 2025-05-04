@@ -2,7 +2,8 @@
 Suno AI Song Generation Script
 
 This script handles the generation of songs using the Suno AI API.
-It creates song requests based on artist profiles and handles the API interaction.
+It creates song requests based on artist profiles and handles the API
+    interaction.
 """
 
 import os
@@ -13,11 +14,7 @@ from pathlib import Path
 import logging
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("logs/suno_api.log"), logging.StreamHandler()],
-)
+logging.basicConfig(    level=logging.INFO,     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",     handlers=[        logging.FileHandler("logs/suno_api.log"),         logging.StreamHandler(),    ],)
 logger = logging.getLogger("suno_api")
 
 # Ensure logs directory exists
@@ -45,28 +42,13 @@ class SunoSongGenerator:
         """Initialize the Suno song generator.
 
         Args:
-            api_key (str, optional): Suno API key. Defaults to environment variable.
+            api_key (str, optional):
+                Suno API key. Defaults to environment variable.
         """
         self.api_key = api_key or SUNO_API_KEY
-        self.headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
+        self.headers = {            "Authorization": f"Bearer {self.api_key}",             "Content-Type": "application/json",        }
 
-    def generate_song(
-        self,
-        title,
-        prompt,
-        artist_slug,
-        genre=None,
-        reference_song=None,
-        bpm=None,
-        duration=None,
-        output_dir=None,
-        wait_for_completion=False,
-        check_interval=10,
-        max_wait_time=300,
-    ):
+    def generate_song(        self,         title,         prompt,         artist_slug,         genre=None,         reference_song=None,         bpm=None,         duration=None,         output_dir=None,         wait_for_completion=False,         check_interval=10,         max_wait_time=300,    ):
         """Generate a song using Suno AI.
 
         Args:
@@ -74,13 +56,18 @@ class SunoSongGenerator:
             prompt (str): Detailed prompt describing the song
             artist_slug (str): Artist identifier
             genre (str, optional): Music genre. Defaults to None.
-            reference_song (str, optional): Reference song URL. Defaults to None.
+            reference_song (str, optional):
+                Reference song URL. Defaults to None.
             bpm (int, optional): Beats per minute. Defaults to None.
             duration (int, optional): Duration in seconds. Defaults to None.
-            output_dir (Path, optional): Output directory. Defaults to artist songs directory.
-            wait_for_completion (bool, optional): Whether to wait for generation to complete. Defaults to False.
-            check_interval (int, optional): Interval in seconds to check generation status. Defaults to 10.
-            max_wait_time (int, optional): Maximum wait time in seconds. Defaults to 300.
+            output_dir (Path, optional):
+                Output directory. Defaults to artist songs directory.
+            wait_for_completion (bool, optional):
+                Whether to wait for generation to complete. Defaults to False.
+            check_interval (int, optional):
+                Interval in seconds to check generation status. Defaults to 10.
+            max_wait_time (int, optional):
+                Maximum wait time in seconds. Defaults to 300.
 
         Returns:
             dict: Response from Suno API with generation details
@@ -88,16 +75,13 @@ class SunoSongGenerator:
         # Prepare output directory
         if output_dir is None:
             # Fix: Use string formatting and then convert to Path
-            output_dir = DEFAULT_OUTPUT_DIR_TEMPLATE.format(artist_slug=artist_slug)
+            output_dir = DEFAULT_OUTPUT_DIR_TEMPLATE.format(                artist_slug=artist_slug            )
 
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
 
         # Prepare request payload
-        payload = {
-            "title": title,
-            "description": prompt,
-        }
+        payload = {            "title": title,             "description": prompt,        }
 
         # Add optional parameters if provided
         if genre:
@@ -114,31 +98,21 @@ class SunoSongGenerator:
 
         try:
             # Make API request
-            response = requests.post(
-                SUNO_GENERATE_ENDPOINT, headers=self.headers, json=payload
-            )
+            response = requests.post(                SUNO_GENERATE_ENDPOINT, headers=self.headers, json=payload            )
             response.raise_for_status()
             generation_data = response.json()
 
             # Save generation request data
-            request_file = (
-                output_path / f"{self._sanitize_filename(title)}_request.json"
-            )
+            request_file = (                output_path / f"{self._sanitize_filename(title)}_request.json"            )
             with open(request_file, "w") as f:
-                json.dump(
-                    {"request": payload, "initial_response": generation_data},
-                    f,
-                    indent=2,
-                )
+                json.dump(                    {"request": payload, "initial_response": generation_data},                     f,                     indent=2,                )
 
             generation_id = generation_data.get("id")
             logger.info(f"Song generation initiated with ID: {generation_id}")
 
             # Wait for completion if requested
             if wait_for_completion and generation_id:
-                return self._wait_for_completion(
-                    generation_id, output_path, title, check_interval, max_wait_time
-                )
+                return self._wait_for_completion(                    generation_id,                     output_path,                     title,                     check_interval,                     max_wait_time,                )
 
             return generation_data
 
@@ -158,9 +132,7 @@ class SunoSongGenerator:
             dict: Status response from Suno API
         """
         try:
-            response = requests.get(
-                f"{SUNO_STATUS_ENDPOINT}/{generation_id}", headers=self.headers
-            )
+            response = requests.get(                f"{SUNO_STATUS_ENDPOINT}/{generation_id}", headers=self.headers            )
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
@@ -169,9 +141,7 @@ class SunoSongGenerator:
                 logger.error(f"Response: {e.response.text}")
             return {"error": str(e)}
 
-    def _wait_for_completion(
-        self, generation_id, output_path, title, check_interval, max_wait_time
-    ):
+    def _wait_for_completion(        self, generation_id, output_path, title, check_interval, max_wait_time    ):
         """Wait for song generation to complete.
 
         Args:
@@ -191,46 +161,34 @@ class SunoSongGenerator:
             status_data = self.check_generation_status(generation_id)
 
             if "error" in status_data:
-                logger.error(
-                    f"Error while waiting for completion: {status_data['error']}"
-                )
+                logger.error(                    "Error while waiting for completion: "                     f"{status_data['error']}"                )
                 return status_data
 
             status = status_data.get("status", "").lower()
             logger.info(f"Generation status: {status}")
 
             # Save the current status
-            status_file = output_path / f"{self._sanitize_filename(title)}_status.json"
+            status_file = (                output_path / f"{self._sanitize_filename(title)}_status.json"            )
             with open(status_file, "w") as f:
                 json.dump(status_data, f, indent=2)
 
             if status == "completed":
-                logger.info(f"Generation completed successfully!")
+                logger.info("Generation completed successfully!")
 
                 # Download the generated song if available
                 if "audio_url" in status_data:
-                    self._download_song(
-                        status_data["audio_url"],
-                        output_path / f"{self._sanitize_filename(title)}.mp3",
-                    )
+                    self._download_song(                        status_data["audio_url"],                         output_path / f"{self._sanitize_filename(title)}.mp3",                    )
 
                 return status_data
             elif status in ["failed", "error"]:
-                logger.error(
-                    f"Generation failed: {status_data.get('error', 'Unknown error')}"
-                )
+                logger.error(                    f"Generation failed: {status_data.get('error', 'Unknown                         error')}"                )
                 return status_data
 
             # Wait before checking again
             time.sleep(check_interval)
 
-        logger.warning(
-            f"Reached maximum wait time ({max_wait_time}s) for generation {generation_id}"
-        )
-        return {
-            "error": "Timeout waiting for generation to complete",
-            "generation_id": generation_id,
-        }
+        logger.warning(            f"Reached maximum wait time ({max_wait_time}s) for generation                 {generation_id}"        )
+        return {            "error": "Timeout waiting for generation to complete",             "generation_id": generation_id,        }
 
     def _download_song(self, url, output_path):
         """Download the generated song.
@@ -275,9 +233,7 @@ class SunoSongGenerator:
         return filename.replace(" ", "_").lower()
 
 
-def generate_song_from_artist_profile(
-    artist_slug, song_title, song_prompt, genre=None, wait_for_completion=False
-):
+def generate_song_from_artist_profile(    artist_slug, song_title, song_prompt, genre=None, wait_for_completion=False):
     """Generate a song based on an artist profile.
 
     Args:
@@ -285,7 +241,8 @@ def generate_song_from_artist_profile(
         song_title (str): Title of the song
         song_prompt (str): Detailed prompt for the song
         genre (str, optional): Music genre. Defaults to None.
-        wait_for_completion (bool, optional): Whether to wait for generation. Defaults to False.
+        wait_for_completion (bool, optional):
+            Whether to wait for generation. Defaults to False.
 
     Returns:
         dict: Response from Suno API
@@ -308,39 +265,25 @@ def generate_song_from_artist_profile(
 
                 logger.info(f"Using genre '{genre}' from artist profile")
         except Exception as e:
-            logger.warning(f"Could not load genre from artist profile: {str(e)}")
+            logger.warning(                f"Could not load genre from artist profile: {str(e)}"            )
 
     # Generate the song
-    return generator.generate_song(
-        title=song_title,
-        prompt=song_prompt,
-        artist_slug=artist_slug,
-        genre=genre,
-        wait_for_completion=wait_for_completion,
-    )
+    return generator.generate_song(        title=song_title,         prompt=song_prompt,         artist_slug=artist_slug,         genre=genre,         wait_for_completion=wait_for_completion,    )
 
 
 if __name__ == "__main__":
     # Example usage
     import argparse
 
-    parser = argparse.ArgumentParser(description="Generate songs using Suno AI")
-    parser.add_argument("--artist", required=True, help="Artist slug/identifier")
+    parser = argparse.ArgumentParser(        description="Generate songs using Suno AI"    )
+    parser.add_argument(        "--artist", required=True, help="Artist slug/identifier"    )
     parser.add_argument("--title", required=True, help="Song title")
-    parser.add_argument("--prompt", required=True, help="Song prompt/description")
+    parser.add_argument(        "--prompt", required=True, help="Song prompt/description"    )
     parser.add_argument("--genre", help="Music genre")
-    parser.add_argument(
-        "--wait", action="store_true", help="Wait for generation to complete"
-    )
+    parser.add_argument(        "--wait", action="store_true", help="Wait for generation to complete"    )
 
     args = parser.parse_args()
 
-    result = generate_song_from_artist_profile(
-        artist_slug=args.artist,
-        song_title=args.title,
-        song_prompt=args.prompt,
-        genre=args.genre,
-        wait_for_completion=args.wait,
-    )
+    result = generate_song_from_artist_profile(        artist_slug=args.artist,         song_title=args.title,         song_prompt=args.prompt,         genre=args.genre,         wait_for_completion=args.wait,    )
 
     print(json.dumps(result, indent=2))

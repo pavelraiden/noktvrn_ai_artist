@@ -18,7 +18,10 @@ sys.path.append(str(Path(__file__).parent.parent))
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("logs/api_test.log"), logging.StreamHandler()],
+    handlers=[
+        logging.FileHandler("logs/api_test.log"),
+        logging.StreamHandler(),
+    ],
 )
 logger = logging.getLogger("api_test")
 
@@ -41,12 +44,16 @@ try:
     from video_gen.fetch_assets import fetch_pixabay, fetch_pexels
 except ImportError as e:
     logger.error(f"Error importing modules: {str(e)}")
-    logger.error("Make sure you're running this script from the project root directory")
+    logger.error(
+        "Make sure you're running this script from the project root directory"
+    )
     sys.exit(1)
 
 # Test data
 TEST_SONG_TITLE = "Test Song"
-TEST_SONG_PROMPT = "A catchy electronic song with a futuristic vibe and upbeat tempo"
+TEST_SONG_PROMPT = (
+    "A catchy electronic song with a futuristic vibe and upbeat tempo"
+)
 TEST_ARTIST_SLUG = "test_artist"
 TEST_VIDEO_KEYWORDS = [
     "retro car race",
@@ -83,7 +90,7 @@ def test_suno_api():
             prompt=TEST_SONG_PROMPT,
             artist_slug=TEST_ARTIST_SLUG,
             genre="Electronic",
-            wait_for_completion=False,  # Set to True to wait for completion (takes longer)
+            wait_for_completion=False,  # Set to True to wait (takes longer)
         )
 
         # Check result
@@ -104,7 +111,9 @@ def test_suno_api():
                 "raw_response": result,
             }
 
-        logger.info(f"Successfully initiated song generation with ID: {generation_id}")
+        logger.info(
+            f"Successfully initiated song generation with ID: {generation_id}"
+        )
         return {
             "status": "success",
             "message": f"Successfully initiated song generation with ID: {generation_id}",
@@ -114,7 +123,10 @@ def test_suno_api():
 
     except Exception as e:
         logger.error(f"Error testing Suno API: {str(e)}")
-        return {"status": "error", "message": f"Error testing Suno API: {str(e)}"}
+        return {
+            "status": "error",
+            "message": f"Error testing Suno API: {str(e)}",
+        }
 
 
 def test_pixabay_api():
@@ -150,8 +162,13 @@ def test_pixabay_api():
                 results[keyword] = {"status": "success", "url": video_url}
                 success_count += 1
             else:
-                logger.warning(f"No video found on Pixabay for keyword: {keyword}")
-                results[keyword] = {"status": "warning", "message": "No video found"}
+                logger.warning(
+                    f"No video found on Pixabay for keyword: {keyword}"
+                )
+                results[keyword] = {
+                    "status": "warning",
+                    "message": "No video found",
+                }
 
         # Overall status
         if success_count == 0:
@@ -159,12 +176,23 @@ def test_pixabay_api():
             message = "Failed to fetch any videos from Pixabay"
         elif success_count < len(TEST_VIDEO_KEYWORDS):
             overall_status = "partial_success"
-            message = f"Successfully fetched {success_count} out of {len(TEST_VIDEO_KEYWORDS)} videos from Pixabay"
+            message = (
+                f"Successfully fetched {success_count} out of "
+                f"{len(TEST_VIDEO_KEYWORDS)} videos from Pixabay"
+            )
         else:
             overall_status = "success"
-            message = f"Successfully fetched all {len(TEST_VIDEO_KEYWORDS)} videos from Pixabay"
+            # Corrected multi-line f-string
+            message = (
+                f"Successfully fetched all {len(TEST_VIDEO_KEYWORDS)} "
+                f"videos from Pixabay"
+            )
 
-        return {"status": overall_status, "message": message, "results": results}
+        return {
+            "status": overall_status,
+            "message": message,
+            "results": results,
+        }
 
     except Exception as e:
         logger.error(f"Error testing Pixabay API: {str(e)}")
@@ -208,8 +236,13 @@ def test_pexels_api():
                 results[keyword] = {"status": "success", "url": video_url}
                 success_count += 1
             else:
-                logger.warning(f"No video found on Pexels for keyword: {keyword}")
-                results[keyword] = {"status": "warning", "message": "No video found"}
+                logger.warning(
+                    f"No video found on Pexels for keyword: {keyword}"
+                )
+                results[keyword] = {
+                    "status": "warning",
+                    "message": "No video found",
+                }
 
         # Overall status
         if success_count == 0:
@@ -217,12 +250,24 @@ def test_pexels_api():
             message = "Failed to fetch any videos from Pexels"
         elif success_count < len(TEST_VIDEO_KEYWORDS):
             overall_status = "partial_success"
-            message = f"Successfully fetched {success_count} out of {len(TEST_VIDEO_KEYWORDS)} videos from Pexels"
+            # Corrected multi-line f-string
+            message = (
+                f"Successfully fetched {success_count} out of "
+                f"{len(TEST_VIDEO_KEYWORDS)} videos from Pexels"
+            )
         else:
             overall_status = "success"
-            message = f"Successfully fetched all {len(TEST_VIDEO_KEYWORDS)} videos from Pexels"
+            # Corrected multi-line f-string
+            message = (
+                f"Successfully fetched all {len(TEST_VIDEO_KEYWORDS)} "
+                f"videos from Pexels"
+            )
 
-        return {"status": overall_status, "message": message, "results": results}
+        return {
+            "status": overall_status,
+            "message": message,
+            "results": results,
+        }
 
     except Exception as e:
         logger.error(f"Error testing Pexels API: {str(e)}")
@@ -255,7 +300,9 @@ def run_all_tests():
 
     # Determine overall status
     success_count = sum(
-        1 for api, result in all_results.items() if result["status"] == "success"
+        1
+        for api, result in all_results.items()
+        if result["status"] == "success"
     )
     partial_success_count = sum(
         1
@@ -271,20 +318,32 @@ def run_all_tests():
         message = "All API tests passed successfully"
     else:
         overall_status = "partial_success"
-        message = f"{success_count} API tests passed successfully, {partial_success_count} partially succeeded, {len(all_results) - success_count - partial_success_count} failed"
+        message = (
+            f"{success_count} API tests passed successfully, "
+            f"{partial_success_count} partially succeeded, "
+            f"{len(all_results) - success_count - partial_success_count} failed"
+        )
 
     # Save results to file
     results_file = Path("logs/api_test_results.json")
     with open(results_file, "w") as f:
         json.dump(
-            {"status": overall_status, "message": message, "results": all_results},
+            {
+                "status": overall_status,
+                "message": message,
+                "results": all_results,
+            },
             f,
             indent=2,
         )
 
     logger.info(f"API test results saved to {results_file}")
 
-    return {"status": overall_status, "message": message, "results": all_results}
+    return {
+        "status": overall_status,
+        "message": message,
+        "results": all_results,
+    }
 
 
 if __name__ == "__main__":
@@ -318,3 +377,4 @@ if __name__ == "__main__":
 
     # Print detailed results
     print(json.dumps(result, indent=2))
+

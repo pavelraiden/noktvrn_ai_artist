@@ -1,29 +1,31 @@
 """
 Review Logger Module
 
-This module provides functionality for logging and retrieving review information
+This module provides functionality for logging and retrieving review
+    information
 during the artist prompt creation process, enabling auditability and rollback.
 """
 
 import os
 import json
 import logging
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional
 from datetime import datetime
-from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger("review_logger")
 
 
 class ReviewLogger:
     """
-    Logs and retrieves review information during the artist prompt creation process.
+    Logs and retrieves review information during the artist prompt creation
+        process.
 
-    This class saves all intermediate prompt versions, LLM feedbacks, and validation
+    This class saves all intermediate prompt versions, LLM feedbacks,         and validation
     results, organized by session ID and iteration number.
     """
 
@@ -45,7 +47,9 @@ class ReviewLogger:
         # Create storage directory if it doesn't exist
         os.makedirs(storage_dir, exist_ok=True)
 
-        logger.info(f"Initialized review logger with storage directory: {storage_dir}")
+        logger.info(
+            f"Initialized review logger with storage directory: {storage_dir}"
+        )
 
     def log_prompt_version(
         self,
@@ -83,7 +87,7 @@ class ReviewLogger:
         self._save_log_entry(session_id, "prompts", prompt_id, prompt_data)
 
         logger.info(
-            f"Logged prompt version for session {session_id}, iteration {iteration}"
+            f"Logged prompt version for session {session_id}, iteration                 {iteration}"
         )
         return prompt_id
 
@@ -110,7 +114,9 @@ class ReviewLogger:
         """
         # Create feedback log entry
         timestamp = datetime.now().isoformat()
-        feedback_id = f"{session_id}_{iteration}_feedback_{timestamp.replace(':', '-')}"
+        feedback_id = (
+            f"{session_id}_{iteration}_feedback_{timestamp.replace(':', '-')}"
+        )
 
         feedback_data = {
             "id": feedback_id,
@@ -123,9 +129,13 @@ class ReviewLogger:
         }
 
         # Save to storage
-        self._save_log_entry(session_id, "feedback", feedback_id, feedback_data)
+        self._save_log_entry(
+            session_id, "feedback", feedback_id, feedback_data
+        )
 
-        logger.info(f"Logged feedback for session {session_id}, iteration {iteration}")
+        logger.info(
+            f"Logged feedback for session {session_id}, iteration {iteration}"
+        )
         return feedback_id
 
     def log_validation_result(
@@ -149,9 +159,7 @@ class ReviewLogger:
         """
         # Create validation log entry
         timestamp = datetime.now().isoformat()
-        validation_id = (
-            f"{session_id}_{iteration}_validation_{timestamp.replace(':', '-')}"
-        )
+        validation_id = f"{session_id}_{iteration}_validation_{timestamp.replace(':             ', '-')}"
 
         validation_data = {
             "id": validation_id,
@@ -163,10 +171,12 @@ class ReviewLogger:
         }
 
         # Save to storage
-        self._save_log_entry(session_id, "validations", validation_id, validation_data)
+        self._save_log_entry(
+            session_id, "validations", validation_id, validation_data
+        )
 
         logger.info(
-            f"Logged validation result for session {session_id}, iteration {iteration}"
+            f"Logged validation result for session {session_id}, iteration                 {iteration}"
         )
         return validation_id
 
@@ -197,7 +207,9 @@ class ReviewLogger:
         """
         # Create summary log entry
         timestamp = datetime.now().isoformat()
-        summary_id = f"{session_id}_{iteration}_summary_{timestamp.replace(':', '-')}"
+        summary_id = (
+            f"{session_id}_{iteration}_summary_{timestamp.replace(':', '-')}"
+        )
 
         summary_data = {
             "id": summary_id,
@@ -215,11 +227,13 @@ class ReviewLogger:
         self._save_log_entry(session_id, "summaries", summary_id, summary_data)
 
         logger.info(
-            f"Logged iteration summary for session {session_id}, iteration {iteration}"
+            f"Logged iteration summary for session {session_id}, iteration                 {iteration}"
         )
         return summary_id
 
-    def get_logs_by_session(self, session_id: str) -> Dict[str, List[Dict[str, Any]]]:
+    def get_logs_by_session(
+        self, session_id: str
+    ) -> Dict[str, List[Dict[str, Any]]]:
         """
         Get all logs for a session.
 
@@ -243,7 +257,9 @@ class ReviewLogger:
                 logs[category] = []
 
                 # Get all log files in the category
-                log_files = [f for f in os.listdir(category_dir) if f.endswith(".json")]
+                log_files = [
+                    f for f in os.listdir(category_dir) if f.endswith(".json")
+                ]
 
                 # Load each log file
                 for log_file in log_files:
@@ -254,7 +270,9 @@ class ReviewLogger:
 
                         logs[category].append(log_data)
                     except Exception as e:
-                        logger.error(f"Error loading log file {log_file}: {str(e)}")
+                        logger.error(
+                            f"Error loading log file {log_file}: {str(e)}"
+                        )
 
         # Sort logs by iteration and timestamp
         for category in logs:
@@ -263,7 +281,7 @@ class ReviewLogger:
             )
 
         logger.info(
-            f"Retrieved {sum(len(logs.get(c, [])) for c in categories)} logs for session {session_id}"
+            f"Retrieved {sum(len(logs.get(c,                 [])) for c in categories)} logs for session {session_id}"
         )
         return logs
 
@@ -292,7 +310,9 @@ class ReviewLogger:
 
         # Filter by iteration if specified
         if iteration is not None:
-            summaries = [s for s in summaries if s.get("iteration") == iteration]
+            summaries = [
+                s for s in summaries if s.get("iteration") == iteration
+            ]
 
         # Build iteration history
         iterations = []
@@ -304,11 +324,19 @@ class ReviewLogger:
 
             # Find corresponding prompt, feedback, and validation
             prompt_data = next(
-                (p for p in all_logs.get("prompts", []) if p.get("id") == prompt_id),
+                (
+                    p
+                    for p in all_logs.get("prompts", [])
+                    if p.get("id") == prompt_id
+                ),
                 None,
             )
             feedback_data = next(
-                (f for f in all_logs.get("feedback", []) if f.get("id") == feedback_id),
+                (
+                    f
+                    for f in all_logs.get("feedback", [])
+                    if f.get("id") == feedback_id
+                ),
                 None,
             )
             validation_data = next(
@@ -348,7 +376,7 @@ class ReviewLogger:
         iterations.sort(key=lambda x: x.get("iteration", 0))
 
         logger.info(
-            f"Retrieved history for session {session_id}, {'iteration ' + str(iteration) if iteration is not None else 'all iterations'}"
+            f"Retrieved history for session {session_id}, {'iteration ' +                 str(iteration) if iteration is not None else 'all iterations'}"
         )
         return {"iterations": iterations}
 
@@ -390,7 +418,11 @@ class ReviewLogger:
         all_logs = self.get_logs_by_session(session_id)
 
         # If no logs, return None
-        if not all_logs or "summaries" not in all_logs or "prompts" not in all_logs:
+        if (
+            not all_logs
+            or "summaries" not in all_logs
+            or "prompts" not in all_logs
+        ):
             return None
 
         # Get summaries and find the one with the highest confidence score
@@ -398,26 +430,32 @@ class ReviewLogger:
         if not summaries:
             return None
 
-        best_summary = max(summaries, key=lambda x: x.get("confidence_score", 0))
+        best_summary = max(
+            summaries, key=lambda x: x.get("confidence_score", 0)
+        )
         best_prompt_id = best_summary.get("prompt_id")
 
         # Find the corresponding prompt
         best_prompt = next(
-            (p for p in all_logs["prompts"] if p.get("id") == best_prompt_id), None
+            (p for p in all_logs["prompts"] if p.get("id") == best_prompt_id),
+            None,
         )
 
         return best_prompt
 
     def _save_log_entry(
-        self, session_id: str, category: str, entry_id: str, data: Dict[str, Any]
+        self,
+        session_id: str,
+        category: str,
+        entry_id: str,
+        data: Dict[str, Any],
     ) -> None:
         """
         Save a log entry to storage.
 
         Args:
             session_id: The ID of the session
-            category: The category of the log entry
-            entry_id: The ID of the log entry
+            category: The category of the log entry             entry_id: The ID of the log entry
             data: The log entry data
         """
         # Create session directory if it doesn't exist
@@ -447,7 +485,9 @@ if __name__ == "__main__":
     iteration = 1
 
     # Log a prompt version
-    prompt = "A mysterious dark trap artist who thrives in the urban night scene."
+    prompt = (
+        "A mysterious dark trap artist who thrives in the urban night scene."
+    )
     prompt_id = logger.log_prompt_version(session_id, iteration, prompt)
 
     # Log feedback
@@ -458,7 +498,9 @@ if __name__ == "__main__":
         ],
         "rating": 7,
     }
-    feedback_id = logger.log_feedback(session_id, iteration, prompt_id, feedback)
+    feedback_id = logger.log_feedback(
+        session_id, iteration, prompt_id, feedback
+    )
 
     # Log validation result
     validation_result = {
@@ -466,7 +508,10 @@ if __name__ == "__main__":
         "confidence_score": 0.65,
         "feedback": {
             "length": {"status": "pass"},
-            "required_elements": {"status": "fail", "missing": ["voice", "appearance"]},
+            "required_elements": {
+                "status": "fail",
+                "missing": ["voice", "appearance"],
+            },
         },
     }
     validation_id = logger.log_validation_result(
@@ -487,7 +532,7 @@ if __name__ == "__main__":
     # Get logs for the session
     logs = logger.get_logs_by_session(session_id)
     print(
-        f"Retrieved {sum(len(logs.get(c, [])) for c in logs)} logs for session {session_id}"
+        f"Retrieved {sum(len(logs.get(c,             [])) for c in logs)} logs for session {session_id}"
     )
 
     # Get iteration history

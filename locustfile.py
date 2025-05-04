@@ -22,7 +22,8 @@ class APIUser(HttpUser):
     # Example: POST request to create an artist (if endpoint exists)
     # @task(2) # Make this task twice as likely
     # def create_artist(self):
-    #     self.client.post("/artists/", json={"name": "Test Artist", "genre": "Pop"})
+    # self.client.post("/artists/", json={"name": "Test Artist", "genre":
+    # "Pop"})
 
 
 # To run this test:

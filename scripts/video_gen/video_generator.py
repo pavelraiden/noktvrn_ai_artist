@@ -1,6 +1,7 @@
 """
 video_generator.py
-Main module for building shortform video teasers based on artist profile and video plan.
+Main module for building shortform video teasers based on artist profile and
+    video plan.
 """
 
 import json
@@ -46,7 +47,10 @@ def build_teaser():
     teaser_clips = []
     render_log = []
 
-    print(f"Building teaser for artist: {plan.get('artist')} ({plan.get('genre')})")
+    print(
+        f"Building teaser for artist: {plan.get('artist')} "
+        f"({plan.get('genre')})"
+    )
 
     for segment in tqdm(segments, desc="Processing segments"):
         visuals = segment.get("visuals", [])

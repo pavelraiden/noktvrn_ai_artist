@@ -8,6 +8,7 @@ It can be updated manually to include new models as they become available.
 The LLMOrchestrator can use this registry to potentially discover and add
 new models to its fallback sequence.
 """
+# Removed unused typing imports
 
 LLM_REGISTRY = {
     "openai": {
@@ -26,7 +27,8 @@ LLM_REGISTRY = {
     },
     "grok": {
         "models": [
-            "grok-1",  # Added as per instructions (assuming Grok3 refers to this or similar)
+            "grok-1",  # Added as per instructions
+            # (assuming Grok3 refers to this or similar)
             # Add other Grok models if known, e.g., grok-1.5
         ]
     },
@@ -58,7 +60,8 @@ LLM_REGISTRY = {
 }
 
 
-# Function to potentially load/update this registry from a file or external source in the future
+# Function to potentially load/update this registry from a file or external
+# source in the future
 def load_registry():
     """Loads the LLM registry. Currently returns the hardcoded dictionary."""
     # In the future, this could load from a JSON/YAML file or query APIs.

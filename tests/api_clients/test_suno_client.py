@@ -8,7 +8,9 @@ project_root = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..")
 )
 sys.path.insert(0, project_root)
-streamlit_app_root = os.path.abspath(os.path.join(project_root, "..", "streamlit_app"))
+streamlit_app_root = os.path.abspath(
+    os.path.join(project_root, "..", "streamlit_app")
+)
 sys.path.insert(0, streamlit_app_root)
 
 # Need requests for the side_effect
@@ -49,12 +51,15 @@ class TestSunoApiClient(unittest.TestCase):
         mock_request.assert_called_once()
         args, kwargs = mock_request.call_args
         self.assertEqual(args[0], "POST")  # Check method
-        self.assertEqual(args[1], f"{self.client.base_url}/generate")  # Check URL
+        self.assertEqual(
+            args[1], f"{self.client.base_url}/generate"
+        )  # Check URL
         self.assertIn("prompt", kwargs["json"])
         self.assertEqual(kwargs["json"]["prompt"], "A test song")
         self.assertIn("Authorization", kwargs["headers"])
         self.assertEqual(
-            kwargs["headers"]["Authorization"], f"Bearer {settings.SUNO_API_KEY}"
+            kwargs["headers"]["Authorization"],
+            f"Bearer {settings.SUNO_API_KEY}",
         )
 
         self.assertIsInstance(response, list)
@@ -67,14 +72,16 @@ class TestSunoApiClient(unittest.TestCase):
         mock_response = MagicMock()
         mock_response.status_code = 400
         mock_response.json.return_value = {"detail": "Invalid input"}
-        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
-            "Bad Request"
+        mock_response.raise_for_status.side_effect = (
+            requests.exceptions.HTTPError("Bad Request")
         )
         mock_request.return_value = mock_response
 
         with self.assertRaises(SunoApiError) as cm:
             self.client.start_audio_generation(prompt="Invalid")
-        self.assertIn("Failed to start Suno audio generation", str(cm.exception))
+        self.assertIn(
+            "Failed to start Suno audio generation", str(cm.exception)
+        )
         # Check the underlying HTTP error message if possible
         self.assertIn("Bad Request", str(cm.exception.__cause__))
 
@@ -105,7 +112,9 @@ class TestSunoApiClient(unittest.TestCase):
 
         self.assertIsInstance(response, list)
         self.assertEqual(response[0]["id"], "clip_123")
-        self.assertEqual(response[0]["audio_url"], "http://example.com/audio.mp3")
+        self.assertEqual(
+            response[0]["audio_url"], "http://example.com/audio.mp3"
+        )
 
     # Corrected patch target
     @patch("api_clients.base_client.requests.request")
@@ -114,14 +123,16 @@ class TestSunoApiClient(unittest.TestCase):
         mock_response = MagicMock()
         mock_response.status_code = 404
         mock_response.json.return_value = {"detail": "Not Found"}
-        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
-            "Not Found"
+        mock_response.raise_for_status.side_effect = (
+            requests.exceptions.HTTPError("Not Found")
         )
         mock_request.return_value = mock_response
 
         with self.assertRaises(SunoApiError) as cm:
             self.client.get_generation_details(["clip_not_found"])
-        self.assertIn("Failed to get Suno generation details", str(cm.exception))
+        self.assertIn(
+            "Failed to get Suno generation details", str(cm.exception)
+        )
         self.assertIn("Not Found", str(cm.exception.__cause__))
 
     def test_initialization_no_api_key(self):

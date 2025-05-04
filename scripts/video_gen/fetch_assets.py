@@ -1,7 +1,8 @@
 """
 Enhanced Fetch Assets Script
 
-This script fetches video assets from Pixabay and Pexels APIs based on keywords.
+This script fetches video assets from Pixabay and Pexels APIs based on
+    keywords.
 It includes improved error handling, logging, and API key validation.
 """
 
@@ -13,11 +14,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("logs/video_assets.log"), logging.StreamHandler()],
-)
+logging.basicConfig(    level=logging.INFO,     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",     handlers=[        logging.FileHandler("logs/video_assets.log"),         logging.StreamHandler(),    ],)
 logger = logging.getLogger("video_assets")
 
 # Load API keys from environment
@@ -66,9 +63,7 @@ def fetch_pixabay(keyword, limit=1):
         if hasattr(e, "response") and e.response:
             logger.error(f"Response: {e.response.text}")
     except Exception as e:
-        logger.error(
-            f"Unexpected error fetching from Pixabay for '{keyword}': {str(e)}"
-        )
+        logger.error(            f"Unexpected error fetching from Pixabay for '{keyword}': {str(e)}"        )
 
     return None
 
@@ -104,7 +99,7 @@ def fetch_pexels(keyword, limit=1):
         if hasattr(e, "response") and e.response:
             logger.error(f"Response: {e.response.text}")
     except Exception as e:
-        logger.error(f"Unexpected error fetching from Pexels for '{keyword}': {str(e)}")
+        logger.error(            f"Unexpected error fetching from Pexels for '{keyword}': {str(e)}"        )
 
     return None
 
@@ -119,14 +114,7 @@ def fallback_mixkit(keyword):
         str: URL of the fallback video or None if not found
     """
     # Static fallback links from MixKit
-    fallback_videos = {
-        "drift cars": "https://assets.mixkit.co/videos/preview/mixkit-drifting-sports-car-4317-large.mp4",
-        "neon city": "https://assets.mixkit.co/videos/preview/mixkit-city-billboards-at-night-2432-large.mp4",
-        "models": "https://assets.mixkit.co/videos/preview/mixkit-fashion-model-posing-on-the-street-4225-large.mp4",
-        "concert": "https://assets.mixkit.co/videos/preview/mixkit-hands-of-people-at-a-concert-1029-large.mp4",
-        "dj": "https://assets.mixkit.co/videos/preview/mixkit-dj-playing-music-at-a-nightclub-1235-large.mp4",
-        "urban": "https://assets.mixkit.co/videos/preview/mixkit-urban-life-in-a-city-at-night-time-lapse-10304-large.mp4",
-    }
+    fallback_videos = {        "drift cars": "https:             //assets.mixkit.co/videos/preview/mixkit-drifting-sports-car-4317-large.mp4",         "neon city": "https:             //assets.mixkit.co/videos/preview/mixkit-city-billboards-at-night-2432-large.mp4",         "models": "https:             //assets.mixkit.co/videos/preview/mixkit-fashion-model-posing-on-the-street-4225-large.mp4",         "concert": "https:             //assets.mixkit.co/videos/preview/mixkit-hands-of-people-at-a-concert-1029-large.mp4",         "dj": "https:             //assets.mixkit.co/videos/preview/mixkit-dj-playing-music-at-a-nightclub-1235-large.mp4",         "urban": "https:             //assets.mixkit.co/videos/preview/mixkit-urban-life-in-a-city-at-night-time-lapse-10304-large.mp4",    }
 
     if keyword.lower() in fallback_videos:
         logger.info(f"Using MixKit fallback for '{keyword}'")
@@ -135,7 +123,7 @@ def fallback_mixkit(keyword):
     # Try partial matches
     for key, url in fallback_videos.items():
         if key in keyword.lower() or keyword.lower() in key:
-            logger.info(f"Using MixKit partial match fallback: '{key}' for '{keyword}'")
+            logger.info(                f"Using MixKit partial match fallback: '{key}' for '{keyword}'"            )
             return url
 
     logger.warning(f"No fallback video found for '{keyword}'")
@@ -163,9 +151,7 @@ def download_video(url, output_path):
         block_size = 8192
 
         with open(output_path, "wb") as f:
-            with tqdm(
-                total=total_size, unit="B", unit_scale=True, desc=output_path.name
-            ) as pbar:
+            with tqdm(                total=total_size,                 unit="B",                 unit_scale=True,                 desc=output_path.name,            ) as pbar:
                 for chunk in response.iter_content(chunk_size=block_size):
                     if chunk:
                         f.write(chunk)
@@ -190,9 +176,7 @@ def load_video_plan(plan_path):
     try:
         with open(plan_path) as f:
             plan = json.load(f)
-        logger.info(
-            f"Successfully loaded video plan with {len(plan.get('segments', []))} segments"
-        )
+        logger.info(            f"Successfully loaded video plan with {len(plan.get('segments',                 []))} segments"        )
         return plan
     except Exception as e:
         logger.error(f"Error loading video plan: {str(e)}")
@@ -204,7 +188,8 @@ def main(artist="noktvrn", output_log_path=None):
 
     Args:
         artist (str, optional): Artist slug/identifier. Defaults to "noktvrn".
-        output_log_path (str, optional): Path to save the fetch log. Defaults to "fetch_log.json".
+        output_log_path (str, optional):
+            Path to save the fetch log. Defaults to "fetch_log.json".
     """
     logger.info(f"Starting video asset fetching for artist: {artist}")
 
@@ -222,9 +207,7 @@ def main(artist="noktvrn", output_log_path=None):
         fetched = {}
 
         # Process each visual in the plan
-        total_visuals = sum(
-            len(segment.get("visuals", [])) for segment in plan.get("segments", [])
-        )
+        total_visuals = sum(            len(segment.get("visuals", []))             for segment in plan.get("segments", [])        )
         logger.info(f"Processing {total_visuals} visuals from the video plan")
 
         for segment in tqdm(plan.get("segments", []), desc="Fetching assets"):
@@ -234,7 +217,7 @@ def main(artist="noktvrn", output_log_path=None):
 
                 # Skip if already exists
                 if any(folder.glob("*.mp4")):
-                    logger.info(f"Asset for '{keyword}' already exists, skipping")
+                    logger.info(                        f"Asset for '{keyword}' already exists, skipping"                    )
                     existing_files = list(folder.glob("*.mp4"))
                     fetched[visual] = str(existing_files[0])
                     continue
@@ -242,11 +225,7 @@ def main(artist="noktvrn", output_log_path=None):
                 logger.info(f"Fetching asset for visual: {visual}")
 
                 # Try APIs in sequence
-                url = (
-                    fetch_pixabay(keyword)
-                    or fetch_pexels(keyword)
-                    or fallback_mixkit(keyword)
-                )
+                url = (                    fetch_pixabay(keyword)                     or fetch_pexels(keyword)                     or fallback_mixkit(keyword)                )
 
                 if url:
                     filename = keyword.replace(" ", "_").lower() + ".mp4"
@@ -270,21 +249,10 @@ def main(artist="noktvrn", output_log_path=None):
         logger.info(f"✅ Fetch complete. Log saved to {output_log_path}")
 
         # Summary statistics
-        success_count = sum(
-            1
-            for v in fetched.values()
-            if not v.startswith("Download error") and not v.startswith("No asset")
-        )
-        logger.info(
-            f"Successfully fetched {success_count} out of {len(fetched)} visuals"
-        )
+        success_count = sum(            1             for v in fetched.values()             if not v.startswith("Download error")             and not v.startswith("No asset")        )
+        logger.info(            f"Successfully fetched {success_count} out of {len(fetched)}                 visuals"        )
 
-        return {
-            "status": "success",
-            "total_visuals": len(fetched),
-            "successful_fetches": success_count,
-            "log_path": output_log_path,
-        }
+        return {            "status": "success",             "total_visuals": len(fetched),             "successful_fetches": success_count,             "log_path": output_log_path,        }
 
     except Exception as e:
         logger.error(f"Error in main execution: {str(e)}")
@@ -294,10 +262,8 @@ def main(artist="noktvrn", output_log_path=None):
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Fetch video assets from Pixabay and Pexels"
-    )
-    parser.add_argument("--artist", default="noktvrn", help="Artist slug/identifier")
+    parser = argparse.ArgumentParser(        description="Fetch video assets from Pixabay and Pexels"    )
+    parser.add_argument(        "--artist", default="noktvrn", help="Artist slug/identifier"    )
     parser.add_argument("--output", help="Path to save the fetch log")
 
     args = parser.parse_args()
