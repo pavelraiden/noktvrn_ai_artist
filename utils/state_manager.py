@@ -87,7 +87,8 @@ def update_dev_diary(update_content):
 
 def run_git_command(command, repo_path):
     """Runs a Git command using subprocess."""
-    logger.info(f"Running git command: {" ".join(command)} in {repo_path}")
+    cmd_str = " ".join(command)
+    logger.info(f"Running git command: {cmd_str} in {repo_path}")
     try:
         result = subprocess.run(
             command,
@@ -124,7 +125,11 @@ def persist_state_to_git(state_data, dev_diary_update, repo_path, commit_message
     for p in paths_to_add:
         try:
             if os.path.exists(p):
-                relative_paths_to_add.append(os.path.relpath(p, repo_path))
+                # Ensure path is within the repo before getting relative path
+                if p.startswith(repo_path):
+                    relative_paths_to_add.append(os.path.relpath(p, repo_path))
+                else:
+                    logger.warning(f"Path {p} is outside repo {repo_path}, skipping git add.")
             else:
                 logger.warning(f"Path not found, skipping git add: {p}")
         except ValueError:
@@ -179,7 +184,6 @@ def _restore_state_core(repo_path):
     state_data = read_recovery_manifest()
     if state_data:
         logger.info(f"Restoring state from manifest dated {state_data.get('timestamp')}")
-        # Log the information that needs to be restored by the agent's core logic
         logger.info("State data loaded successfully. Agent core logic should apply the following:")
         logger.info(f"  - Task Description: {state_data.get('current_task_description')}")
         logger.info(f"  - Last Completed Step: {state_data.get('last_completed_step_id')}")
@@ -195,117 +199,103 @@ def _restore_state_core(repo_path):
 
 
 def trigger_automatic_restore(repo_path):
-    """Performs automatic state restoration on agent startup.
-
-    Pulls latest changes, checks out the branch specified in the manifest (if any),
-    and returns the state data for the agent to apply.
-
-    Args:
-        repo_path (str): Absolute path to the git repository.
-
-    Returns:
-        dict or None: The loaded state data from recovery.json, or None if failed.
-    """
+    """Performs automatic state restoration on agent startup."""
     logger.info("Triggering automatic state restoration...")
-
-    # Determine current branch before pull
     initial_branch = get_current_git_branch(repo_path)
     if initial_branch == "unknown_branch":
         logger.error("Cannot determine current branch for git pull. Aborting restore.")
         return None
-
-    # Pull latest changes for the current branch
-    logger.info(f"Pulling latest changes for branch 	'{initial_branch}\'...")
+    logger.info(f"Pulling latest changes for branch '{initial_branch}'...")
     pull_success, _ = run_git_command(["git", "pull", "origin", initial_branch], repo_path)
     if not pull_success:
         logger.error("Git pull failed. Restoration might use stale data or fail. Aborting restore.")
         return None
-
-    # Read manifest *first* to see if we need to switch branches
     state_data_pre_checkout = read_recovery_manifest()
     if not state_data_pre_checkout:
         logger.info("No recovery manifest found on current branch after pull. Starting fresh.")
         return None
-
-    # Handle Git branch checkout if necessary
     target_branch = state_data_pre_checkout.get('git_branch')
     if target_branch and initial_branch != target_branch:
-        logger.info(f"Manifest indicates target branch is 	'{target_branch}	'. Checking out...")
+        logger.info(f"Manifest indicates target branch is '{target_branch}'. Checking out...")
         checkout_success, _ = run_git_command(["git", "checkout", target_branch], repo_path)
         if not checkout_success:
             logger.error(f"Failed to checkout branch {target_branch}. State might be inconsistent. Aborting restore.")
             return None
-        # Pull again on the new branch to ensure it's up-to-date
-        logger.info(f"Pulling latest changes for newly checked out branch 	'{target_branch}\'...")
+        logger.info(f"Pulling latest changes for newly checked out branch '{target_branch}'...")
         pull_success_new_branch, _ = run_git_command(["git", "pull", "origin", target_branch], repo_path)
         if not pull_success_new_branch:
              logger.error(f"Git pull failed on branch {target_branch}. Restoration might use stale data or fail. Aborting restore.")
              return None
-        # Now call the core logic to read the manifest from the correct branch
         return _restore_state_core(repo_path)
     else:
-        # Already on the correct branch (or no branch specified), call core logic
-        logger.info(f"Already on target branch 	'{initial_branch}\' or no specific branch in manifest.")
+        logger.info(f"Already on target branch '{initial_branch}' or no specific branch in manifest.")
         return _restore_state_core(repo_path)
 
 
 def trigger_manual_restore(repo_path):
-    """Performs state restoration when manually triggered (e.g., by !restore command).
-
-    Essentially the same logic as automatic restore for now.
-
-    Args:
-        repo_path (str): Absolute path to the git repository.
-
-    Returns:
-        dict or None: The loaded state data from recovery.json, or None if failed.
-    """
+    """Performs state restoration when manually triggered (e.g., by !restore command)."""
     logger.info("Triggering manual state restoration...")
-    # Currently, manual trigger follows the same logic as automatic
     return trigger_automatic_restore(repo_path)
 
 
 # Example usage (for testing purposes)
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-    logger.info("Testing state manager functions...")
+    # Setup logging to capture output
+    log_file = "/home/ubuntu/state_manager_test.log"
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_file),
+            logging.StreamHandler() # Also print to console
+        ]
+    )
+    logger.info("Starting state manager validation test...")
 
     repo_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-    # --- Test Persistence --- (Run this part first to create recovery.json) ---
-    # logger.info("--- Testing Persistence ---")
-    # sim_task_persist = "Implement self-restoration layer - Trigger Test"
-    # sim_last_step_persist = "020"
-    # sim_next_step_persist = "021"
-    # sim_knowledge_persist = ["user_56", "user_63", "user_59", "user_62"]
-    # current_state_persist = capture_state(
-    #     sim_task_persist, sim_last_step_persist, sim_next_step_persist, sim_knowledge_persist, repo_directory
-    # )
-    # diary_entry_persist = "Testing state persistence before trigger implementation."
-    # commit_msg_persist = f"chore: save recovery state after step {sim_last_step_persist}"
-    # files_persist = [os.path.abspath(__file__)]
-    # persisted = persist_state_to_git(current_state_persist, diary_entry_persist, repo_directory, commit_msg_persist, files_to_add=files_persist)
-    # if persisted:
-    #     logger.info("Persistence test successful.")
-    # else:
-    #     logger.error("Persistence test failed.")
-
-    # --- Test Restoration Trigger --- (Run this after persistence) ---
-    logger.info("--- Testing Restoration Trigger ---")
-    logger.info("Attempting automatic restoration trigger...")
-    restored_state_info = trigger_automatic_restore(repo_directory)
-    if restored_state_info:
-        logger.info("Automatic restoration trigger test successful (data loaded).")
-        # Verify some loaded data (conceptual)
-        # assert restored_state_info.get('next_step_id') == "021"
+    # --- Test Persistence --- 
+    logger.info("--- Testing Persistence ---")
+    sim_task_persist = "Implement self-restoration layer - Validation Test"
+    sim_last_step_persist = "021" # Step completed before validation
+    sim_next_step_persist = "022" # Current step is validation
+    sim_knowledge_persist = ["user_56", "user_63", "user_59", "user_62"]
+    current_state_persist = capture_state(
+        sim_task_persist, sim_last_step_persist, sim_next_step_persist, sim_knowledge_persist, repo_directory
+    )
+    diary_entry_persist = f"Validation Step {sim_next_step_persist}: Persisting state before attempting restoration."
+    commit_msg_persist = f"chore: save recovery state before validation step {sim_next_step_persist}"
+    # Ensure the state manager itself is included in the commit
+    files_persist = [os.path.abspath(__file__)]
+    persisted = persist_state_to_git(current_state_persist, diary_entry_persist, repo_directory, commit_msg_persist, files_to_add=files_persist)
+    
+    if not persisted:
+        logger.error("Persistence failed. Cannot proceed with restoration test.")
     else:
-        logger.error("Automatic restoration trigger test failed (data not loaded or process aborted).")
+        logger.info("Persistence test successful. Proceeding to restoration test.")
+        
+        # --- Test Restoration Trigger --- 
+        logger.info("--- Testing Restoration Trigger ---")
+        logger.info("Attempting automatic restoration trigger...")
+        # Simulate restoration in a 'new session' by calling the trigger
+        restored_state_info = trigger_automatic_restore(repo_directory)
+        
+        if restored_state_info:
+            logger.info("Automatic restoration trigger test successful (data loaded).")
+            # Basic verification
+            if (restored_state_info.get('current_task_description') == sim_task_persist and
+                restored_state_info.get('last_completed_step_id') == sim_last_step_persist and
+                restored_state_info.get('next_step_id') == sim_next_step_persist and
+                restored_state_info.get('git_branch') == 'feature/self-restoration'): # Assuming we are on this branch
+                logger.info("VERIFICATION PASSED: Restored state data matches persisted data.")
+            else:
+                logger.error("VERIFICATION FAILED: Restored state data does NOT match persisted data.")
+                logger.error(f"Expected Task: {sim_task_persist}, Got: {restored_state_info.get('current_task_description')}")
+                logger.error(f"Expected Last Step: {sim_last_step_persist}, Got: {restored_state_info.get('last_completed_step_id')}")
+                logger.error(f"Expected Next Step: {sim_next_step_persist}, Got: {restored_state_info.get('next_step_id')}")
+                logger.error(f"Expected Branch: feature/self-restoration, Got: {restored_state_info.get('git_branch')}")
+        else:
+            logger.error("Automatic restoration trigger test failed (data not loaded or process aborted).")
 
-    # logger.info("--- Testing Manual Restoration Trigger ---")
-    # logger.info("Attempting manual restoration trigger...")
-    # manual_restored_state_info = trigger_manual_restore(repo_directory)
-    # if manual_restored_state_info:
-    #     logger.info("Manual restoration trigger test successful (data loaded).")
-    # else:
-    #     logger.error("Manual restoration trigger test failed.")
+    logger.info("State manager validation test finished. Check log file: %s", log_file)
 

@@ -1,0 +1,14 @@
+{
+  "timestamp": "2025-05-05T20:52:43.509735+00:00",
+  "current_task_description": "Implement self-restoration layer - Validation Test",
+  "last_completed_step_id": "021",
+  "next_step_id": "022",
+  "git_branch": "feature/self-restoration",
+  "relevant_knowledge_ids": [
+    "user_56",
+    "user_63",
+    "user_59",
+    "user_62"
+  ],
+  "volatile_state": {}
+}
