@@ -59,6 +59,7 @@ except ImportError:
 try:
     import google.generativeai as genai
     from google.generativeai.types import HarmCategory, HarmBlockThreshold
+    from google.api_core import exceptions as google_exceptions # Specific exceptions
 
     DEFAULT_GEMINI_SAFETY_SETTINGS = {
         HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
@@ -70,6 +71,7 @@ except ImportError:
     genai = None
     HarmCategory = None
     HarmBlockThreshold = None
+    google_exceptions = None # Define as None if import fails
     DEFAULT_GEMINI_SAFETY_SETTINGS = {}
     logger.warning(
         "google-generativeai library not found. Gemini functionality "
@@ -80,9 +82,11 @@ try:
     # Removed unused MistralClient
     from mistralai.async_client import MistralAsyncClient
     from mistralai.models.chat_completion import ChatMessage
+    from mistralai.exceptions import MistralAPIException # Import the exception
 except ImportError:
     MistralAsyncClient = None
     ChatMessage = None
+    MistralAPIException = Exception # Define as generic if import fails
     logger.warning(
         "mistralai library not found. Mistral functionality "
         "will be limited."
@@ -173,6 +177,12 @@ PROVIDER_CONFIG = {
         "client_class": AsyncAnthropic,
         "library_present": AsyncAnthropic is not None,
     },
+    "suno": { # Added Suno entry for BAS stub
+        "api_key_env": "SUNO_API_KEY", # Placeholder, not strictly needed for stub
+        "base_url": None,
+        "client_class": None, # No client class for BAS stub
+        "library_present": True, # Assume BAS capability is always present
+    },
 }
 
 
@@ -184,7 +194,14 @@ def get_env_var(key: str) -> Optional[str]:
 # --- LLM Orchestrator --- #
 class OrchestratorError(Exception):
     """Custom exception for LLM Orchestrator errors."""
+    pass
 
+class ConfigurationError(OrchestratorError):
+    """Custom exception for configuration errors (e.g., missing API keys)."""
+    pass
+
+class BASFallbackError(OrchestratorError):
+    """Custom exception for errors during BAS fallback execution."""
     pass
 
 
@@ -401,6 +418,15 @@ class LLMOrchestrator:
             self.initialized_models.add((provider, model_name))
             return
 
+        # Special handling for Suno BAS stub
+        if provider == "suno":
+            logger.info(f"Registering Suno BAS stub: {provider}:{model_name}")
+            # No client instance needed, just add to preference and initialized set
+            if (provider, model_name) not in self.initialized_models:
+                self.model_preference.append((provider, model_name))
+                self.initialized_models.add((provider, model_name))
+            return # Skip LLMProviderInstance creation for suno
+
         # Use a unique key for the providers dictionary, e.g.,
         # provider:model_name
         provider_key = f"{provider}:{model_name}"
@@ -612,11 +638,26 @@ class LLMOrchestrator:
         """
         last_exception = None
         for i, (provider, model_name) in enumerate(self.model_preference):
+            if provider == "suno":
+                # Special handling for Suno BAS stub
+                logger.info(f"Attempting fallback to Suno BAS stub ({provider}:{model_name})...")
+                try:
+                    result = await self._call_bas_suno_stub(prompt)
+                    logger.info(f"Suno BAS stub fallback successful.")
+                    return result
+                except BASFallbackError as bas_err:
+                    logger.error(f"Suno BAS stub fallback failed: {bas_err}")
+                    last_error = bas_err
+                    continue # Try next provider
+                except Exception as e:
+                    logger.error(f"Unexpected error during Suno BAS stub fallback: {e}")
+                    last_error = e
+                    continue # Try next provider
+
             provider_key = f"{provider}:{model_name}"
             if provider_key not in self.providers:
                 logger.warning(
-                    f"Skipping {provider_key} in preference list: "
-                    f"Not initialized."
+                    f"Skipping {provider}:{model_name} in preference list: Not initialized."
                 )
                 continue
 
