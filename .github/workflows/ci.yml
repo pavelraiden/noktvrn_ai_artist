@@ -2,9 +2,15 @@ name: Python CI
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - 'feature/**' # Trigger on pushes to main and feature branches
   pull_request:
-    branches: [ main ]
+    branches: [ main ] # Trigger on PRs targeting main
+
+permissions:
+  contents: write # Needed for checkout, commit, push
+  pull-requests: write # Needed for creating/merging PRs
 
 jobs:
   build:
@@ -14,19 +20,20 @@ jobs:
         python-version: ["3.11"] # Use the project's Python version
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4 # Use v4
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4 # Use v4
       with:
         python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        # Install dev dependencies if needed (e.g., black, flake8, pytest)
-        pip install black flake8 pytest
+        # Install from requirements.txt if it exists
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        # Install dev dependencies
+        pip install black flake8 pytest pytest-asyncio openai google-generativeai mistralai anthropic python-dotenv
 
     - name: Check code formatting with Black
       run: |
@@ -40,8 +47,20 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
     - name: Run tests with Pytest
+      # Use dummy keys for tests requiring them
+      env:
+        OPENAI_API_KEY: dummy
+        DEEPSEEK_API_KEY: dummy
+        GEMINI_API_KEY: dummy
+        MISTRAL_API_KEY: dummy
+        ANTHROPIC_API_KEY: dummy
+        SUNO_API_KEY: dummy # For BAS stub tests
+        TELEGRAM_BOT_TOKEN: dummy # If tests use Telegram mock
+        TELEGRAM_CHAT_ID: dummy
       run: |
-        pytest
+        # Add project root to PYTHONPATH to ensure modules are found
+        export PYTHONPATH="$PYTHONPATH:$(pwd)"
+        pytest -v
 
     - name: Check for .env.example files
       run: |
@@ -50,25 +69,92 @@ jobs:
           echo "::error file=.env.example::Root .env.example file is missing."
           exit 1
         fi
-        # Check batch_runner
-        if [ ! -f batch_runner/.env.example ]; then
-          echo "::error file=batch_runner/.env.example::batch_runner/.env.example file is missing."
-          exit 1
-        fi
-        # Check release_chain
-        if [ ! -f release_chain/.env.example ]; then
-          echo "::error file=release_chain/.env.example::release_chain/.env.example file is missing."
-          exit 1
-        fi
-        # Check streamlit_app (if it exists and needs one)
-        # if [ -d streamlit_app ] && [ ! -f streamlit_app/.env.example ]; then
-        #   echo "::error file=streamlit_app/.env.example::streamlit_app/.env.example file is missing."
-        #   exit 1
-        # fi
-        echo ".env.example files found."
+        # Check key subdirectories (add more as needed)
+        for dir in batch_runner release_chain llm_orchestrator services utils tests;
+        do
+          if [ -d "$dir" ] && [ -f "$dir/.env.example" ]; then
+             echo "::warning file=$dir/.env.example::$dir/.env.example found, consider removing if not needed."
+          fi
+        done
+        echo "Root .env.example file found."
 
-    # Optional: Add step to detect unused/misplaced files if a reliable method is found
-    # - name: Check for unused files (Placeholder)
-    #   run: |
-    #     echo "Placeholder for unused file detection logic"
+  auto_merge:
+    needs: build # Run only if build succeeds
+    runs-on: ubuntu-latest
+    # Run only on successful pushes to feature branches
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/') && needs.build.result == 'success'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for merging
+          # Use the user-provided PAT stored as a secret
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "Manus CI Bot"
+          git config user.email "manus-bot@users.noreply.github.com" # Use noreply email
+
+      - name: Backup dev_diary.md
+        id: backup_diary
+        run: |
+          if [ -f dev_diary.md ]; then
+            echo "Backing up dev_diary.md to dev_diary_backup.md"
+            cp dev_diary.md dev_diary_backup.md
+            git add dev_diary_backup.md
+            # Commit only if the backup file changed or was added
+            if ! git diff --staged --quiet; then
+              git commit -m "chore: Backup dev_diary.md before merge [skip ci]"
+              echo "backup_committed=true" >> $GITHUB_OUTPUT
+            else
+              echo "No changes to dev_diary_backup.md, skipping commit."
+              echo "backup_committed=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "dev_diary.md not found, skipping backup."
+            echo "backup_committed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Push Backup Commit (if any)
+        if: steps.backup_diary.outputs.backup_committed == 'true'
+        run: |
+          git push origin HEAD:${{ github.ref_name }}
+        env:
+          # Use the user-provided PAT stored as a secret
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+
+      - name: Create or Update Pull Request
+        id: create_pr
+        uses: peter-evans/create-pull-request@v6 # Use v6
+        with:
+          # Use the user-provided PAT stored as a secret
+          token: ${{ secrets.GH_PAT }}
+          commit-message: "feat: Auto-merge feature branch ${{ github.ref_name }}"
+          title: "Auto-merge feature branch ${{ github.ref_name }}"
+          body: |
+            Automated PR created by GitHub Actions after successful CI on feature branch `${{ github.ref_name }}`.
+            Includes backup of `dev_diary.md`.
+          branch: ${{ github.ref_name }} # Source branch
+          base: main # Target branch
+          labels: automerge
+          assignees: pavelraiden
+          reviewers: pavelraiden
+          draft: false
+
+      - name: Enable Auto-Merge for PR
+        # This step requires the GitHub CLI to be installed (available on ubuntu-latest)
+        if: steps.create_pr.outputs.pull-request-number != ''
+        run: |
+          gh pr merge --auto --squash "${{ steps.create_pr.outputs.pull-request-url }}"
+        env:
+          # Use the user-provided PAT stored as a secret
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
+      - name: Notify Failure if Auto-Merge Setup Failed
+        if: steps.create_pr.outputs.pull-request-number == ''
+        run: |
+          echo "::error::Could not create or find PR to enable auto-merge."
+          exit 1
 
