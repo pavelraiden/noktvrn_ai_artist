@@ -48,7 +48,7 @@ def capture_state(task_desc, last_step, next_step, knowledge_ids, repo_path):
         "next_step_id": next_step,
         "git_branch": git_branch,
         "relevant_knowledge_ids": knowledge_ids,
-        "volatile_state": {},
+        "volatile_state": {}, # Placeholder for any non-persistent runtime state if needed
     }
     logger.debug(f"Captured state data: {state_data}")
     return state_data
@@ -74,7 +74,7 @@ def update_dev_diary(update_content):
         os.makedirs(os.path.dirname(DEV_DIARY_PATH), exist_ok=True)
         with open(DEV_DIARY_PATH, "a") as f:
             if f.tell() > 0:
-                f.write("\n")
+                f.write("\n") # Add newline if file is not empty
             f.write(f"## {datetime.now(timezone.utc).isoformat()}\n")
             f.write(update_content)
             f.write("\n")
@@ -119,7 +119,7 @@ def persist_state_to_git(state_data, dev_diary_update, repo_path, commit_message
     if not update_dev_diary(dev_diary_update):
         logger.warning("Failed to update dev_diary.md, but proceeding with commit.")
     if files_to_add is None:
-        files_to_add = [os.path.abspath(__file__)]
+        files_to_add = [os.path.abspath(__file__)] # Default to add this module file
     paths_to_add = [RECOVERY_FILE_PATH, DEV_DIARY_PATH] + files_to_add
     relative_paths_to_add = []
     for p in paths_to_add:
@@ -137,7 +137,7 @@ def persist_state_to_git(state_data, dev_diary_update, repo_path, commit_message
              relative_paths_to_add.append(p)
     if not relative_paths_to_add:
         logger.warning("No valid files found to add to Git.")
-        return True
+        return True # Treat as success if nothing to add
     add_command = ["git", "add"] + relative_paths_to_add
     success, _ = run_git_command(add_command, repo_path)
     if not success:
@@ -148,16 +148,16 @@ def persist_state_to_git(state_data, dev_diary_update, repo_path, commit_message
     if not success:
         if "nothing to commit" in output or "no changes added to commit" in output:
              logger.info("No changes to commit.")
-             return True
+             return True # Success, state is already persisted
         else:
             logger.error("Git commit failed. Aborting persistence.")
             return False
-    branch = state_data.get("git_branch", "main")
+    branch = state_data.get("git_branch", "main") # Default to main if not specified
     push_command = ["git", "push", "origin", branch]
     success, _ = run_git_command(push_command, repo_path)
     if not success:
         logger.error("Git push failed.")
-        return False
+        return False # Treat push failure as critical
     logger.info("State persisted to Git successfully.")
     return True
 
@@ -184,6 +184,7 @@ def _restore_state_core(repo_path):
     state_data = read_recovery_manifest()
     if state_data:
         logger.info(f"Restoring state from manifest dated {state_data.get('timestamp')}")
+        # Log the information that needs to be restored by the agent's core logic
         logger.info("State data loaded successfully. Agent core logic should apply the following:")
         logger.info(f"  - Task Description: {state_data.get('current_task_description')}")
         logger.info(f"  - Last Completed Step: {state_data.get('last_completed_step_id')}")
@@ -235,67 +236,94 @@ def trigger_automatic_restore(repo_path):
 def trigger_manual_restore(repo_path):
     """Performs state restoration when manually triggered (e.g., by !restore command)."""
     logger.info("Triggering manual state restoration...")
+    # Currently, manual trigger follows the same logic as automatic
     return trigger_automatic_restore(repo_path)
 
 
-# Example usage (for testing purposes)
+# Example usage (for simulation and validation)
 if __name__ == "__main__":
     # Setup logging to capture output
-    log_file = "/home/ubuntu/state_manager_test.log"
+    log_file = "/home/ubuntu/state_manager_simulation.log"
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
-            logging.FileHandler(log_file),
+            logging.FileHandler(log_file, mode='w'), # Overwrite log each run
             logging.StreamHandler() # Also print to console
         ]
     )
-    logger.info("Starting state manager validation test...")
+    logger.info("Starting state manager integration simulation...")
 
     repo_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    simulation_success = True
 
-    # --- Test Persistence --- 
-    logger.info("--- Testing Persistence ---")
-    sim_task_persist = "Implement self-restoration layer - Validation Test"
-    sim_last_step_persist = "021" # Step completed before validation
-    sim_next_step_persist = "022" # Current step is validation
-    sim_knowledge_persist = ["user_56", "user_63", "user_59", "user_62"]
+    # --- Phase 1: Persist Initial State --- 
+    logger.info("--- SIMULATION PHASE 1: Persist Initial State ---")
+    sim_task_persist = "Self-Restoration Integration Simulation"
+    sim_last_step_persist = "003" # Step completed before simulation
+    sim_next_step_persist = "004" # Current step is simulation
+    sim_knowledge_persist = ["user_56", "user_63", "user_59", "user_62", "user_64", "user_65", "user_66", "user_67"]
     current_state_persist = capture_state(
         sim_task_persist, sim_last_step_persist, sim_next_step_persist, sim_knowledge_persist, repo_directory
     )
-    diary_entry_persist = f"Validation Step {sim_next_step_persist}: Persisting state before attempting restoration."
-    commit_msg_persist = f"chore: save recovery state before validation step {sim_next_step_persist}"
-    # Ensure the state manager itself is included in the commit
-    files_persist = [os.path.abspath(__file__)]
+    diary_entry_persist = f"Integration Simulation Step {sim_next_step_persist}: Persisting initial state before simulated restoration."
+    commit_msg_persist = f"chore: save recovery state for integration simulation (step {sim_next_step_persist})"
+    # Include the state manager and .env.example in this commit
+    files_persist = [os.path.abspath(__file__), os.path.join(repo_directory, ".env.example")]
+    
     persisted = persist_state_to_git(current_state_persist, diary_entry_persist, repo_directory, commit_msg_persist, files_to_add=files_persist)
     
     if not persisted:
-        logger.error("Persistence failed. Cannot proceed with restoration test.")
+        logger.error("SIMULATION FAILED: Initial state persistence failed.")
+        simulation_success = False
     else:
-        logger.info("Persistence test successful. Proceeding to restoration test.")
+        logger.info("SIMULATION PHASE 1 PASSED: Initial state persisted successfully.")
         
-        # --- Test Restoration Trigger --- 
-        logger.info("--- Testing Restoration Trigger ---")
-        logger.info("Attempting automatic restoration trigger...")
-        # Simulate restoration in a 'new session' by calling the trigger
+        # --- Phase 2: Simulate Restoration --- 
+        logger.info("--- SIMULATION PHASE 2: Trigger Automatic Restoration ---")
+        logger.info("(Simulating agent restart and triggering automatic restore...)")
+        
         restored_state_info = trigger_automatic_restore(repo_directory)
         
-        if restored_state_info:
-            logger.info("Automatic restoration trigger test successful (data loaded).")
-            # Basic verification
-            if (restored_state_info.get('current_task_description') == sim_task_persist and
-                restored_state_info.get('last_completed_step_id') == sim_last_step_persist and
-                restored_state_info.get('next_step_id') == sim_next_step_persist and
-                restored_state_info.get('git_branch') == 'feature/self-restoration'): # Assuming we are on this branch
-                logger.info("VERIFICATION PASSED: Restored state data matches persisted data.")
-            else:
-                logger.error("VERIFICATION FAILED: Restored state data does NOT match persisted data.")
-                logger.error(f"Expected Task: {sim_task_persist}, Got: {restored_state_info.get('current_task_description')}")
-                logger.error(f"Expected Last Step: {sim_last_step_persist}, Got: {restored_state_info.get('last_completed_step_id')}")
-                logger.error(f"Expected Next Step: {sim_next_step_persist}, Got: {restored_state_info.get('next_step_id')}")
-                logger.error(f"Expected Branch: feature/self-restoration, Got: {restored_state_info.get('git_branch')}")
+        if not restored_state_info:
+            logger.error("SIMULATION FAILED: Automatic restoration trigger failed (data not loaded or process aborted).")
+            simulation_success = False
         else:
-            logger.error("Automatic restoration trigger test failed (data not loaded or process aborted).")
+            logger.info("SIMULATION PHASE 2 PASSED: Automatic restoration trigger successful (data loaded).")
+            
+            # --- Phase 3: Verify Restored State --- 
+            logger.info("--- SIMULATION PHASE 3: Verify Restored State --- ")
+            verification_passed = True
+            expected_branch = 'feature/self-restoration' # We should be on this branch
+            
+            if restored_state_info.get('current_task_description') != sim_task_persist:
+                logger.error(f"VERIFICATION FAILED: Task Description mismatch. Expected: '{sim_task_persist}', Got: '{restored_state_info.get('current_task_description')}'")
+                verification_passed = False
+            if restored_state_info.get('last_completed_step_id') != sim_last_step_persist:
+                logger.error(f"VERIFICATION FAILED: Last Step ID mismatch. Expected: '{sim_last_step_persist}', Got: '{restored_state_info.get('last_completed_step_id')}'")
+                verification_passed = False
+            if restored_state_info.get('next_step_id') != sim_next_step_persist:
+                logger.error(f"VERIFICATION FAILED: Next Step ID mismatch. Expected: '{sim_next_step_persist}', Got: '{restored_state_info.get('next_step_id')}'")
+                verification_passed = False
+            if restored_state_info.get('git_branch') != expected_branch:
+                logger.error(f"VERIFICATION FAILED: Git Branch mismatch. Expected: '{expected_branch}', Got: '{restored_state_info.get('git_branch')}'")
+                verification_passed = False
+            # Compare knowledge IDs as sets to ignore order
+            if set(restored_state_info.get('relevant_knowledge_ids', [])) != set(sim_knowledge_persist):
+                 logger.error(f"VERIFICATION FAILED: Knowledge IDs mismatch. Expected: {sorted(sim_knowledge_persist)}, Got: {sorted(restored_state_info.get('relevant_knowledge_ids', []))}")
+                 verification_passed = False
 
-    logger.info("State manager validation test finished. Check log file: %s", log_file)
+            if verification_passed:
+                logger.info("SIMULATION PHASE 3 PASSED: Restored state data matches persisted data.")
+            else:
+                logger.error("SIMULATION FAILED: Restored state data verification failed.")
+                simulation_success = False
+
+    # --- Final Result --- 
+    if simulation_success:
+        logger.info("=== INTEGRATION SIMULATION SUCCEEDED ===")
+    else:
+        logger.error("=== INTEGRATION SIMULATION FAILED ===")
+
+    logger.info("State manager integration simulation finished. Check log file: %s", log_file)
 
