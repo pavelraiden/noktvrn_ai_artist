@@ -60,7 +60,7 @@ jobs:
       run: |
         # Add project root to PYTHONPATH to ensure modules are found
         export PYTHONPATH="$PYTHONPATH:$(pwd)"
-        pytest -v
+        pytest -v tests/
 
     - name: Check for .env.example files
       run: |
