@@ -4,6 +4,7 @@ import logging
 import json
 import os
 from typing import Dict, Any, Optional
+from datetime import datetime # Added missing import
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +94,7 @@ class SunoStateManager:
         Args:
             run_id: The unique identifier for the generation run.
             final_output: The final result dictionary (e.g., song URL).
-            status: Final status ('completed', 'failed', 'cancelled').
+            status: Final status ("completed", "failed", "cancelled").
             error: Error message if the run failed.
         """
         final_state = {
@@ -107,7 +108,7 @@ class SunoStateManager:
 # Example usage (for testing purposes)
 if __name__ == "__main__":
     import logging
-    from datetime import datetime
+    # from datetime import datetime # Already imported above
     logging.basicConfig(level=logging.DEBUG)
 
     manager = SunoStateManager(state_dir="./test_suno_states")
@@ -140,4 +141,5 @@ if __name__ == "__main__":
     import shutil
     # shutil.rmtree("./test_suno_states")
     print("Cleanup complete (manual step for safety).")
+
 

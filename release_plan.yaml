@@ -1,0 +1,74 @@
+# /home/ubuntu/ai_artist_system_clone/release_plan.yaml
+# Example Release Plan Configuration (Simplified for Mock Run)
+
+release_id: "release_example_001"
+release_title: "My First AI Album"
+
+global_config:
+  artist_persona: "Synthwave Master"
+  primary_llm: "gemini:gemini-1.5-flash-latest" # Default LLM for text tasks
+  fallback_llms: ["mistral:mistral-large-latest", "anthropic:claude-3-haiku-20240307"]
+  suno_model: "suno:v3" # Specify the Suno model/provider identifier
+
+steps:
+  - step_id: "01_generate_concept"
+    type: "llm_generate_text" # Use standard LLM
+    description: "Generate album concept and track themes."
+    prompt: "Generate a concept for a 2-track synthwave album about exploring a neon city at night. Include brief themes for each track."
+    output_variable: "album_concept"
+    model: "{{ global_config.primary_llm }}" # Use global default
+    params:
+      max_tokens: 150
+
+  - step_id: "02_generate_lyrics_track1"
+    type: "llm_generate_text"
+    description: "Generate lyrics for Track 1 based on theme."
+    # Simplified prompt for mock run
+    prompt: "Write synthwave lyrics (verse, chorus) for a song about driving through a neon city."
+    output_variable: "track1_lyrics"
+    model: "{{ global_config.primary_llm }}"
+    params:
+      max_tokens: 200
+
+  - step_id: "03_generate_music_track1_suno"
+    type: "suno_bas_generate_song" # Specific type for Suno BAS generation
+    description: "Generate music for Track 1 using Suno BAS."
+    suno_prompt:
+      title: "Neon City Drive (Track 1)"
+      # Use static lyrics for mock run, or a simpler template if needed
+      lyrics: "Verse 1\nNeon lights blur past\nRain on the windshield glass\nChorus\nMidnight drive, city sleeps\nSynth waves washing over me"
+      style: "Synthwave, 80s vibe, driving beat, arpeggiated synths"
+      model: "{{ global_config.suno_model }}" # Use the specific Suno model identifier
+      persona: "{{ global_config.artist_persona }}"
+    output_variable: "track1_song_metadata" # Expects SongMetadata object
+
+  - step_id: "04_generate_lyrics_track2"
+    type: "llm_generate_text"
+    description: "Generate lyrics for Track 2."
+    # Added simple prompt
+    prompt: "Write synthwave lyrics (verse, chorus) for a song about finding a hidden club in the neon city."
+    output_variable: "track2_lyrics"
+    model: "{{ global_config.primary_llm }}"
+    params:
+      max_tokens: 200
+
+  - step_id: "05_generate_music_track2_suno"
+    type: "suno_bas_generate_song"
+    description: "Generate music for Track 2 using Suno BAS."
+    # Added simple suno_prompt
+    suno_prompt:
+      title: "Hidden Circuits (Track 2)"
+      lyrics: "Verse 1\nDown an alleyway dark\nA hidden neon spark\nChorus\nFound the club, bass drum deep\nSecrets that the circuits keep"
+      style: "Dark synthwave, pulsing bassline, mysterious atmosphere"
+      model: "{{ global_config.suno_model }}"
+      persona: "{{ global_config.artist_persona }}"
+    output_variable: "track2_song_metadata"
+
+  - step_id: "99_finalize_release"
+    type: "finalize"
+    description: "Compile all generated assets and prepare for release."
+    # Simplified inputs for mock run
+    inputs:
+      - "track1_metadata_placeholder"
+      - "track2_metadata_placeholder"
+

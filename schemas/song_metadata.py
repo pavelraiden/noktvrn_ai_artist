@@ -1,29 +1,18 @@
-# schemas/song_metadata.py
-
-from typing import Optional
 from pydantic import BaseModel, HttpUrl
+from typing import Optional, List
 
 class SongMetadata(BaseModel):
-    """Pydantic schema for metadata extracted after a song generation process,
-    specifically targeting Suno BAS output.
-    """
+    """Schema for storing metadata about a generated song."""
     title: str
-    duration: Optional[str] = None # Duration might not always be available immediately
-    model_used: str
-    persona: Optional[str] = None # Persona might not always be used or extracted
-    suno_link: Optional[HttpUrl] = None # Use HttpUrl for validation
-    retries: int = 0 # Number of retries during the generation process
-
-    class Config:
-        # Example for adding schema documentation in OpenAPI/JSON Schema
-        schema_extra = {
-            "example": {
-                "title": "Cosmic Lullaby",
-                "duration": "02:35",
-                "model_used": "v4.5",
-                "persona": "Starlight Dreamer",
-                "suno_link": "https://suno.com/song/1a2b3c4d-5e6f-7g8h-9i0j-k1l2m3n4o5p6",
-                "retries": 1
-            }
-        }
+    artist: str = "AI Artist"
+    genre: Optional[str] = None
+    style_prompt: Optional[str] = None
+    lyrics: Optional[str] = None
+    generation_source: str # e.g., 'suno_bas', 'udion_api'
+    suno_song_id: Optional[str] = None # Specific ID from Suno UI
+    suno_song_url: Optional[HttpUrl] = None # Direct URL to the generated song on Suno
+    local_file_path: Optional[str] = None # Path if downloaded locally
+    tags: Optional[List[str]] = None
+    duration_seconds: Optional[float] = None
+    # Add other relevant fields as needed, e.g., bpm, key, instrumentation
 

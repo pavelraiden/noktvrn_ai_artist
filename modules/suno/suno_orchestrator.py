@@ -3,14 +3,18 @@
 import asyncio
 import logging
 import json
-import os # Added for path joining
+import os
 from typing import Dict, Any
+from datetime import datetime # Added for example usage
 
 # Import the implemented modules
 from .suno_state_manager import SunoStateManager, SunoStateManagerError
 from .suno_ui_translator import SunoUITranslator, SunoUITranslatorError, MockBASDriver # Using Mock driver for now
 from .suno_feedback_loop import SunoFeedbackLoop, SunoFeedbackLoopError
 from .suno_logger import SunoLogger
+
+# Import the schema
+from schemas.song_metadata import SongMetadata
 
 # Placeholder for actual BAS interaction library
 # Replace MockBASDriver with the real driver when available
@@ -45,6 +49,11 @@ class SunoOrchestrator:
         self.log_dir = config.get("log_dir", "./suno_run_logs")
         self.screenshot_dir = config.get("screenshot_dir", "./suno_validation_screenshots")
 
+        # Ensure directories exist
+        os.makedirs(self.state_dir, exist_ok=True)
+        os.makedirs(self.log_dir, exist_ok=True)
+        os.makedirs(self.screenshot_dir, exist_ok=True)
+
         # Initialize components
         self.state_manager = SunoStateManager(state_dir=self.state_dir)
         # Pass the actual BAS driver instance here
@@ -57,20 +66,26 @@ class SunoOrchestrator:
         self.logger = SunoLogger(log_dir=self.log_dir)
         logger.info("Suno Orchestrator initialized with all components.")
 
-    async def generate_song(self, generation_prompt: Dict[str, Any]) -> Dict[str, Any]:
-        """Handles the end-to-end process of generating a song on Suno.ai.
+    async def generate_song(self, generation_prompt: Dict[str, Any]) -> SongMetadata:
+        """Handles the end-to-end process of generating a song on Suno.ai via BAS.
 
         Args:
             generation_prompt: A structured dictionary containing all necessary
                                details for song generation (lyrics, style, model,
-                               persona, workspace, etc.). Must include a unique `run_id`.
+                               persona, workspace, title etc.). Must include a unique `run_id`.
 
         Returns:
-            A dictionary containing the result (e.g., song URL, metadata, status).
+            A SongMetadata object containing details of the generated song.
+
+        Raises:
+            SunoOrchestratorError: If the generation process fails after retries or encounters errors.
         """
         run_id = generation_prompt.get("run_id")
         if not run_id:
-            raise SunoOrchestratorError("Missing 'run_id' in generation_prompt.")
+            # Generate a default run_id if not provided, although it should be
+            run_id = f"suno_run_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
+            generation_prompt["run_id"] = run_id
+            logger.warning(f"Missing 'run_id' in generation_prompt. Generated: {run_id}")
 
         self.logger.start_run(run_id, generation_prompt)
         logger.info(f"Starting Suno generation for run_id: {run_id}")
@@ -97,6 +112,7 @@ class SunoOrchestrator:
             max_retries = self.config.get("max_retries", 3)
             current_retry = current_state.get("current_retry_count", 0)
             overall_success = False
+            retry_actions = None # Initialize retry_actions
 
             while current_retry < max_retries and not overall_success:
                 logger.info(f"[{run_id}] Starting execution sequence (Attempt {current_retry + 1}/{max_retries})")
@@ -169,11 +185,25 @@ class SunoOrchestrator:
             # 4. Handle final state (success or failure)
             if overall_success:
                 # Extract final output (e.g., song URL, metadata)
-                final_output = await self.ui_translator.extract_final_output(action_results)
-                self.state_manager.save_final_state(run_id, final_output, status="completed")
-                self.logger.end_run(run_id, final_output, status="completed")
+                # Assuming extract_final_output returns a dict like {'suno_song_id': '...', 'suno_song_url': '...'}
+                final_output_data = await self.ui_translator.extract_final_output(action_results)
+                self.state_manager.save_final_state(run_id, final_output_data, status="completed")
+                self.logger.end_run(run_id, final_output_data, status="completed")
                 logger.info(f"[{run_id}] Suno generation completed successfully.")
-                return final_output
+
+                # Create SongMetadata object
+                song_metadata = SongMetadata(
+                    title=generation_prompt.get("title", "Untitled Song"),
+                    artist=generation_prompt.get("persona", "AI Artist"),
+                    genre=generation_prompt.get("genre"), # Assuming genre might be in prompt
+                    style_prompt=generation_prompt.get("style"),
+                    lyrics=generation_prompt.get("lyrics"),
+                    generation_source="suno_bas",
+                    suno_song_id=final_output_data.get("suno_song_id"),
+                    suno_song_url=final_output_data.get("suno_song_url")
+                    # Add other fields if available from prompt or final_output_data
+                )
+                return song_metadata
             else:
                 error_message = f"[{run_id}] Suno generation failed after {max_retries} retries."
                 logger.error(error_message)
@@ -199,11 +229,6 @@ async def main():
     # Setup basic logging for the example
     log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     logging.basicConfig(level=logging.INFO, format=log_format)
-    # Optionally add a file handler for the main orchestrator log
-    # main_log_file = "./suno_orchestrator_main.log"
-    # file_handler = logging.FileHandler(main_log_file)
-    # file_handler.setFormatter(logging.Formatter(log_format))
-    # logging.getLogger().addHandler(file_handler)
 
     # Define directories relative to the script or use absolute paths
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -220,22 +245,24 @@ async def main():
 
     test_prompt = {
         "run_id": f"test_run_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-        "lyrics": "Verse 1\nSome cool lyrics here\nChorus\nSing it loud",
-        "style": "Synthwave, 80s vibe",
+        "title": "Cosmic Drift",
+        "lyrics": "Verse 1\nFloating through the void\nStars like diamond dust\nChorus\nCosmic drift, endless night",
+        "style": "Ambient space music, ethereal pads, slow tempo",
         "model": "v4.5",
-        "persona": "Synthwave Master",
-        "workspace": "My Synthwave Album"
+        "persona": "Stellar Voyager",
+        "workspace": "Deep Space Sonnets",
+        "genre": "Ambient"
     }
 
     logger.info("--- Starting Test Run --- ")
     try:
-        result = await orchestrator.generate_song(test_prompt)
-        print(f"\n--- Generation Result --- \n{json.dumps(result, indent=2)}")
+        # Ensure the example usage reflects the new return type
+        song_metadata_result: SongMetadata = await orchestrator.generate_song(test_prompt)
+        print(f"\n--- Generation Result --- \n{song_metadata_result.model_dump_json(indent=2)}")
     except SunoOrchestratorError as e:
         print(f"\n--- Generation Failed --- \n{e}")
     logger.info("--- Test Run Finished --- ")
 
 if __name__ == "__main__":
-    from datetime import datetime # Add import for example usage
     asyncio.run(main())
 
