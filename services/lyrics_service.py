@@ -6,7 +6,7 @@ import os
 
 # Assuming LLMOrchestrator is accessible via project structure
 # Need to adjust import based on actual location
-from llm_orchestrator.orchestrator import LLMOrchestrator, LLMOrchestratorError
+from llm_orchestrator.orchestrator import LLMOrchestrator, OrchestratorError
 
 logger = logging.getLogger(__name__)
 

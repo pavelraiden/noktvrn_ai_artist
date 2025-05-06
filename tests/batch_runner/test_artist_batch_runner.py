@@ -9,6 +9,19 @@ import shutil
 from unittest.mock import patch, MagicMock, mock_open, call
 from datetime import datetime
 
+# --- Mock heavy dependencies BEFORE other imports ---
+sys.modules["librosa"] = MagicMock()
+sys.modules["soundfile"] = MagicMock()  # Add mock for soundfile
+# Mock pydub and its submodules/functions
+mock_pydub = MagicMock()
+mock_pydub.effects = MagicMock()
+mock_pydub.effects.normalize = MagicMock()
+mock_pydub.AudioSegment = MagicMock()  # Mock AudioSegment class
+sys.modules["pydub"] = mock_pydub
+sys.modules["pydub.effects"] = (
+    mock_pydub.effects
+)  # Ensure submodule is also in sys.modules
+
 # --- Add project root to sys.path for imports ---
 PROJECT_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..")
@@ -20,7 +33,15 @@ try:
     # Corrected import based on project structure
     from batch_runner import artist_batch_runner
 except ImportError as e:
-    print(f"Initial import failed: {e}. Defining dummy module.")
+    print(f"Initial import failed: {e}. Defining dummy modules.")
+
+    # Define dummy LLMOrchestrator if its import caused the failure
+    class DummyLLMOrchestrator:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def generate_text(self, *args, **kwargs):
+            return "dummy text"
 
     # Define dummy module/functions if import fails during test collection
     class DummyArtistBatchRunner:
@@ -28,6 +49,7 @@ except ImportError as e:
         RUN_STATUS_DIR = "dummy_run_status"
         MAX_APPROVAL_WAIT_TIME = 10  # Dummy value
         POLL_INTERVAL = 1  # Dummy value
+        llm_orchestrator = DummyLLMOrchestrator()  # Assign dummy orchestrator
 
         def select_next_artist(self, *args, **kwargs):
             return None
@@ -63,6 +85,8 @@ except ImportError as e:
             pass
 
     artist_batch_runner = DummyArtistBatchRunner()
+    # Also make the dummy orchestrator available globally in the test module context
+    LLMOrchestrator = DummyLLMOrchestrator
 
 # --- Test Class --- #
 

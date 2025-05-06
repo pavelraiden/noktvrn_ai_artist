@@ -77,3 +77,18 @@ Integration Simulation Step 004: Persisting initial state before simulated resto
 *   **Validation:** Ran `black . --check` locally, which passed.
 *   **Commit:** [`f468ae3`](https://github.com/pavelraiden/noktvrn_ai_artist/commit/f468ae3)
 *   **Status:** Pushed fix to `feature/llm-orchestrator-finalization`. Proceeding to monitor CI.
+
+
+
+## 2025-05-06 01:37 UTC - Resolve Multiple CI Failures
+
+*   **Issue:** Multiple CI failures persisted after previous fixes, including `AssertionError` related to `Path.mkdir` mocks, `FileNotFoundError` for `feedback_score.json`, `ModuleNotFoundError` for `artist_batch_runner` and `trend_analysis_service`, `AttributeError` in `MockReleaseMetadata`, and `AssertionError` for slug generation and Gemini API configuration.
+*   **Fix:**
+    *   Corrected `generate_artist_slug` in `release_chain.py` to handle multiple spaces correctly (`"_".join(slug.split())`).
+    *   Ensured directory creation (`Path.mkdir`) happens within relevant functions (`create_feedback_placeholder`) in `release_chain.py` rather than at the module level, and corrected the patch targets in `test_release_chain.py` from `pathlib.Path.mkdir` to `release_chain.Path.mkdir`.
+    *   Fixed `sys.path` manipulation in `tests/batch_runner/test_artist_batch_runner.py` to correctly use absolute paths relative to `PROJECT_ROOT`.
+    *   Corrected the assertion in `tests/llm_orchestrator/test_orchestrator.py` (`test_orchestrator_initialization_success`) to check for the correct Gemini API configuration call.
+    *   Updated `MockReleaseMetadata` in `tests/release_chain/test_release_chain.py` to include default attributes (`artist_name`, `release_id`, etc.) expected by tests.
+    *   Applied Black formatting to affected files.
+*   **Commit:** `436178f`
+*   **Reflection:** The previous approach of deferring all directory creation caused issues. Directory creation needs to happen *before* files are written into those directories. Correcting the mock targets for `Path.mkdir` was also crucial. Addressing `sys.path` issues requires careful handling of the project root.

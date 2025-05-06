@@ -37,7 +37,7 @@ try:
     from release_chain.release_chain import process_approved_run
     from llm_orchestrator.orchestrator import (
         LLMOrchestrator,
-        LLMOrchestratorError,
+        OrchestratorError,  # Corrected name
     )
     from services.artist_db_service import (
         add_artist,
