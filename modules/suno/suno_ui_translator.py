@@ -25,12 +25,12 @@ class MockBASDriver:
         if clear_first:
             logger.info(f"[MockBASDriver] Clearing input: {selector}")
             await asyncio.sleep(0.2)
-        logger.info(f"[MockBASDriver] Inputting text into {selector}: '{text[:30]}...'" )
+        logger.info(f"[MockBASDriver] Inputting text into {selector}: 	'{text[:30]}...	'" )
         await asyncio.sleep(0.5) # Simulate typing
         return {"success": True, "selector": selector, "text": text}
 
     async def select_option(self, selector: str, value: str):
-        logger.info(f"[MockBASDriver] Selecting option '{value}' in dropdown: {selector}")
+        logger.info(f"[MockBASDriver] Selecting option 	'{value}	' in dropdown: {selector}")
         await asyncio.sleep(0.5) # Simulate selection
         return {"success": True, "selector": selector, "value": value}
 
@@ -40,13 +40,16 @@ class MockBASDriver:
         # Simulate finding text - replace with actual logic
         if selector == "#credits_remaining":
             return "9750 Credits"
-        elif selector == "#song_link_1":
-            return "http://fake-suno-song.com/song123"
+        elif selector == ".song-list-item a[href*='/song/']": # Match selector used below
+            # Simulate finding the link of the *latest* generated song
+            return "https://suno.com/song/mock-generated-song-id-12345"
         return f"Text from {selector}"
 
     async def take_screenshot(self, filename: str):
         logger.info(f"[MockBASDriver] Taking screenshot: {filename}")
         # Simulate saving a file
+        # In a real scenario, ensure the directory exists
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
         with open(filename, "w") as f:
             f.write("Mock screenshot data")
         await asyncio.sleep(1)
@@ -55,6 +58,7 @@ class MockBASDriver:
 # --- End of Mock Driver ---
 
 import asyncio # Import added for async functions in MockBASDriver
+import os # Added for take_screenshot
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +98,7 @@ class SunoUITranslator:
             "workspace_option": "li[role='option']:contains('{workspace_name}')", # Needs verification
             "song_title_input": "input[placeholder='Enter song title']",
             "create_button": "button:contains('Create')",
-            "generated_song_link": ".song-list-item a[href*='/song/']", # Example, needs refinement
+            "generated_song_link": ".song-list-item a[href*='/song/']", # Example, needs refinement - target latest song
             "credits_display": "#credits_remaining", # Example, needs verification
             # Add more selectors based on screenshots and spec
         }
@@ -185,7 +189,15 @@ class SunoUITranslator:
 
         # --- Model Selection ---
         model = prompt.get("model", "v4.5") # Default to v4.5
-        actions.append({"action": "select", "target": "model_dropdown", "value": model})
+        # Use specific model selector key
+        model_target_key = f"model_option_{model}"
+        if model_target_key not in self.selectors:
+            logger.warning(f"Model '{model}' not found in selectors, defaulting to v4.5")
+            model = "v4.5"
+            model_target_key = "model_option_v4.5"
+        
+        actions.append({"action": "click", "target": "model_dropdown"}) # Open dropdown
+        actions.append({"action": "click", "target": model_target_key}) # Select model
         # TODO: Add check/fallback if model is unavailable (needs driver support)
 
         # --- Lyrics Input ---
@@ -239,26 +251,50 @@ class SunoUITranslator:
         return actions
 
     async def extract_final_output(self, last_action_results: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Extracts the final result (e.g., song URL) after successful execution.
+        """Extracts the final result (e.g., song URL, ID) after successful execution.
 
         Args:
             last_action_results: Results from the final successful sequence of actions.
 
         Returns:
-            Dictionary containing the extracted output.
+            Dictionary containing the extracted output metadata.
+            Example: {
+                "status": "completed" | "extraction_failed",
+                "suno_song_url": "https://suno.com/song/...",
+                "suno_song_id": "...",
+                "error": "..." # if extraction failed
+            }
         """
-        # This needs logic to find the generated song link(s) on the page
-        # Might involve waiting for elements to appear and then getting their href
-        logger.info("Attempting to extract final output...")
+        logger.info("Attempting to extract final output from Suno UI...")
+        output = {"status": "extraction_failed"}
         try:
-            # Example: Get text/link from a known selector after generation completes
-            # This assumes the orchestrator waits appropriately before calling this
-            song_link = await self.driver.get_element_text(self.selectors["generated_song_link"]) # Placeholder
-            logger.info(f"Extracted song link: {song_link}")
-            return {"song_url": song_link, "status": "completed"}
+            # --- Refined Extraction Logic --- 
+            # This needs robust logic to find the *correct* generated song link.
+            # It might involve waiting for elements, checking timestamps, or matching titles if possible.
+            # Using the mock driver's simplified get_element_text for now.
+            song_link_selector = self.selectors["generated_song_link"]
+            song_url = await self.driver.get_element_text(song_link_selector)
+
+            if song_url and "suno.com/song/" in song_url:
+                output["suno_song_url"] = song_url
+                # Extract ID from URL (example)
+                try:
+                    output["suno_song_id"] = song_url.split("/song/")[-1]
+                except Exception:
+                    logger.warning(f"Could not extract Suno song ID from URL: {song_url}")
+                    output["suno_song_id"] = None
+                
+                output["status"] = "completed"
+                logger.info(f"Extracted final output: URL={output['suno_song_url']}, ID={output['suno_song_id']}")
+            else:
+                logger.error(f"Could not find or parse valid song URL using selector: {song_link_selector}")
+                output["error"] = "Failed to find or parse generated song URL."
+
         except Exception as e:
-            logger.error(f"Failed to extract final output: {e}")
-            return {"status": "extraction_failed", "error": str(e)}
+            logger.error(f"Failed to extract final output due to error: {e}")
+            output["error"] = str(e)
+        
+        return output
 
 # Example usage (for testing purposes)
 async def main():
@@ -290,8 +326,9 @@ async def main():
     else:
         print("\n--- Extracting Final Output ---")
         final_output = await translator.extract_final_output(results)
-        print(f"Final Output: {final_output}")
+        print(f"Final Output: {json.dumps(final_output, indent=2)}")
 
 if __name__ == "__main__":
+    import json # Added for example usage
     asyncio.run(main())
 
