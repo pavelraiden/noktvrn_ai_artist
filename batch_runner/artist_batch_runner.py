@@ -477,7 +477,7 @@ def select_next_artist():
         return None
 
 
-def generate_music_for_artist(artist):
+async def generate_music_for_artist(artist):
     logger.info(f"Generating music for artist: {artist['name']}")
     run_id = str(uuid.uuid4())
     run_timestamp = datetime.utcnow().isoformat()

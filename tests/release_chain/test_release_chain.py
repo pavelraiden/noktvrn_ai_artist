@@ -64,7 +64,7 @@ class TestReleaseChain(unittest.TestCase):
 
     def setUp(self):
         """Set up a temporary directory for test outputs."""
-        self.test_dir = tempfile.mkdtemp()
+        self.test_dir = tempfile.mkdtemp(dir=PROJECT_ROOT)
         # Override config paths in the module to use the temp dir
         release_chain.OUTPUT_BASE_DIR = self.test_dir
         release_chain.RELEASES_DIR = os.path.join(self.test_dir, "releases")
