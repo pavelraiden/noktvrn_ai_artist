@@ -764,7 +764,7 @@ def check_approval_status(run_id):
     return "error"
 
 
-def reflect_on_run(run_data):
+async def reflect_on_run(run_data):
     logger.info(f"Reflecting on run {run_data['run_id']}...")
     if not llm_orchestrator:
         logger.warning("LLM Orchestrator not available, skipping reflection.")

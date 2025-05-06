@@ -10,17 +10,19 @@ from unittest.mock import patch, MagicMock, mock_open, call
 from datetime import datetime
 
 # --- Add project root to sys.path for imports ---
-# Adjust path based on where tests are run from
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(
-    0, os.path.join(PROJECT_ROOT, "..")
-)  # Add ai_artist_system root
-sys.path.insert(
-    0, os.path.join(PROJECT_ROOT, "..", "batch_runner")
-)  # Add batch_runner dir
-sys.path.insert(
-    0, os.path.join(PROJECT_ROOT, "..", "streamlit_app")
-)  # Add streamlit_app dir
+PROJECT_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..")
+)  # Go up two levels from tests/batch_runner
+sys.path.insert(0, PROJECT_ROOT)
+# sys.path.insert(
+#     0, os.path.join(PROJECT_ROOT, "..")
+# )  # Add ai_artist_system root - No longer needed
+# sys.path.insert(
+#     0, os.path.join(PROJECT_ROOT, "..", "batch_runner")
+# )  # Add batch_runner dir - No longer needed
+# sys.path.insert(
+#     0, os.path.join(PROJECT_ROOT, "..", "streamlit_app")
+# )  # Add streamlit_app dir - No longer needed
 
 # Import the script to be tested
 # We need to mock imports within the script *before* importing it if they cause issues
