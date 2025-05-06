@@ -4,13 +4,19 @@ import logging
 import json
 import os
 import asyncio
-from typing import Dict, Any, Optional, List # Added List
+from typing import Dict, Any, Optional, List
 
-# Placeholder for the actual browser automation driver
-from .suno_ui_translator import MockBASDriver # Use the mock driver for now
+# Import the REAL BAS Driver (Assuming it's defined elsewhere, e.g., modules/bas/driver.py)
+# from modules.bas.driver import BASDriver # Placeholder for actual import path
+# Using MockBASDriver temporarily until real driver path is confirmed
+from .suno_ui_translator import MockBASDriver # KEEPING MOCK FOR NOW
 
-# Placeholder for LLM interaction client
-# This client should be designed to handle retries and enforce JSON output.
+# Import the REAL LLM Validator Client
+# Assuming the client is defined in modules/llm_validator/client.py
+# Replace with actual path if different
+# from modules.llm_validator.client import LLMValidatorClient # Placeholder
+
+# --- Mock LLM Client (Keep for fallback/testing if needed, but prioritize real one) ---
 class MockLLMValidatorClient:
     def __init__(self, config: Dict[str, Any]):
         self.config = config
@@ -25,52 +31,67 @@ class MockLLMValidatorClient:
         await asyncio.sleep(1.5) # Simulate LLM processing time
 
         # --- Mock LLM Response Logic --- 
-        # Simulate different responses based on expected state for testing
         approved = True
-        feedback = "Validation successful."
+        feedback = "Validation successful (Mock)."
         suggested_fix = None
-
         action_performed = expected_state.get("action_performed", {})
         action_type = action_performed.get("action")
         target = action_performed.get("target")
 
-        # Example failure scenario: Style input is empty
         if action_type == "input" and target == "style_input" and not expected_state.get("expected_text"): 
             approved = False
-            feedback = "Validation failed: The style input field appears empty in the screenshot."
+            feedback = "Validation failed (Mock): The style input field appears empty."
             suggested_fix = [
-                {"action": "input", "target": "style_input", "value": "acoustic pop"} # Suggest a default
+                {"action": "input", "target": "style_input", "value": "acoustic pop"}
             ]
-        # Example failure scenario: Click failed to navigate (hypothetical)
         elif action_type == "click" and target == "create_button":
-             # Let's simulate a case where the LLM thinks the click didn't register
-             if hash(screenshot_path) % 3 == 0: # Randomly fail sometimes for testing
+             if hash(screenshot_path) % 3 == 0: 
                  approved = False
-                 feedback = "Validation failed: It seems the \'Create\' button click didn't proceed to the next state."
+                 feedback = "Validation failed (Mock): \'Create\' button click did not proceed."
                  suggested_fix = [
-                     {"action": "click", "target": "create_button"} # Suggest clicking again
+                     {"action": "click", "target": "create_button"}
                  ]
              else:
-                 feedback = "Create button clicked, generation likely started."
+                 feedback = "Create button clicked (Mock)."
         
-        # --- End Mock LLM Response Logic ---
-
         response = {
             "approved": approved,
             "feedback": feedback,
             "suggested_fix": suggested_fix
         }
-
-        # Ensure response is valid JSON before returning (as the real client should)
         try:
-            json.dumps(response) # Test serialization
+            json.dumps(response)
             return response
         except TypeError as e:
             logger.error(f"[MockLLMClient] Failed to serialize response: {e}")
-            # Fallback response in case of internal error
-            return {"approved": False, "feedback": f"Internal LLM client error: {e}", "suggested_fix": None}
-
+            return {"approved": False, "feedback": f"Internal Mock LLM client error: {e}", "suggested_fix": None}
 # --- End of Mock LLM Client ---
+
+# --- Placeholder for Real LLM Client (Use this once available) ---
+class RealLLMValidatorClient: # Replace with actual import
+     def __init__(self, config: Dict[str, Any]):
+         self.api_key = config.get("api_key")
+         self.model = config.get("model")
+         if not self.api_key or self.api_key == "dummy_key":
+             logger.warning("LLM Validator API Key is missing or dummy. Using Mock Client.")
+             self.client = MockLLMValidatorClient(config) # Fallback to mock
+         else:
+             logger.info(f"Initializing REAL LLM Validator Client with model: {self.model}")
+             # Initialize the actual client library here (e.g., OpenAI, Anthropic, Gemini)
+             # self.client = ActualLLMClientLibrary(api_key=self.api_key, model=self.model)
+             # Using mock temporarily as placeholder for actual library call
+             self.client = MockLLMValidatorClient(config) # REPLACE THIS with actual client init
+
+     async def validate_ui_state(self, screenshot_path: str, expected_state: Dict[str, Any]) -> Dict[str, Any]:
+         logger.info(f"[RealLLMClient] Requesting validation for: {screenshot_path}")
+         # --- Actual LLM Call Logic --- 
+         # 1. Prepare prompt (text + image)
+         # 2. Call LLM API (e.g., self.client.generate_content_async(...))
+         # 3. Parse response, enforce JSON structure, handle errors
+         # --- Placeholder using Mock --- 
+         return await self.client.validate_ui_state(screenshot_path, expected_state)
+# --- End of Placeholder Real LLM Client ---
+
 
 logger = logging.getLogger(__name__)
 
@@ -95,21 +116,21 @@ class SunoFeedbackLoop:
         self.llm_config = llm_validator_config
         self.screenshot_dir = screenshot_dir
         os.makedirs(self.screenshot_dir, exist_ok=True)
-        # Initialize the actual LLM client here
-        self.llm_validator = MockLLMValidatorClient(llm_validator_config)
+        
+        # Initialize the REAL LLM client (which might fallback to mock if key is missing)
+        self.llm_validator = RealLLMValidatorClient(llm_validator_config)
         logger.info("Suno Feedback Loop initialized.")
 
     async def _take_validation_screenshot(self, run_id: str, step_index: int) -> Optional[str]:
         """Takes a screenshot for validation."""
         filename = os.path.join(self.screenshot_dir, f"run_{run_id}_step_{step_index}_validation.png")
         try:
-            # Ensure the driver instance is used correctly
             result = await self.driver.take_screenshot(filename)
             if result.get("success"):
                 logger.info(f"Took validation screenshot: {filename}")
                 return filename
             else:
-                logger.error(f"Failed to take screenshot: {result.get("error")}")
+                logger.error(f"Failed to take screenshot: {result.get('error')}")
                 return None
         except Exception as e:
             logger.error(f"Exception during screenshot: {e}")
@@ -132,7 +153,7 @@ class SunoFeedbackLoop:
         """
         logger.info(f"Requesting LLM validation for screenshot: {screenshot_path}")
         try:
-            # Use the initialized LLM client instance
+            # Use the initialized LLM client instance (RealLLMValidatorClient)
             response = await self.llm_validator.validate_ui_state(screenshot_path, expected_state)
 
             # --- Strict JSON Protocol Enforcement --- 
@@ -144,27 +165,23 @@ class SunoFeedbackLoop:
                 raise ValueError("LLM response missing or invalid 'feedback' key (string expected).")
             if "suggested_fix" in response and response["suggested_fix"] is not None and not isinstance(response["suggested_fix"], list):
                  raise ValueError("LLM response 'suggested_fix' key must be a list or None.")
-            # Optional: Deeper validation of suggested_fix action structure here
             if isinstance(response.get("suggested_fix"), list):
                 for fix_action in response["suggested_fix"]:
                     if not isinstance(fix_action, dict) or "action" not in fix_action:
                         raise ValueError("Invalid structure in 'suggested_fix': Each item must be a dict with an 'action' key.")
             # --- End Strict JSON Protocol Enforcement --- 
 
-            logger.info(f"LLM Validation result: Approved={response.get("approved")}, Feedback=\"{response.get("feedback")}\"")
+            logger.info(f"LLM Validation result: Approved={response.get('approved')}, Feedback=\"{response.get('feedback')}\"")
             return response
 
         except Exception as e:
             logger.error(f"LLM validation request failed or response invalid: {e}")
-            # Raise a specific error to be caught by the orchestrator
             raise SunoFeedbackLoopError(f"LLM validation failed: {e}") from e
         finally:
-            # Clean up screenshot (optional, based on config)
-            # Consider keeping failed screenshots for debugging
             if os.path.exists(screenshot_path):
                  try:
                      # os.remove(screenshot_path)
-                     logger.debug(f"Kept screenshot (debug): {screenshot_path}") # Keep for debugging
+                     logger.debug(f"Kept screenshot (debug): {screenshot_path}")
                  except OSError as e:
                      logger.warning(f"Failed to remove screenshot {screenshot_path}: {e}")
 
@@ -182,37 +199,30 @@ class SunoFeedbackLoop:
         Returns:
             Validation result dictionary from the LLM, guaranteed to have 'approved' and 'feedback'.
         """
-        # If the action itself failed, report failure immediately
         if not action_result.get("success"):
             error_msg = action_result.get("error", "Unknown action execution error")
             logger.warning(f"Action itself failed, skipping LLM validation. Error: {error_msg}")
             return {"approved": False, "feedback": f"Action execution failed: {error_msg}", "suggested_fix": None}
 
-        # Take screenshot
         screenshot_path = await self._take_validation_screenshot(run_id, step_index)
         if not screenshot_path:
             logger.error("Failed to take screenshot, cannot validate step.")
             return {"approved": False, "feedback": "Failed to capture screenshot for validation.", "suggested_fix": None}
 
-        # Define expected state based on the action (can be enhanced)
         expected_state = {
             "action_performed": action,
-            "action_result": action_result # Provide action result to LLM context
+            "action_result": action_result
             }
         if action.get("action") == "input":
             expected_state["expected_text"] = action.get("value")
             expected_state["target_element"] = action.get("target")
         elif action.get("action") == "click":
-             expected_state["expected_outcome"] = f"Element {action.get("target")} should be clicked, potentially leading to a state change."
-        # Add more context based on action type
+             expected_state["expected_outcome"] = f"Element {action.get('target')} should be clicked, potentially leading to a state change."
 
         try:
-            # Call LLM validator, which enforces JSON structure
             validation_result = await self._ask_llm_for_validation(screenshot_path, expected_state)
             return validation_result
         except SunoFeedbackLoopError as e:
-            # Error already logged in _ask_llm_for_validation
-            # Return a standard failure format
             return {"approved": False, "feedback": f"LLM validation process failed: {e}", "suggested_fix": None}
 
     async def get_retry_actions(self, validation_result: Dict[str, Any]) -> Optional[List[Dict[str, Any]]]:
@@ -226,7 +236,6 @@ class SunoFeedbackLoop:
         """
         suggested_fix = validation_result.get("suggested_fix")
 
-        # Validate structure (already partially done in _ask_llm_for_validation)
         if isinstance(suggested_fix, list) and len(suggested_fix) > 0:
             valid_actions = []
             for i, action in enumerate(suggested_fix):
@@ -247,34 +256,45 @@ class SunoFeedbackLoop:
 
 # Example usage (for testing purposes)
 async def main():
+    # Load .env file if it exists
+    try:
+        from dotenv import load_dotenv
+        dotenv_path = os.path.join(os.path.dirname(__file__), '..', '..', '.env') # Assumes .env is in project root
+        if os.path.exists(dotenv_path):
+            load_dotenv(dotenv_path=dotenv_path)
+            logger.info("Loaded environment variables from .env file.")
+        else:
+             logger.warning(".env file not found, relying on system environment variables.")
+    except ImportError:
+        logger.warning("python-dotenv not installed, cannot load .env file.")
+
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    mock_driver = MockBASDriver() # Use the mock driver
-    llm_config = {"api_key": "dummy_key", "model": "validator-model-v1"}
+    mock_driver = MockBASDriver() # Use the mock driver for example
+    llm_config = {
+        "api_key": os.getenv("LLM_VALIDATOR_API_KEY", "dummy_key"), 
+        "model": os.getenv("LLM_VALIDATOR_MODEL", "validator-model-v1")
+        }
     feedback_loop = SunoFeedbackLoop(mock_driver, llm_config, screenshot_dir="./test_suno_screenshots")
 
-    test_run_id = "feedback_test_002"
+    test_run_id = "feedback_test_003"
     test_step_index = 1
 
-    # Simulate a successful action
     action_ok = {"action": "input", "target": "lyrics_input", "value": "Hello world"}
     result_ok = {"success": True, "selector": "#lyrics", "text": "Hello world"}
     print("--- Testing Successful Validation ---")
     validation_ok = await feedback_loop.validate_step(test_run_id, test_step_index, action_ok, result_ok)
     print(f"Validation OK Result: {json.dumps(validation_ok, indent=2)}")
 
-    # Simulate a failed action (empty style input -> mock LLM suggests fix)
     test_step_index = 2
-    action_fail = {"action": "input", "target": "style_input", "value": ""} # Empty style
+    action_fail = {"action": "input", "target": "style_input", "value": ""} 
     result_fail = {"success": True, "selector": "#style", "text": ""}
     print("\n--- Testing Failed Validation with Fix ---")
     validation_fail = await feedback_loop.validate_step(test_run_id, test_step_index, action_fail, result_fail)
     print(f"Validation Fail Result: {json.dumps(validation_fail, indent=2)}")
 
-    # Get retry actions
     retry_actions = await feedback_loop.get_retry_actions(validation_fail)
     print(f"Retry Actions: {retry_actions}")
 
-    # Simulate action execution failure
     test_step_index = 3
     action_exec_fail = {"action": "click", "target": "nonexistent_button"}
     result_exec_fail = {"success": False, "error": "Element not found: nonexistent_button"}
@@ -282,13 +302,9 @@ async def main():
     validation_exec_fail = await feedback_loop.validate_step(test_run_id, test_step_index, action_exec_fail, result_exec_fail)
     print(f"Validation Exec Fail Result: {json.dumps(validation_exec_fail, indent=2)}")
 
-
-    # Clean up test directory
-    # import shutil
-    # if os.path.exists("./test_suno_screenshots"):
-    #     shutil.rmtree("./test_suno_screenshots")
     print("\nCleanup complete (manual step for safety).")
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
