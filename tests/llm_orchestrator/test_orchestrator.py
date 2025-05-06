@@ -195,6 +195,10 @@ async def test_orchestrator_initialization_success(mock_env_vars):
                 fallback_models=fallbacks,
                 enable_auto_discovery=False,
             )
+            # Assert that genai.configure was called for Gemini
+            mock_genai.configure.assert_called_once_with(
+                api_key="dummy_gemini_key"
+            )
             # Corrected assertion: Check actual initialized providers (Suno is now registered)
             assert len(orchestrator.model_preference) == 6  # Now includes Suno
             assert orchestrator.model_preference[0] == ("openai", "gpt-4o")

@@ -14,21 +14,11 @@ PROJECT_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..")
 )  # Go up two levels from tests/batch_runner
 sys.path.insert(0, PROJECT_ROOT)
-# sys.path.insert(
-#     0, os.path.join(PROJECT_ROOT, "..")
-# )  # Add ai_artist_system root - No longer needed
-# sys.path.insert(
-#     0, os.path.join(PROJECT_ROOT, "..", "batch_runner")
-# )  # Add batch_runner dir - No longer needed
-# sys.path.insert(
-#     0, os.path.join(PROJECT_ROOT, "..", "streamlit_app")
-# )  # Add streamlit_app dir - No longer needed
 
 # Import the script to be tested
-# We need to mock imports within the script *before* importing it if they cause issues
-# For now, assume imports work or are handled by placeholders
 try:
-    import artist_batch_runner
+    # Corrected import based on project structure
+    from batch_runner import artist_batch_runner
 except ImportError as e:
     print(f"Initial import failed: {e}. Defining dummy module.")
 
@@ -101,8 +91,9 @@ class TestArtistBatchRunner(unittest.TestCase):
         # For simplicity, we assume logging setup is idempotent
 
         # Mock external dependencies that are always called
+        # Corrected patch targets
         self.patcher_select_artist = patch(
-            "artist_batch_runner.select_next_artist"
+            "batch_runner.artist_batch_runner.select_next_artist"
         )
         self.mock_select_artist = self.patcher_select_artist.start()
         self.mock_select_artist.return_value = {
@@ -112,7 +103,7 @@ class TestArtistBatchRunner(unittest.TestCase):
         }
 
         self.patcher_get_params = patch(
-            "artist_batch_runner.get_adapted_parameters"
+            "batch_runner.artist_batch_runner.get_adapted_parameters"
         )
         self.mock_get_params = self.patcher_get_params.start()
         self.mock_get_params.return_value = {
@@ -120,14 +111,18 @@ class TestArtistBatchRunner(unittest.TestCase):
             "video_keywords": ["test"],
         }
 
-        self.patcher_gen_track = patch("artist_batch_runner.generate_track")
+        self.patcher_gen_track = patch(
+            "batch_runner.artist_batch_runner.generate_track"
+        )
         self.mock_gen_track = self.patcher_gen_track.start()
         self.mock_gen_track.return_value = {
             "track_id": "t123",
             "track_url": "http://fake-track",
         }
 
-        self.patcher_sel_video = patch("artist_batch_runner.select_video")
+        self.patcher_sel_video = patch(
+            "batch_runner.artist_batch_runner.select_video"
+        )
         self.mock_sel_video = self.patcher_sel_video.start()
         self.mock_sel_video.return_value = {
             "video_url": "http://fake-video",
@@ -135,37 +130,37 @@ class TestArtistBatchRunner(unittest.TestCase):
         }
 
         self.patcher_create_status = patch(
-            "artist_batch_runner.create_initial_run_status"
+            "batch_runner.artist_batch_runner.create_initial_run_status"
         )
         self.mock_create_status = self.patcher_create_status.start()
         self.mock_create_status.return_value = True
 
         self.patcher_send_telegram = patch(
-            "artist_batch_runner.send_to_telegram_for_approval"
+            "batch_runner.artist_batch_runner.send_to_telegram_for_approval"
         )
         self.mock_send_telegram = self.patcher_send_telegram.start()
         self.mock_send_telegram.return_value = True
 
         self.patcher_check_approval = patch(
-            "artist_batch_runner.check_approval_status"
+            "batch_runner.artist_batch_runner.check_approval_status"
         )
         self.mock_check_approval = self.patcher_check_approval.start()
         # Default to approved after first check
         self.mock_check_approval.side_effect = [None, True]
 
         self.patcher_update_status = patch(
-            "artist_batch_runner.update_run_status"
+            "batch_runner.artist_batch_runner.update_run_status"
         )
         self.mock_update_status = self.patcher_update_status.start()
 
         self.patcher_save_content = patch(
-            "artist_batch_runner.save_approved_content"
+            "batch_runner.artist_batch_runner.save_approved_content"
         )
         self.mock_save_content = self.patcher_save_content.start()
         self.mock_save_content.return_value = True
 
         self.patcher_trigger_release = patch(
-            "artist_batch_runner.trigger_release_logic"
+            "batch_runner.artist_batch_runner.trigger_release_logic"
         )
         self.mock_trigger_release = self.patcher_trigger_release.start()
 

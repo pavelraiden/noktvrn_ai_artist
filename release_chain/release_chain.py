@@ -93,7 +93,9 @@ def generate_artist_slug(artist_name):
     if not artist_name:
         return "unknown_artist"
     slug = "".join(c for c in artist_name if c.isalnum() or c.isspace())
-    slug = slug.strip().replace(" ", "_").lower()
+    slug = "_".join(
+        slug.split()
+    ).lower()  # Split by whitespace and join with single underscore
     return slug if slug else "unknown_artist"
 
 
@@ -214,6 +216,15 @@ def save_prompts_file(prompts_model, filepath):
 
 def create_feedback_placeholder(filepath):
     """Creates a placeholder JSON file for feedback scores."""
+    try:
+        # Ensure parent directory exists
+        Path(filepath).parent.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        logger.error(
+            f"Failed to create directory for feedback file {filepath}: {e}"
+        )
+        return False
+
     placeholder_data = {"score": None, "reason": "pending"}
     if save_json_file(placeholder_data, filepath):
         logger.info(f"Created feedback placeholder file: {filepath}")

@@ -36,6 +36,21 @@ import release_chain
 # Mock the schema classes directly if needed for type hints or instantiation
 class MockReleaseMetadata:
     def __init__(self, **kwargs):
+        # Add default attributes expected by tests
+        self.artist_name = kwargs.get("artist_name", "Default Test Artist")
+        self.release_id = kwargs.get("release_id", "default_test_id")
+        self.release_date = kwargs.get(
+            "release_date", datetime.utcnow().isoformat()
+        )
+        self.genre = kwargs.get("genre", "test-genre")
+        self.track_title = kwargs.get("track_title", "Test Track")
+        self.generation_run_id = kwargs.get(
+            "generation_run_id", "default_run_id"
+        )
+        self.track_structure_summary = kwargs.get(
+            "track_structure_summary", None
+        )
+        # Update with any other kwargs provided
         self.__dict__.update(kwargs)
 
     def model_dump_json(self, indent=None):
@@ -112,7 +127,7 @@ class TestReleaseChain(unittest.TestCase):
             release_chain.generate_artist_slug("-!-@-"), "unknown_artist"
         )
 
-    @patch("pathlib.Path.mkdir")
+    @patch("release_chain.Path.mkdir")
     def test_create_release_directory_success(self, mock_mkdir):
         artist_slug = "test_artist"
         date_str = "20250501"
@@ -134,7 +149,7 @@ class TestReleaseChain(unittest.TestCase):
         )  # For the main path
         mock_mkdir.assert_any_call(exist_ok=True)  # For subdirs
 
-    @patch("pathlib.Path.mkdir", side_effect=OSError("Test error"))
+    @patch("release_chain.Path.mkdir", side_effect=OSError("Test error"))
     def test_create_release_directory_failure(self, mock_mkdir):
         artist_slug = "test_artist"
         date_str = "20250501"
