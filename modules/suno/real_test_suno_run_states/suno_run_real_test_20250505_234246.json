@@ -1,0 +1,101 @@
+{
+    "planned_actions": [
+        {
+            "action": "navigate",
+            "url": "https://suno.com/create/"
+        },
+        {
+            "action": "click",
+            "target": "model_dropdown"
+        },
+        {
+            "action": "click",
+            "target": "model_option_v4.5"
+        },
+        {
+            "action": "click",
+            "target": "full_song_toggle"
+        },
+        {
+            "action": "input",
+            "target": "lyrics_input",
+            "value": "[Verse 1]\nRain streaks down the chrome\nNeon signs hum low\nA lonely android weeps\nAs the city sleeps\n\n[Chorus]\nBinary dreams in the code\nA lullaby for the lost road\nElectric sheep in the night\nFlickering, fading light"
+        },
+        {
+            "action": "input",
+            "target": "style_input",
+            "value": "Slow tempo, melancholic synthwave, female vocal, reverb, atmospheric pads"
+        },
+        {
+            "action": "click",
+            "target": "persona_add_button"
+        },
+        {
+            "action": "click",
+            "target": "workspace_dropdown"
+        },
+        {
+            "action": "input",
+            "target": "song_title_input",
+            "value": "Cyberpunk Lullaby"
+        },
+        {
+            "action": "click",
+            "target": "create_button"
+        }
+    ],
+    "_last_updated": "2025-05-06T03:43:17.785129",
+    "action_results": [
+        {
+            "success": true,
+            "url": "https://suno.com/create/"
+        },
+        {
+            "success": true,
+            "selector": "button[aria-haspopup='listbox']"
+        },
+        {
+            "success": true,
+            "selector": "li[role='option']:contains('v4.5')"
+        },
+        {
+            "success": true,
+            "selector": "button[aria-label='Full Song']"
+        },
+        {
+            "success": true,
+            "selector": "textarea[placeholder*='your own lyrics']",
+            "text": "[Verse 1]\nRain streaks down the chrome\nNeon signs hum low\nA lonely android weeps\nAs the city sleeps\n\n[Chorus]\nBinary dreams in the code\nA lullaby for the lost road\nElectric sheep in the night\nFlickering, fading light"
+        },
+        {
+            "success": true,
+            "selector": "textarea[placeholder*='Enter style description']",
+            "text": "Slow tempo, melancholic synthwave, female vocal, reverb, atmospheric pads"
+        },
+        {
+            "success": true,
+            "selector": "button[aria-label='Add Persona']"
+        },
+        {
+            "success": true,
+            "selector": "div[role='combobox']"
+        },
+        {
+            "success": true,
+            "selector": "input[placeholder='Enter song title']",
+            "text": "Cyberpunk Lullaby"
+        },
+        {
+            "success": true,
+            "selector": "button:contains('Create')"
+        }
+    ],
+    "last_completed_step": 9,
+    "status": "completed",
+    "final_output": {
+        "status": "completed",
+        "suno_song_url": "https://suno.com/song/mock-generated-song-id-12345",
+        "suno_song_id": "mock-generated-song-id-12345"
+    },
+    "error": null
+}

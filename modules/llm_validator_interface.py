@@ -3,6 +3,7 @@
 import abc
 from typing import Dict, Any
 
+
 class LLMValidatorInterface(abc.ABC):
     """Abstract Base Class defining the interface for an LLM-based UI validation agent.
 
@@ -11,7 +12,12 @@ class LLMValidatorInterface(abc.ABC):
     """
 
     @abc.abstractmethod
-    async def validate_step(self, screenshot_path: str, expected_state: Dict[str, Any], previous_action: Dict[str, Any]) -> Dict[str, Any]:
+    async def validate_step(
+        self,
+        screenshot_path: str,
+        expected_state: Dict[str, Any],
+        previous_action: Dict[str, Any],
+    ) -> Dict[str, Any]:
         """Validate the current UI state based on a screenshot and expectations.
 
         Args:
@@ -40,4 +46,3 @@ class LLMValidatorInterface(abc.ABC):
             }
         """
         pass
-

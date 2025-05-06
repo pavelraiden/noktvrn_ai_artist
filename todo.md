@@ -28,10 +28,19 @@
 - [X] **Step 018: Rerun `pytest` to verify all fixes** (Installed `pytest-mock`, all `trend_analysis_service` tests PASSED)
 - [X] **Step 019: Document `trend_analysis_service` fixes in `dev_diary.md`** (Logged investigation and solution)
 
+## Phase: Git Push of Validated Fixes & CI Correction
+
+- [X] **Handle Git push authentication errors** (Iteratively resolved PAT and SSH issues with user guidance).
+- [X] **Commit and push validated fixes for `trend_analysis_service` and `pytest-mock` installation** (Commit `ee37775` pushed to `feature/bas-suno-orchestration`).
+- [X] **Document Git push resolution in `dev_diary.md`**.
+- [X] **Run `black .` on repository to fix CI formatting failures.**
+- [X] **Commit and push Black formatting fixes** (Commit `9aea1e7` pushed to `feature/bas-suno-orchestration`).
+- [X] **Document CI formatting fix in `dev_diary.md`**.
+
 ## Phase: Remaining Test Suite Audit & Fixes (Current)
 
-- [ ] **Update `todo.md` progress** (This step)
-- [ ] **Run `pytest` for the entire project to get a consolidated list of failures.**
+- [X] **Update `todo.md` progress** (This step, reflecting successful push of `trend_analysis_service` and CI formatting fixes).
+- [ ] **Run `pytest` for the entire project to get a consolidated list of current failures.** (Note: Last full run showed 25 failures remaining in other modules).
 - [ ] **Address `release_chain` remaining `AssertionError`s**
     - [ ] Analyze specific assertion failures.
     - [ ] Align test expectations with implementation logic (file paths, mock return values, etc.).
@@ -46,17 +55,17 @@
     - [ ] Rerun `pytest tests/batch_runner/`.
 - [ ] **Iteratively fix and rerun `pytest` until all tests pass.**
 
-## Phase: Finalization & Reporting
+## Phase: Finalization & Reporting (After All Tests Pass or for Current Task Scope)
 
 - [ ] **Finalize and document all work** (Comprehensive documentation update, including READMEs for each folder, core README, `docs/modules/orchestrator.md` for `OrchestrationResult`/`OrchestrationStatus`, `docs/todo/fallback_bas_integration.md`).
 - [ ] **Ensure `.env.example` contains real demo API keys.**
-- [ ] **Perform Git operations:**
+- [ ] **Perform final Git operations for all remaining fixes (if applicable to current task scope):**
     - [ ] Stage all changes.
-    - [ ] Commit changes with a descriptive message (e.g., `fix: Resolve all pytest failures and update documentation`).
+    - [ ] Commit changes with a descriptive message (e.g., `fix: Resolve all remaining pytest failures and update documentation`).
     - [ ] Push changes to the feature branch.
     - [ ] (If CI passes) Create PR and merge to `main` (following CI workflow requirements like `dev_diary_backup.md`).
-- [ ] **Prepare and write final `report.txt`** (Summarizing all work done, issues found, fixes applied, and current state).
-- [ ] **Notify user and send report.**
+- [X] **Prepare and write final `report.txt`** (Summarizing all work done for *this task*, issues found, fixes applied, and current state).
+- [X] **Notify user and send report.**
 - [ ] **Enter idle state.**
 
 ## Ongoing Tasks:

@@ -285,3 +285,50 @@ This cycle highlighted the cascading effect of syntax errors and missing depende
 *   Address any remaining failures in other modules (e.g., `release_chain` assertion errors, `llm_orchestrator`, `batch_runner`).
 *   Proceed with comprehensive documentation updates and final reporting once all tests pass.
 
+
+
+
+## 2025-05-06 16:58 UTC - Successful Git Push via SSH
+
+**Context:** Resolved Git push authentication failures and successfully pushed validated changes to GitHub.
+
+**Investigation & Fixes for Git Push:**
+1.  **Initial PAT Failures:** Attempts to push using the provided PAT (`ghp_Wegyr9AkBNvLuqMTuwQsP3PlBW8iEE03rD9b`) via HTTPS URL resulted in "Invalid username or password" errors, even after user reconfirmed PAT validity and remote URL format.
+2.  **Interactive Password Prompt:** A modified HTTPS URL format led to an interactive password prompt, unsuitable for the non-interactive environment.
+3.  **Switch to SSH Authentication:** User provided SSH key details for Git operations.
+    *   Saved the private SSH key (`id_ed25519_manus`) to `/home/ubuntu/.ssh/id_ed25519_manus`.
+    *   Set file permissions to `chmod 600` for the private key.
+    *   Created an SSH config file (`/home/ubuntu/.ssh/config`) to specify the identity file for `github.com`.
+    *   Updated the Git remote URL for `origin` to the SSH format: `git@github.com:pavelraiden/noktvrn_ai_artist.git`.
+    *   Handled the initial SSH host authenticity prompt by adding `github.com`'s host key to `/home/ubuntu/.ssh/known_hosts` using `ssh-keyscan`.
+
+**Validation:**
+*   Successfully pushed the commit `ee37775` (fix: Resolve trend_analysis_service tests and add pytest-mock) to the `feature/bas-suno-orchestration` branch on `github.com:pavelraiden/noktvrn_ai_artist.git`.
+
+**Committed Changes:**
+*   `services/trend_analysis_service.py`: Commented out `sys.path.append`.
+*   `requirements.txt`: Added `pytest-mock`.
+*   `dev_diary.md`: Updated with progress.
+*   `todo.md`: Updated with progress.
+
+**Next Steps:**
+*   Finalize all documentation.
+*   Update and send the final report.
+*   Address remaining test failures in other modules as per `todo.md` in subsequent tasks.
+
+
+
+## 2025-05-06 17:15 UTC - Apply Black Formatting and Push to Fix CI
+
+**Context:** CI build failed after the previous push due to code formatting issues reported by Black.
+
+**Action:**
+1.  Ran `black .` on the entire repository. This reformatted 3 files: `release_chain/__init__.py`, `tests/release_chain/test_release_chain.py`, and `tests/llm_orchestrator/test_orchestrator.py`.
+2.  Committed the formatting changes with the message: "style: Apply black formatting to resolve CI failures" (Commit `9aea1e7`).
+3.  Pushed the new commit to the `feature/bas-suno-orchestration` branch on GitHub.
+
+**Next Steps:**
+*   Update `todo.md`.
+*   Notify the user of the push and await confirmation of CI status.
+*   If CI passes, proceed with final report generation and task completion.
+*   If CI still fails, investigate further.
