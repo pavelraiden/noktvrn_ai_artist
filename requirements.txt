@@ -13,3 +13,6 @@ uvicorn[standard]
 
 prometheus-fastapi-instrumentator
 python-json-logger
+
+pytest-mock
+

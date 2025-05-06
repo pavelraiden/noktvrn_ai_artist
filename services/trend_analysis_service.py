@@ -8,7 +8,7 @@ import sys
 import logging
 
 # Add the data_api path
-sys.path.append("/opt/.manus/.sandbox-runtime")
+# sys.path.append("/opt/.manus/.sandbox-runtime")
 from data_api import ApiClient
 
 logging.basicConfig(

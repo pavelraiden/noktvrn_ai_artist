@@ -1,55 +1,66 @@
-# AI Artist Platform - Finalization Task List (v1.5)
+# AI Artist System - Code Health & Pytest Fixes (Ongoing)
 
-This file tracks the progress of the final production readiness tasks for the AI Artist Platform, including the implementation of full artist lifecycle logic.
+## Phase: Release Chain Test Audit & Fixes
 
-## Phase 1: Core Fixes & Restoration (Completed)
+- [X] **Step 001: Review `release_chain` test failures** (Initial review of pytest output)
+- [X] **Step 002: Read `tests/release_chain/test_release_chain.py`** (Full file content)
+- [X] **Step 003: Analyze `release_chain/release_chain.py` implementation** (Full file content)
+- [X] **Step 004: Identify discrepancies between tests and implementation** (Field name mismatches in mocks, global var access)
+- [X] **Step 005: Manually correct test methods and imports (Initial pass)** (Scripted modification for mock field names)
+- [X] **Step 006: Verify and update mocks and patch targets (Initial pass)** (Applied scripted changes)
+- [X] **Step 007: Rerun `pytest` and collect new failures** (Revealed `AttributeError` for globals)
+- [X] **Step 008: Fix `release_chain` test import and global access pattern**
+    - [X] Updated `release_chain/__init__.py` to export globals.
+    - [X] Attempted and reverted incorrect `release_chain.release_chain.VAR` access pattern in tests.
+    - [X] Corrected access to `release_chain.VAR` in tests.
+- [X] **Step 009: Rerun `pytest` and collect new failures** (Resolved import `AttributeError`s, `AssertionError`s remain in `release_chain`)
+- [X] **Step 010: Document all fixes and rationale in `dev_diary.md`** (Logged progress and findings for `release_chain` initial fixes)
 
-- [X] **001: Fix `ModuleNotFoundError`:** Analyze and fix import paths or `sys.path` issues preventing `batch_runner/artist_batch_runner.py` from finding the `services` module. Test local execution.
-- [X] **002: Restore `trend_analysis_service.py`:** Locate previously written code (if available) and add the file to the `services/` directory. Integrate if necessary.
-- [X] **003: Implement/Restore `artist_lifecycle_manager.py`:** Locate code or implement logic for artist lifecycle management (performance tracking, retirement triggers if not already fully covered by `batch_runner` and `artist_db_service`). Integrate appropriately.
-- [ ] **004: Clarify `artist_creator/` Status:** Investigate the removal/integration of the `artist_creator/` directory and update documentation (README, architecture diagrams) to reflect the current structure. (Moved to Phase 6)
+## Phase: Trend Analysis Service Test Audit & Fixes
 
-## Phase 2: Feature Implementation & Enhancement (Completed)
+- [X] **Step 011: Update `todo.md` progress** (Marked `release_chain` initial fixes)
+- [X] **Step 012: Move to `trend_analysis_service` test failures**
+- [X] **Step 013: Read `trend_analysis_service` test files**
+- [X] **Step 014: Analyze `trend_analysis_service` implementation**
+- [X] **Step 015: Align tests with actual API and logic for `trend_analysis_service`** (Commented out `sys.path.append` in service)
+- [X] **Step 016: Correct mocks and patch targets for `trend_analysis_service`** (Identified missing `pytest-mock`)
+- [X] **Step 017: Deeply audit `trend_analysis_service` test errors and tracebacks** (Confirmed `mocker` fixture missing)
+- [X] **Step 018: Rerun `pytest` to verify all fixes** (Installed `pytest-mock`, all `trend_analysis_service` tests PASSED)
+- [X] **Step 019: Document `trend_analysis_service` fixes in `dev_diary.md`** (Logged investigation and solution)
 
-- [X] **005: Implement LLM Auto-Repair:** Enhance `services/error_analysis_service.py` with full analysis, fix generation, testing, Telegram confirmation logic, and conditional `git apply` integration. Refine error logging in core modules.
-- [X] **006: Document API Key Requirements:** Analyze `trend_analysis_service.py` and lifecycle management logic to determine specific external API needs (sources, endpoints, scopes). Document the requirements and acquisition process.
-- [X] **007: Design Streamlit UI Upgrade:** Analyze the provided Dribbble link. Create a UI/UX specification (`docs/ui_ux_spec.md`) for a production-grade dashboard. Recommend an LLM for code generation.
+## Phase: Remaining Test Suite Audit & Fixes (Current)
 
-## Phase 3: Documentation Completion (Completed)
+- [ ] **Update `todo.md` progress** (This step)
+- [ ] **Run `pytest` for the entire project to get a consolidated list of failures.**
+- [ ] **Address `release_chain` remaining `AssertionError`s**
+    - [ ] Analyze specific assertion failures.
+    - [ ] Align test expectations with implementation logic (file paths, mock return values, etc.).
+    - [ ] Rerun `pytest tests/release_chain/`.
+- [ ] **Address `llm_orchestrator` test failures** (AttributeErrors, AssertionErrors, NameErrors, TypeErrors)
+    - [ ] Analyze specific failures.
+    - [ ] Correct method calls, mock setups, and exception handling in tests.
+    - [ ] Rerun `pytest tests/llm_orchestrator/`.
+- [ ] **Address `batch_runner` test failures** (ImportErrors)
+    - [ ] Analyze import issues (likely related to `__init__.py` or circular dependencies).
+    - [ ] Correct imports and package structure.
+    - [ ] Rerun `pytest tests/batch_runner/`.
+- [ ] **Iteratively fix and rerun `pytest` until all tests pass.**
 
-- [X] **008: Update `README.md` - Env Vars:** Add a detailed section explaining all variables in `.env.example` (required, optional, defaults).
-- [X] **009: Update `README.md` - LLM & Launch:** Document the LLM chain (roles, fallback, auto-repair) and add detailed local/Docker launch instructions.
-- [X] **010: Document Telegram Bot UX:** Create `docs/telegram_bot_ux.md` detailing commands, workflow, and interactions.
-- [X] **011: Update `dev_diary.md`:** Add entries summarizing the finalization phase activities.
-- [ ] **012: Update `project_context.md`:** (If exists) Update with the final system state, or create a summary document. (Moved to Phase 6)
+## Phase: Finalization & Reporting
 
-## Phase 4: Repository Audit & Cleanup (Completed)
+- [ ] **Finalize and document all work** (Comprehensive documentation update, including READMEs for each folder, core README, `docs/modules/orchestrator.md` for `OrchestrationResult`/`OrchestrationStatus`, `docs/todo/fallback_bas_integration.md`).
+- [ ] **Ensure `.env.example` contains real demo API keys.**
+- [ ] **Perform Git operations:**
+    - [ ] Stage all changes.
+    - [ ] Commit changes with a descriptive message (e.g., `fix: Resolve all pytest failures and update documentation`).
+    - [ ] Push changes to the feature branch.
+    - [ ] (If CI passes) Create PR and merge to `main` (following CI workflow requirements like `dev_diary_backup.md`).
+- [ ] **Prepare and write final `report.txt`** (Summarizing all work done, issues found, fixes applied, and current state).
+- [ ] **Notify user and send report.**
+- [ ] **Enter idle state.**
 
-- [X] **013: Audit & Cleanup Repository:** Perform a final review to remove dead code, unused files. Ensure `.gitignore` is correct.
-
-## Phase 5: Artist Lifecycle Implementation
-
-- [ ] **001: Analyze existing artist lifecycle logic:** Review `services/artist_lifecycle_manager.py` and related modules (e.g., `artist_db_service.py`, `batch_runner.py`) to understand current capabilities. (Plan Step 002)
-- [ ] **002: Design modular lifecycle triggers:** Define specific metrics (performance, inactivity, trend scores) and thresholds for creation, evolution, and retirement/pausing. (Plan Step 003)
-- [ ] **003: Implement artist creation logic:** Develop the mechanism for generating new artist profiles/configurations. (Plan Step 004)
-- [ ] **004: Implement artist evolution logic:** Develop the mechanism for modifying artist parameters based on performance metrics. (Plan Step 005)
-- [ ] **005: Implement artist retirement/pausing logic:** Develop the mechanism for deactivating or pausing artists based on defined criteria. (Plan Step 006)
-- [ ] **006: Integrate lifecycle logic with batch runner:** Modify `batch_runner/artist_batch_runner.py` to call lifecycle management functions at appropriate points. (Plan Step 007)
-- [D] **007: Validate lifecycle logic with test cases:** Create and run tests to ensure creation, evolution, and retirement work as expected. (Plan Step 011 - DEFERRED until manual fix)
-- [ ] **008: Document lifecycle in `dev_diary.md`:** Add detailed entries explaining the implemented lifecycle logic, triggers, and metrics. (Plan Step 009)
-- [ ] **009: Update/Create artist profile documentation:** Create or update documentation detailing the artist profile structure, parameters, and lifecycle states. (Plan Step 010)
-
-## Phase 6: Comprehensive Audit & Documentation Revision
-
-- [ ] **010: Audit repository structure and codebase:** Perform a full review, including clarifying the status of `artist_creator/` (Old Todo 004) and removing any dead code/unused files. (Plan Step 011)
-- [ ] **011: Revise *all* documentation files:** Update `README.md`, `dev_diary.md`, `docs/`, etc., to ensure consistency and accuracy with the final codebase, including lifecycle logic. Update `project_context.md` (Old Todo 012). (Plan Step 012)
-- [X] **012: Finalize remaining TODOs and cleanup:** Address any outstanding TODO comments in the code or documentation. (Plan Step 016)
-
-## Phase 7: Finalization & Delivery
-
-- [X] **013: Validate environment variable files:** Ensure `.env` and `.env.example` are complete and correct. (Plan Step 017)
-- [ ] **014: Conduct final system tests:** Execute `boot_test.py` and a full test cycle of `batch_runner/artist_batch_runner.py` including lifecycle logic. (Plan Step 015)
-- [ ] **015: Report missing API keys/credentials:** List any remaining API keys or credentials needed from the user. (Plan Step 016)
-- [ ] **016: Commit and push all changes to GitHub:** Stage, commit, and push the final, clean repository structure. (Plan Step 017)
-- [ ] **017: Generate and send final report:** Create a report summarizing all actions, final state, and any remaining notes. (Plan Step 018)
+## Ongoing Tasks:
+- Continuously apply Git discipline: commit and push validated changes frequently (after significant, stable milestones).
+- Maintain comprehensive documentation (READMEs, dev_diary.md, etc.).
+- Operate in autonomous self-healing mode.
 

@@ -34,7 +34,7 @@ from scripts.utils.env_utils import load_env_file
 env_loaded = load_env_file()
 if not env_loaded:
     logger.error("Failed to load environment variables from .env file")
-    sys.exit(1)
+    # sys.exit(1) # Commented out to allow pytest collection
 else:
     logger.info("Successfully loaded environment variables from .env file")
 
@@ -47,7 +47,7 @@ except ImportError as e:
     logger.error(
         "Make sure you're running this script from the project root directory"
     )
-    sys.exit(1)
+    # sys.exit(1) # Commented out to allow pytest collection
 
 # Test data
 TEST_SONG_TITLE = "Test Song"

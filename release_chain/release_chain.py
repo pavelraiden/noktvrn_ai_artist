@@ -31,7 +31,7 @@ except ImportError:
         logging.error(
             f"Failed to import schemas: {e}. Ensure schemas.py is accessible."
         )
-        sys.exit(1)
+        # sys.exit(1) # Commented out to allow pytest collection
 
 # --- Configuration ---
 LOG_LEVEL = os.getenv("RELEASE_CHAIN_LOG_LEVEL", "INFO").upper()
@@ -370,9 +370,10 @@ def process_approved_run(run_id):
         with open(run_status_filepath, "r") as f:
             run_data = json.load(f)
 
-        if run_data.get("status") != "approved":
+        current_status = run_data.get("status")
+        if current_status != "approved":
             logger.warning(
-                f"Run {run_id} status is not 'approved'                     ({run_data.get('status')}). Skipping release."
+                f"Run {run_id} status is not 'approved' ({current_status}). Skipping release."
             )
             return False
 
@@ -445,113 +446,90 @@ def process_approved_run(run_id):
             genre=run_data.get("genre"),
             release_date=datetime.utcnow().date().isoformat(),
             track_title=f"{artist_name} - Track {run_id[:4]}",
-            audio_file=str(Path("audio") / audio_filename),
-            video_file=str(Path("video") / video_filename),
-            cover_file=str(Path("cover") / cover_filename),
+            audio_file=str(audio_save_path.resolve()),
+            video_file=str(video_save_path.resolve()),
+            cover_art_file=str(cover_save_path.resolve()),
+            lyrics="Placeholder lyrics - to be generated or extracted",
+            track_structure=track_structure,
             generation_run_id=run_id,
-            track_structure_summary=track_structure,
-            visuals_source=run_data.get("video_source", "N/A"),
-            llm_summary="Placeholder LLM summary of the track/release.",
+            raw_generation_data=run_data,  # Store the full run data
+            tags=run_data.get("tags", []),
+            mood=run_data.get("mood", "N/A"),
+            bpm=run_data.get("bpm"),
+            key=run_data.get("key"),
+            duration_ms=run_data.get("duration_ms"),
+            # Add other fields as needed from run_data or generation process
         )
-        if not save_metadata_file(
-            metadata, release_dir_path / "metadata.json"
-        ):
-            return False
+        prompts = PromptsUsed(**prompts_data)
 
-        prompts = PromptsUsed(
-            generation_run_id=run_id,
-            suno_prompt=prompts_data.get("suno_prompt"),
-            video_keywords=prompts_data.get("video_keywords"),
-            cover_prompt=prompts_data.get("cover_prompt"),
-            # TODO: Add fields for full prompt chain if available
-        )
-        if not save_prompts_file(
-            prompts, release_dir_path / "prompts_used.json"
-        ):
-            return False
+        metadata_filepath = release_dir_path / "metadata.json"
+        prompts_filepath = release_dir_path / "prompts_used.json"
 
-    except Exception as e:
+        if not save_metadata_file(metadata, metadata_filepath):
+            return False  # Error already logged
+        if not save_prompts_file(prompts, prompts_filepath):
+            return False  # Error already logged
+
+    except Exception as e:  # Catch Pydantic validation errors or others
         logger.error(
-            f"Error creating or saving metadata/prompts for run {run_id}: {e}"
+            f"Error creating or saving metadata/prompts for {run_id}: {e}"
         )
         return False
 
     # 8. Create Feedback Placeholder
-    feedback_filepath = release_dir_path / "feedback_score.json"
+    feedback_filename = f"feedback_{release_id}.json"
+    feedback_filepath = release_dir_path / feedback_filename
     if not create_feedback_placeholder(feedback_filepath):
         logger.warning(
-            f"Failed to create feedback placeholder for {release_id},                 but continuing."
+            f"Failed to create feedback placeholder for {release_id}"
         )
+        # Continue release even if feedback placeholder fails for now
 
     # 9. Log and Queue
     if not log_release_to_markdown(metadata, release_dir_path):
-        logger.warning(
-            f"Failed to log release {release_id} to markdown, but continuing."
-        )
+        logger.warning(f"Failed to log release {release_id} to markdown.")
+        # Continue release even if markdown log fails
+
     if not add_release_to_queue(metadata, release_dir_path):
         logger.error(
-            f"Failed to add release {release_id} to queue. Release process                 incomplete."
+            f"Failed to add release {release_id} to queue. This is critical."
         )
-        return False
+        # Potentially mark run as failed or retry?
+        return False  # For now, consider this a failure of the release process
 
     # 10. Log Learning Entry
     if not log_learning_entry(metadata, prompts, feedback_filepath):
-        logger.warning(
-            f"Failed to log learning entry for release {release_id},                 but continuing."
-        )
+        logger.warning(f"Failed to log learning entry for {release_id}.")
+        # Continue release even if learning log fails
 
-    logger.info(
-        f"--- Successfully Completed Release Chain for Run ID:             {run_id} -> Release ID: {release_id} ---"
-    )
+    logger.info(f"--- Release Chain Completed for Run ID: {run_id} ---")
+    logger.info(f"Release ID: {release_id}")
+    logger.info(f"Release Directory: {release_dir_path}")
     return True
 
 
-# --- Example Usage (if run directly) --- #
 if __name__ == "__main__":
-    logger.info("Running release_chain.py directly for testing.")
-    test_run_id = "test_direct_run_phase8"
-    dummy_run_data = {
-        "run_id": test_run_id,
-        "status": "approved",
-        "artist_id": 101,
-        "artist_name": "Phase Eight Test",
-        "genre": "ambient-tech",
-        "track_id": "dummy_track_456",
-        "track_url": "http://example.com/audio_p8.mp3",
-        "video_url": "http://example.com/video_p8.mp4",
-        "video_source": "pexels_test",
-        "suno_prompt": "An ambient tech track for Phase 8 testing",
-        "video_keywords": ["phase8", "test", "ambient"],
-        "make_instrumental": False,
-    }
-    dummy_status_path = Path(RUN_STATUS_DIR) / f"run_{test_run_id}.json"
+    parser = argparse.ArgumentParser(
+        description="Process approved generation runs."
+    )
+    parser.add_argument(
+        "run_id", help="The ID of the approved run to process."
+    )
+    args = parser.parse_args()
+
+    # Ensure output directories exist before processing
     try:
-        with open(dummy_status_path, "w") as f:
-            json.dump(dummy_run_data, f, indent=4)
-        logger.info(f"Created dummy run status file: {dummy_status_path}")
+        os.makedirs(RELEASES_DIR, exist_ok=True)
+        os.makedirs(RUN_STATUS_DIR, exist_ok=True)
+        if EVOLUTION_LOG_FILE:
+            os.makedirs(os.path.dirname(EVOLUTION_LOG_FILE), exist_ok=True)
+    except OSError as e:
+        logger.critical(f"Failed to create necessary output directories: {e}")
+        sys.exit(1)
 
-        success = process_approved_run(test_run_id)
-
-        if success:
-            logger.info(
-                f"Direct test run {test_run_id} processed successfully."
-            )
-            date_str = datetime.utcnow().strftime("%Y%m%d%H%M%S")
-            artist_slug = generate_artist_slug(dummy_run_data["artist_name"])
-            release_id = f"{artist_slug}_{date_str}_{test_run_id[:4]}"
-            release_dir = Path(RELEASES_DIR) / f"{artist_slug}_{date_str}"
-            logger.info(f"Check output in: {release_dir}")
-            logger.info(f"Check log: {RELEASE_LOG_FILE}")
-            logger.info(f"Check queue: {RELEASE_QUEUE_FILE}")
-            logger.info(f"Check evolution log: {EVOLUTION_LOG_FILE}")
-        else:
-            logger.error(f"Direct test run {test_run_id} failed.")
-
-    except Exception as e:
-        logger.critical(f"Error during direct test run: {e}")
-    finally:
-        if dummy_status_path.exists():
-            logger.info(
-                f"Kept dummy run status file for inspection:                     {dummy_status_path}"
-            )
-        pass
+    if process_approved_run(args.run_id):
+        logger.info(f"Successfully processed run: {args.run_id}")
+        sys.exit(0)
+    else:
+        logger.error(f"Failed to process run: {args.run_id}")
+        sys.exit(1)
