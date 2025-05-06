@@ -58,12 +58,12 @@ EVOLUTION_LOG_FILE = os.getenv(
     ),
 )
 
-# Ensure directories exist
-os.makedirs(RELEASES_DIR, exist_ok=True)
-os.makedirs(RUN_STATUS_DIR, exist_ok=True)
+# Ensure directories exist (Moved to functions or test setup)
+# os.makedirs(RELEASES_DIR, exist_ok=True)
+# os.makedirs(RUN_STATUS_DIR, exist_ok=True)
 # Ensure evolution log directory exists
-if EVOLUTION_LOG_FILE:
-    os.makedirs(os.path.dirname(EVOLUTION_LOG_FILE), exist_ok=True)
+# if EVOLUTION_LOG_FILE:
+#     os.makedirs(os.path.dirname(EVOLUTION_LOG_FILE), exist_ok=True)
 
 # --- Logging Setup ---
 log_level_mapping = {
