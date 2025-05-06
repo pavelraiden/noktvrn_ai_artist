@@ -3,16 +3,18 @@
 import asyncio
 import logging
 import json
+import os # Added for path joining
 from typing import Dict, Any
 
-# Assuming other modules will be imported here
-# from .suno_state_manager import SunoStateManager
-# from .suno_ui_translator import SunoUITranslator
-# from .suno_feedback_loop import SunoFeedbackLoop
-# from .suno_logger import SunoLogger
+# Import the implemented modules
+from .suno_state_manager import SunoStateManager, SunoStateManagerError
+from .suno_ui_translator import SunoUITranslator, SunoUITranslatorError, MockBASDriver # Using Mock driver for now
+from .suno_feedback_loop import SunoFeedbackLoop, SunoFeedbackLoopError
+from .suno_logger import SunoLogger
 
-# Placeholder for BAS interaction library (e.g., browser automation tool)
-# import bas_driver
+# Placeholder for actual BAS interaction library
+# Replace MockBASDriver with the real driver when available
+bas_driver = MockBASDriver() # Instantiate the mock driver
 
 logger = logging.getLogger(__name__)
 
@@ -27,15 +29,33 @@ class SunoOrchestrator:
         """Initializes the Suno Orchestrator.
 
         Args:
-            config: Configuration dictionary (e.g., BAS connection details, retry limits).
+            config: Configuration dictionary containing paths, retry limits, LLM validator config, etc.
+                    Example: {
+                        "state_dir": "./suno_run_states",
+                        "log_dir": "./suno_run_logs",
+                        "screenshot_dir": "./suno_validation_screenshots",
+                        "max_retries": 3,
+                        "retry_delay": 5,
+                        "llm_validator_config": { "api_key": "dummy", "model": "validator" }
+                        # Add BAS driver config here if needed
+                    }
         """
         self.config = config
-        # Initialize other components (placeholders for now)
-        # self.state_manager = SunoStateManager()
-        # self.ui_translator = SunoUITranslator(bas_driver)
-        # self.feedback_loop = SunoFeedbackLoop(bas_driver)
-        # self.logger = SunoLogger()
-        logger.info("Suno Orchestrator initialized.")
+        self.state_dir = config.get("state_dir", "./suno_run_states")
+        self.log_dir = config.get("log_dir", "./suno_run_logs")
+        self.screenshot_dir = config.get("screenshot_dir", "./suno_validation_screenshots")
+
+        # Initialize components
+        self.state_manager = SunoStateManager(state_dir=self.state_dir)
+        # Pass the actual BAS driver instance here
+        self.ui_translator = SunoUITranslator(bas_driver=bas_driver)
+        self.feedback_loop = SunoFeedbackLoop(
+            bas_driver=bas_driver,
+            llm_validator_config=config.get("llm_validator_config", {}),
+            screenshot_dir=self.screenshot_dir
+        )
+        self.logger = SunoLogger(log_dir=self.log_dir)
+        logger.info("Suno Orchestrator initialized with all components.")
 
     async def generate_song(self, generation_prompt: Dict[str, Any]) -> Dict[str, Any]:
         """Handles the end-to-end process of generating a song on Suno.ai.
@@ -43,100 +63,163 @@ class SunoOrchestrator:
         Args:
             generation_prompt: A structured dictionary containing all necessary
                                details for song generation (lyrics, style, model,
-                               persona, workspace, etc.).
+                               persona, workspace, etc.). Must include a unique `run_id`.
 
         Returns:
             A dictionary containing the result (e.g., song URL, metadata, status).
         """
-        run_id = generation_prompt.get("run_id", "unknown_run") # Example: Get a unique ID
-        # self.logger.start_run(run_id, generation_prompt)
+        run_id = generation_prompt.get("run_id")
+        if not run_id:
+            raise SunoOrchestratorError("Missing 'run_id' in generation_prompt.")
+
+        self.logger.start_run(run_id, generation_prompt)
         logger.info(f"Starting Suno generation for run_id: {run_id}")
 
         try:
-            # 1. Load initial state / context (e.g., from state_manager)
-            # current_state = self.state_manager.load_state(run_id)
-            logger.info(f"[{run_id}] Loaded initial state.")
+            # 1. Load state or initialize if new run
+            current_state = self.state_manager.load_state(run_id) or {}
+            start_step = current_state.get("last_completed_step", -1) + 1
+            logger.info(f"[{run_id}] Loaded state. Starting/Resuming from step {start_step}.")
 
-            # 2. Translate prompt to initial UI actions
-            # ui_actions = self.ui_translator.translate_prompt_to_actions(generation_prompt)
-            ui_actions = [{"action": "navigate", "url": "https://suno.com/create/"}, # Placeholder
-                          {"action": "input_text", "selector": "#lyrics", "text": generation_prompt.get("lyrics", "")}, # Placeholder
-                          {"action": "click", "selector": "#generate_button"}] # Placeholder
-            logger.info(f"[{run_id}] Translated prompt to {len(ui_actions)} UI actions.")
+            # 2. Translate prompt to initial UI actions (only if starting fresh)
+            if start_step == 0:
+                ui_actions = self.ui_translator.translate_prompt_to_actions(generation_prompt)
+                current_state["planned_actions"] = ui_actions
+                self.state_manager.save_state(run_id, current_state)
+            else:
+                ui_actions = current_state.get("planned_actions", [])
+                if not ui_actions:
+                     raise SunoOrchestratorError(f"[{run_id}] Cannot resume run: Missing 'planned_actions' in state.")
+
+            logger.info(f"[{run_id}] Total planned actions: {len(ui_actions)}.")
 
             # 3. Execute actions with feedback loop
             max_retries = self.config.get("max_retries", 3)
-            current_retry = 0
-            success = False
+            current_retry = current_state.get("current_retry_count", 0)
+            overall_success = False
 
-            while current_retry < max_retries and not success:
-                logger.info(f"[{run_id}] Attempt {current_retry + 1}/{max_retries}")
-                action_results = []
+            while current_retry < max_retries and not overall_success:
+                logger.info(f"[{run_id}] Starting execution sequence (Attempt {current_retry + 1}/{max_retries})")
+                action_results = current_state.get("action_results", [])
                 step_success = True
-                for i, action in enumerate(ui_actions):
-                    logger.info(f"[{run_id}] Executing action {i+1}: {action.get('action')}")
-                    # action_result = self.ui_translator.execute_action(action)
-                    # validation_result = self.feedback_loop.validate_step(action, action_result)
-                    # self.logger.log_step(run_id, action, action_result, validation_result)
-                    action_result = {"success": True, "screenshot": f"step_{i+1}.png"} # Placeholder
-                    validation_result = {"approved": True, "feedback": "Looks good"} # Placeholder
+
+                for i in range(start_step, len(ui_actions)):
+                    action = ui_actions[i]
+                    step_index = i # Use 0-based index consistent with list
+                    self.logger.log_event(run_id, "step_start", f"Executing action {step_index+1}/{len(ui_actions)}: {action.get('action')}", {"action": action})
+
+                    action_result = await self.ui_translator.execute_action(action)
+
+                    # Validate the step using the feedback loop
+                    validation_result = await self.feedback_loop.validate_step(run_id, step_index, action, action_result)
+
+                    # Log the step outcome
+                    self.logger.log_step(run_id, step_index, action, action_result, validation_result)
+
+                    # Store result
+                    if len(action_results) <= step_index:
+                        action_results.append(action_result)
+                    else:
+                        action_results[step_index] = action_result # Overwrite on retry
+                    current_state["action_results"] = action_results
 
                     if not validation_result.get("approved"):
-                        logger.warning(f"[{run_id}] Step {i+1} failed validation: {validation_result.get('feedback')}")
-                        # Ask LLM for fix / generate retry actions
-                        # retry_actions = self.feedback_loop.get_retry_actions(validation_result)
-                        # ui_actions = retry_actions # Replace current actions with retry actions
+                        logger.warning(f"[{run_id}] Step {step_index} failed validation: {validation_result.get('feedback')}")
                         step_success = False
-                        break # Break inner loop to retry from start or with new actions
+                        # Attempt to get retry actions from LLM
+                        retry_actions = await self.feedback_loop.get_retry_actions(validation_result)
+                        if retry_actions:
+                            logger.info(f"[{run_id}] Applying suggested fix actions from LLM.")
+                            # Modify the plan: replace current/future actions or insert fix actions
+                            # Simple strategy: Replace the rest of the plan with the fix
+                            ui_actions = ui_actions[:step_index] + retry_actions
+                            current_state["planned_actions"] = ui_actions # Update plan in state
+                            logger.info(f"[{run_id}] New action plan: {len(ui_actions)} steps. Restarting sequence.")
+                            start_step = step_index # Restart from the failed step with new actions
+                        else:
+                            logger.error(f"[{run_id}] Validation failed, but no retry actions suggested. Aborting attempt.")
+                        break # Break inner loop (steps) to retry the sequence or fail
                     else:
-                        logger.info(f"[{run_id}] Step {i+1} validated successfully.")
-                        action_results.append(action_result)
-                        # Update state if necessary
-                        # self.state_manager.update_state(run_id, action_result)
+                        logger.info(f"[{run_id}] Step {step_index} validated successfully.")
+                        current_state["last_completed_step"] = step_index
+                        # Save state after each successful step
+                        self.state_manager.save_state(run_id, current_state)
+
+                # --- End of steps loop ---
 
                 if step_success:
-                    success = True
-                    logger.info(f"[{run_id}] All steps completed and validated successfully.")
+                    overall_success = True
+                    logger.info(f"[{run_id}] All steps completed and validated successfully in attempt {current_retry + 1}.")
                 else:
                     current_retry += 1
-                    logger.info(f"[{run_id}] Retrying sequence (attempt {current_retry + 1}).")
-                    await asyncio.sleep(self.config.get("retry_delay", 5)) # Wait before retrying
+                    current_state["current_retry_count"] = current_retry
+                    self.state_manager.save_state(run_id, current_state) # Save retry count
+                    if current_retry < max_retries:
+                        logger.info(f"[{run_id}] Retrying sequence (attempt {current_retry + 1}). Waiting {self.config.get('retry_delay', 5)}s...")
+                        await asyncio.sleep(self.config.get("retry_delay", 5)) # Wait before retrying
+                        # Reset start_step for the next attempt if not using targeted retry actions
+                        if not retry_actions: # If no specific fix, restart from beginning of sequence
+                             start_step = 0
+                             logger.info(f"[{run_id}] Restarting action sequence from beginning for retry.")
+                    else:
+                        logger.error(f"[{run_id}] Sequence failed after {max_retries} attempts.")
+
+            # --- End of retry loop ---
 
             # 4. Handle final state (success or failure)
-            if success:
+            if overall_success:
                 # Extract final output (e.g., song URL, metadata)
-                # final_output = self.ui_translator.extract_final_output(action_results)
-                final_output = {"song_url": "http://fake-suno-song.com/song123", "status": "completed"} # Placeholder
-                # self.state_manager.save_final_state(run_id, final_output)
-                # self.logger.end_run(run_id, final_output, status="success")
+                final_output = await self.ui_translator.extract_final_output(action_results)
+                self.state_manager.save_final_state(run_id, final_output, status="completed")
+                self.logger.end_run(run_id, final_output, status="completed")
                 logger.info(f"[{run_id}] Suno generation completed successfully.")
                 return final_output
             else:
                 error_message = f"[{run_id}] Suno generation failed after {max_retries} retries."
                 logger.error(error_message)
-                # self.state_manager.save_final_state(run_id, {"status": "failed", "error": error_message})
-                # self.logger.end_run(run_id, None, status="failed", error=error_message)
+                self.state_manager.save_final_state(run_id, None, status="failed", error=error_message)
+                self.logger.end_run(run_id, None, status="failed", error=error_message)
                 raise SunoOrchestratorError(error_message)
 
+        except (SunoStateManagerError, SunoUITranslatorError, SunoFeedbackLoopError) as e:
+            error_message = f"[{run_id}] BAS module error during Suno generation: {e}"
+            logger.error(error_message)
+            self.state_manager.save_final_state(run_id, None, status="failed", error=str(e))
+            self.logger.end_run(run_id, None, status="failed", error=str(e))
+            raise SunoOrchestratorError(error_message) from e
         except Exception as e:
             error_message = f"[{run_id}] Unexpected error during Suno generation: {e}"
             logger.exception(error_message) # Log full traceback
-            # self.state_manager.save_final_state(run_id, {"status": "failed", "error": str(e)})
-            # self.logger.end_run(run_id, None, status="failed", error=str(e))
+            self.state_manager.save_final_state(run_id, None, status="failed", error=str(e))
+            self.logger.end_run(run_id, None, status="failed", error=str(e))
             raise SunoOrchestratorError(error_message) from e
 
 # Example usage (for testing purposes)
 async def main():
-    logging.basicConfig(level=logging.INFO)
+    # Setup basic logging for the example
+    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    logging.basicConfig(level=logging.INFO, format=log_format)
+    # Optionally add a file handler for the main orchestrator log
+    # main_log_file = "./suno_orchestrator_main.log"
+    # file_handler = logging.FileHandler(main_log_file)
+    # file_handler.setFormatter(logging.Formatter(log_format))
+    # logging.getLogger().addHandler(file_handler)
+
+    # Define directories relative to the script or use absolute paths
+    base_dir = os.path.dirname(os.path.abspath(__file__))
     orchestrator_config = {
+        "state_dir": os.path.join(base_dir, "test_suno_run_states"),
+        "log_dir": os.path.join(base_dir, "test_suno_run_logs"),
+        "screenshot_dir": os.path.join(base_dir, "test_suno_screenshots"),
         "max_retries": 2,
-        "retry_delay": 3
-        # Add BAS driver config here
+        "retry_delay": 3,
+        "llm_validator_config": { "api_key": "dummy_key", "model": "validator-model-v1" }
+        # Add BAS driver config here if needed
     }
     orchestrator = SunoOrchestrator(orchestrator_config)
 
     test_prompt = {
-        "run_id": "test_run_001",
+        "run_id": f"test_run_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
         "lyrics": "Verse 1\nSome cool lyrics here\nChorus\nSing it loud",
         "style": "Synthwave, 80s vibe",
         "model": "v4.5",
@@ -144,12 +227,15 @@ async def main():
         "workspace": "My Synthwave Album"
     }
 
+    logger.info("--- Starting Test Run --- ")
     try:
         result = await orchestrator.generate_song(test_prompt)
-        print(f"Generation Result: {result}")
+        print(f"\n--- Generation Result --- \n{json.dumps(result, indent=2)}")
     except SunoOrchestratorError as e:
-        print(f"Generation Failed: {e}")
+        print(f"\n--- Generation Failed --- \n{e}")
+    logger.info("--- Test Run Finished --- ")
 
 if __name__ == "__main__":
+    from datetime import datetime # Add import for example usage
     asyncio.run(main())
 
