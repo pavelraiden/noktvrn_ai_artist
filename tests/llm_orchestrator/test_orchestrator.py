@@ -830,8 +830,8 @@ async def test_orchestrator_no_providers_configured(mock_env_vars):
         with pytest.raises(ValueError) as excinfo:
             # Pass a primary_model as it's required
             # orchestrator = LLMOrchestrator(
-#                 primary_model="nonexistent:nonexistent_model",
-#                 enable_auto_discovery=False,
+            #                 primary_model="nonexistent:nonexistent_model",
+            #                 enable_auto_discovery=False,
             # )
             pass
         assert "No valid LLM or BAS providers could be initialized" in str(

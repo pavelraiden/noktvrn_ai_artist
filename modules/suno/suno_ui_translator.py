@@ -199,7 +199,7 @@ class SunoUITranslator:
             elif action_type == "screenshot":
                 if not filename:
                     raise SunoUITranslatorError(
-                        f"Missing 'filename' for screenshot action."
+                        "Missing 'filename' for screenshot action."
                     )
                 return await self.driver.take_screenshot(filename)
             else:
