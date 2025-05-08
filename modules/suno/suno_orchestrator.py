@@ -307,7 +307,9 @@ class SunoOrchestrator:
                 )
 
                 song_metadata = SongMetadata(
-                    title=generation_prompt.get("title", "Untitled Song"),
+                    title=generation_prompt.get(
+                        "title", "Untitled Song"
+                    ),
                     artist=generation_prompt.get("persona", "AI Artist"),
                     genre=generation_prompt.get("genre"),
                     style_prompt=generation_prompt.get("style"),
