@@ -127,7 +127,9 @@ class SunoOrchestrator:
             screenshot_dir=self.screenshot_dir,
         )
         self.logger = SunoLogger(log_dir=self.log_dir)
-        logger.info("Suno Orchestrator initialized with all components.")
+        logger.info(
+            "Suno Orchestrator initialized with all components."
+        )
 
     async def generate_song(
         self, generation_prompt: Dict[str, Any]
