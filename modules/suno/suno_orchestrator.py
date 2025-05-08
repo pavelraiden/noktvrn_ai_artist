@@ -281,7 +281,8 @@ class SunoOrchestrator:
                         if not retry_actions:
                             start_step = 0
                             logger.info(
-                                f"[{run_id}] Restarting action sequence from beginning for retry."
+                                f"[{run_id}] Restarting action sequence "
+                                f"from beginning for retry."
                             )
                     else:
                         logger.error(
