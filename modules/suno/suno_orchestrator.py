@@ -101,7 +101,8 @@ class SunoOrchestrator:
             # self.bas_driver_instance = BASDriver(bas_driver_config)
             self.bas_driver_instance = (
                 MockBASDriver()
-            )  # Replace with real one when available
+            )
+            # Replace with real one when available
             logger.warning(
                 "Using MockBASDriver as placeholder "
                 "for real BAS driver."
