@@ -320,7 +320,9 @@ class SunoOrchestrator:
                     suno_song_id=final_output_data.get(
                         "suno_song_id"
                     ),
-                    suno_song_url=final_output_data.get("suno_song_url"),
+                    suno_song_url=final_output_data.get(
+                        "suno_song_url"
+                    ),
                 )
                 return song_metadata
             else:
