@@ -99,13 +99,10 @@ class SunoOrchestrator:
             )
             # from modules.bas.driver import BASDriver # Assumed path
             # self.bas_driver_instance = BASDriver(bas_driver_config)
-            self.bas_driver_instance = (
-                MockBASDriver()
-            )
+            self.bas_driver_instance = MockBASDriver()
             # Replace with real one when available
             logger.warning(
-                "Using MockBASDriver as placeholder "
-                "for real BAS driver."
+                "Using MockBASDriver as placeholder " "for real BAS driver."
             )
             # Remove when real driver is used
         else:
@@ -121,15 +118,11 @@ class SunoOrchestrator:
         )
         self.feedback_loop = SunoFeedbackLoop(
             bas_driver=self.bas_driver_instance,  # Use the instantiated driver
-            llm_validator_config=config.get(
-                "llm_validator_config", {}
-            ),
+            llm_validator_config=config.get("llm_validator_config", {}),
             screenshot_dir=self.screenshot_dir,
         )
         self.logger = SunoLogger(log_dir=self.log_dir)
-        logger.info(
-            "Suno Orchestrator initialized with all components."
-        )
+        logger.info("Suno Orchestrator initialized with all components.")
 
     async def generate_song(
         self, generation_prompt: Dict[str, Any]
@@ -180,8 +173,7 @@ class SunoOrchestrator:
                     )
 
             logger.info(
-                f"[{run_id}] Total planned actions: "
-                f"{len(ui_actions)}."
+                f"[{run_id}] Total planned actions: " f"{len(ui_actions)}."
             )
 
             max_retries = self.config.get("max_retries", 3)
@@ -258,9 +250,7 @@ class SunoOrchestrator:
                         logger.info(
                             f"[{run_id}] Step {step_index} validated successfully."
                         )
-                        current_state[
-                            "last_completed_step"
-                        ] = step_index
+                        current_state["last_completed_step"] = step_index
                         self.state_manager.save_state(run_id, current_state)
 
                 if step_success:
@@ -307,22 +297,14 @@ class SunoOrchestrator:
                 )
 
                 song_metadata = SongMetadata(
-                    title=generation_prompt.get(
-                        "title", "Untitled Song"
-                    ),
-                    artist=generation_prompt.get(
-                        "persona", "AI Artist"
-                    ),
+                    title=generation_prompt.get("title", "Untitled Song"),
+                    artist=generation_prompt.get("persona", "AI Artist"),
                     genre=generation_prompt.get("genre"),
                     style_prompt=generation_prompt.get("style"),
                     lyrics=generation_prompt.get("lyrics"),
                     generation_source="suno_bas",
-                    suno_song_id=final_output_data.get(
-                        "suno_song_id"
-                    ),
-                    suno_song_url=final_output_data.get(
-                        "suno_song_url"
-                    ),
+                    suno_song_id=final_output_data.get("suno_song_id"),
+                    suno_song_url=final_output_data.get("suno_song_url"),
                 )
                 return song_metadata
             else:

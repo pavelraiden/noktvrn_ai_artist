@@ -99,14 +99,14 @@ class SunoUITranslator:
             "style_input": "textarea[placeholder*='Enter style description']",
             "by_line_toggle": "button[aria-label='By Line']",  # Needs verification            "full_song_toggle": "button[aria-label=\'Full Song\']",
             # Needs verification
-            "model_dropdown": "button[aria-haspopup=\'listbox\']",
+            "model_dropdown": "button[aria-haspopup='listbox']",
             # Example, needs verification
-            "model_option_v4.5": "li[role=\'option\']:contains(\'v4.5\')",
+            "model_option_v4.5": "li[role='option']:contains('v4.5')",
             # Example, needs verification            "model_option_remi": "li[role='option']:contains('ReMi')",  # Example, needs verification
             "model_option_classic": "li[role='option']:contains('Classic')",  # Example, needs verification
             "persona_add_button": "button[aria-label='Add Persona']",  # Needs verification
-            "create_persona_button": "button:contains('Create New Persona')",  # Needs verification
-            "workspace_dropdown": "div[role='combobox']",  # Example, needs verification
+            "create_persona_button": "button:contains('Create New Persona')",  # Needs verificatio            "workspace_dropdown": "div[role=\'combobox\"]",
+            # Example, needs verification
             "workspace_option": "li[role='option']:contains('{workspace_name}')",  # Needs verification
             "song_title_input": "input[placeholder='Enter song title']",
             "create_button": 'button:contains("Create")',

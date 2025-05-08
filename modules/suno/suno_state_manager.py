@@ -132,8 +132,7 @@ class SunoStateManager:
         }
         self.update_state(run_id, final_state)
         logger.info(
-            f"Saved final state for run_id: {run_id} "
-            f"with status: {status}"
+            f"Saved final state for run_id: {run_id} " f"with status: {status}"
         )
 
 
