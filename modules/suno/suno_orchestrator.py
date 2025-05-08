@@ -107,7 +107,8 @@ class SunoOrchestrator:
             )  # Remove when real driver is used
         else:
             logger.warning(
-                "BAS Driver connection string missing or dummy. Using MockBASDriver."
+                "BAS Driver connection string missing or dummy. "
+                "Using MockBASDriver."
             )
             self.bas_driver_instance = MockBASDriver()
 
