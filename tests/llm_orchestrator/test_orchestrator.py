@@ -833,6 +833,7 @@ async def test_orchestrator_no_providers_configured(mock_env_vars):
 #                 primary_model="nonexistent:nonexistent_model",
 #                 enable_auto_discovery=False,
             # )
+            pass
         assert "No valid LLM or BAS providers could be initialized" in str(
             excinfo.value
         )
