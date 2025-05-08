@@ -121,7 +121,11 @@ class SunoUITranslator:
         Args:
             action: A dictionary describing the action (e.g.,
                     {'action': 'click', 'target': 'login_button'},
-                    {'action': 'input', 'target': 'lyrics_input', 'value': 'Hello'},
+                    {
+                        'action': 'input',
+                        'target': 'lyrics_input',
+                        'value': 'Hello'
+                    },
                     {
                         'action': 'select',
                         'target': 'model_dropdown',
