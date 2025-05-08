@@ -274,7 +274,8 @@ class SunoOrchestrator:
                     self.state_manager.save_state(run_id, current_state)
                     if current_retry < max_retries:
                         logger.info(
-                            f"[{run_id}] Retrying sequence (attempt {current_retry + 1}). Waiting {self.config.get('retry_delay', 5)}s..."
+                            f"[{run_id}] Retrying sequence (attempt {current_retry + 1}). "
+                            f"Waiting {self.config.get('retry_delay', 5)}s..."
                         )
                         await asyncio.sleep(self.config.get("retry_delay", 5))
                         if not retry_actions:
