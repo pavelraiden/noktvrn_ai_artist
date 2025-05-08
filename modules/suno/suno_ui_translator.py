@@ -76,8 +76,6 @@ logger = logging.getLogger(__name__)
 class SunoUITranslatorError(Exception):
     """Custom exception for UI Translator errors."""
 
-    pass
-
 
 class SunoUITranslator:
     """Translates high-level commands into specific Suno UI actions using BAS.

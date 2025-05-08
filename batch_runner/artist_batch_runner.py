@@ -481,7 +481,7 @@ async def generate_music_for_artist(artist):
     logger.info(f"Generating music for artist: {artist['name']}")
     run_id = str(uuid.uuid4())
     run_timestamp = datetime.utcnow().isoformat()
-    run_status_file = os.path.join(RUN_STATUS_DIR, f"{run_id}.json")
+    os.path.join(RUN_STATUS_DIR, f"{run_id}.json")
 
     run_data = {
         "run_id": run_id,

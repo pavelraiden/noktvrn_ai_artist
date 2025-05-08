@@ -3,7 +3,6 @@
 Service for analyzing trends using external data sources like social media.
 """
 
-import sys
 
 import logging
 

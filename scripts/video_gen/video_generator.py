@@ -5,7 +5,6 @@ Main module for building shortform video teasers based on artist profile and
 """
 
 import json
-import os
 from pathlib import Path
 from scripts.ffmpeg_controller import (
     cut_video_segment,

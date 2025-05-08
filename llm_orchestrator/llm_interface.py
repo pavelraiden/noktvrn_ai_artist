@@ -153,7 +153,6 @@ class LLMProvider(abc.ABC):
         Returns:
             The response from the LLM
         """
-        pass
 
     @abc.abstractmethod
     def get_provider_name(self) -> str:
@@ -163,7 +162,6 @@ class LLMProvider(abc.ABC):
         Returns:
             The provider name
         """
-        pass
 
     @abc.abstractmethod
     def get_model_name(self) -> str:
@@ -173,7 +171,6 @@ class LLMProvider(abc.ABC):
         Returns:
             The model name
         """
-        pass
 
 
 class MockLLMProvider(LLMProvider):

@@ -11,8 +11,6 @@ logger = logging.getLogger(__name__)
 class AltMusicClientError(Exception):
     """Custom exception for AltMusicClient errors."""
 
-    pass
-
 
 class AltMusicClient:
     def __init__(self):

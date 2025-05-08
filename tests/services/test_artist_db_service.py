@@ -4,8 +4,6 @@
 import pytest
 import os
 import sys
-import json
-import sqlite3
 from datetime import datetime
 
 # Add project root to sys.path to allow importing services

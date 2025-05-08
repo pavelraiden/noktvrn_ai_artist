@@ -1,15 +1,11 @@
-"""
-API Integration Test Script
-
-This script tests the integration with Suno, Pixabay, and Pexels APIs
-to ensure they are properly configured and working.
-"""
-
+#!/usr/bin/env python3
 import os
 import json
 import logging
 import sys
 from pathlib import Path
+from scripts.utils.env_utils import load_env_file
+import argparse
 
 # Add parent directory to path to import modules
 sys.path.append(str(Path(__file__).parent.parent))
@@ -29,8 +25,6 @@ logger = logging.getLogger("api_test")
 Path("logs").mkdir(exist_ok=True)
 
 # Load environment variables from .env file
-from scripts.utils.env_utils import load_env_file
-
 env_loaded = load_env_file()
 if not env_loaded:
     logger.error("Failed to load environment variables from .env file")
@@ -347,7 +341,6 @@ def run_all_tests():
 
 
 if __name__ == "__main__":
-    import argparse
 
     parser = argparse.ArgumentParser(description="Test API integrations")
     parser.add_argument(
@@ -377,3 +370,4 @@ if __name__ == "__main__":
 
     # Print detailed results
     print(json.dumps(result, indent=2))
+

@@ -8,4 +8,3 @@ from .artist_batch_runner import (
 __all__ = [
     "BatchRunnerInitializationError",
 ]
-

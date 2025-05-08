@@ -7,7 +7,7 @@ import json
 import tempfile
 import shutil
 from pathlib import Path
-from unittest.mock import patch, mock_open, MagicMock, call
+from unittest.mock import patch, mock_open, call
 from datetime import datetime
 
 # --- Add project root to sys.path for imports ---
@@ -332,7 +332,7 @@ class TestReleaseChain(unittest.TestCase):
         # For testing, we might want to patch datetime.utcnow() or accept the generated one.
         # Let's assume we can predict it or verify based on the mock_create_dir call.
 
-        mock_release_dir_name_part = f"{artist_slug}_"
+        f"{artist_slug}_"
         mock_release_dir = (
             Path(self.test_dir) / "releases" / "mock_release_subdir"
         )  # Placeholder

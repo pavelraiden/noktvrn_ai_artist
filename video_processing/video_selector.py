@@ -57,8 +57,6 @@ logger = logging.getLogger(__name__)
 class VideoSelectionError(Exception):
     """Custom exception for video selection errors."""
 
-    pass
-
 
 # Modify function signature to accept tracker
 def select_stock_videos(

@@ -30,8 +30,6 @@ else:
 class VideoEditingError(Exception):
     """Custom exception for video editing errors."""
 
-    pass
-
 
 def add_text_overlay(
     input_video_path: str,

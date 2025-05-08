@@ -41,8 +41,6 @@ except Exception as e:
 class LyricsServiceError(Exception):
     """Custom exception for LyricsService errors."""
 
-    pass
-
 
 class LyricsService:
     def __init__(self):
@@ -121,7 +119,7 @@ class LyricsService:
                 f"Successfully generated lyrics (length:                     {len(lyrics)}). Preview: \n{lyrics[:100]}..."
             )
             return lyrics
-        except LLMOrchestratorError as e:
+        except OrchestratorError as e:
             logger.error(f"Failed to generate lyrics using LLM: {e}")
             # raise LyricsServiceError(f"LLM generation failed: {e}") from e
             return None

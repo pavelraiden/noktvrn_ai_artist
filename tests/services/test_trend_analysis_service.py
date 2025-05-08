@@ -4,7 +4,6 @@
 import pytest
 import os
 import sys
-import json
 
 # Add project root to sys.path to allow importing services
 PROJECT_ROOT = os.path.abspath(

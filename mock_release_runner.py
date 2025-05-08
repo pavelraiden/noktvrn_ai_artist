@@ -23,7 +23,6 @@ logger = logging.getLogger("MockReleaseRunner")
 try:
     from llm_orchestrator.orchestrator import (
         LLMOrchestrator,
-        OrchestratorError,
     )
     from schemas.song_metadata import SongMetadata
 except ImportError as e:

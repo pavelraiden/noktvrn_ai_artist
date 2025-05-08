@@ -66,7 +66,6 @@ except ImportError as e:
 
     def initialize_database():
         logger.error("DB function initialize_database not available.")
-        pass
 
     def add_artist(artist_data):
         logger.error("DB function add_artist not available.")

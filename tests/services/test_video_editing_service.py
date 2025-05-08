@@ -21,7 +21,6 @@ FFMPEG_AVAILABLE = False
 SKIP_REASON = "moviepy library not found."
 
 try:
-    import moviepy.editor
     from moviepy.config import get_setting, change_settings
 
     MOVIEPY_AVAILABLE = True

@@ -17,8 +17,6 @@ logger = logging.getLogger(__name__)
 class BootTestError(Exception):
     """Custom exception for boot test failures."""
 
-    pass
-
 
 def run_boot_tests():
     """Runs basic import and configuration checks."""
@@ -29,7 +27,6 @@ def run_boot_tests():
     logger.info("Test 1: Checking core module imports...")
     try:
         from llm_orchestrator.orchestrator import LLMOrchestrator
-        from services.artist_db_service import get_all_artists
 
         # Try using one function from each to be more thorough
         _ = (

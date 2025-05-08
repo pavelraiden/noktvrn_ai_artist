@@ -15,8 +15,6 @@ sys.path.append(PROJECT_ROOT)
 class VoiceServiceError(Exception):
     """Custom exception for VoiceService errors."""
 
-    pass
-
 
 class VoiceService:
     def __init__(self):

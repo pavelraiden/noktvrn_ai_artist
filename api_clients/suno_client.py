@@ -25,8 +25,6 @@ logger = logging.getLogger(__name__)
 class SunoApiError(ApiClientError):
     """Custom exception for Suno API errors."""
 
-    pass
-
 
 class SunoApiClient(BaseApiClient):
     """Client for interacting with the Suno API

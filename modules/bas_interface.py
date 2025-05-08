@@ -23,7 +23,6 @@ class BASDriverInterface(abc.ABC):
             A dictionary indicating success status and potentially other details.
             Example: {"success": True, "url": url}
         """
-        pass
 
     @abc.abstractmethod
     async def click(self, selector: str) -> Dict[str, Any]:
@@ -36,7 +35,6 @@ class BASDriverInterface(abc.ABC):
             A dictionary indicating success status.
             Example: {"success": True, "selector": selector}
         """
-        pass
 
     @abc.abstractmethod
     async def input_text(
@@ -53,7 +51,6 @@ class BASDriverInterface(abc.ABC):
             A dictionary indicating success status.
             Example: {"success": True, "selector": selector, "text_length": len(text)}
         """
-        pass
 
     @abc.abstractmethod
     async def select_option(self, selector: str, value: str) -> Dict[str, Any]:
@@ -67,7 +64,6 @@ class BASDriverInterface(abc.ABC):
             A dictionary indicating success status.
             Example: {"success": True, "selector": selector, "value": value}
         """
-        pass
 
     @abc.abstractmethod
     async def get_element_text(self, selector: str) -> str:
@@ -83,7 +79,6 @@ class BASDriverInterface(abc.ABC):
             ElementNotFoundError: If the element cannot be found.
             # Other driver-specific exceptions
         """
-        pass
 
     @abc.abstractmethod
     async def take_screenshot(self, filename: str) -> Dict[str, Any]:
@@ -96,7 +91,6 @@ class BASDriverInterface(abc.ABC):
             A dictionary indicating success status and the filepath.
             Example: {"success": True, "filepath": filename}
         """
-        pass
 
     # Optional: Add methods for login, waiting for elements, executing JS, etc.
     # async def login(self, credentials: Dict[str, str]) -> Dict[str, Any]:

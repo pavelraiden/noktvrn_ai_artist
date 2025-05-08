@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-import json
 import os
 import sys  # Added for path manipulation
 from typing import Dict, Any
@@ -51,8 +50,6 @@ logger = logging.getLogger(__name__)
 
 class SunoOrchestratorError(Exception):
     """Custom exception for Suno Orchestrator errors."""
-
-    pass
 
 
 class SunoOrchestrator:

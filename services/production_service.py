@@ -85,14 +85,11 @@ def _generate_noise_file(
 class ProductionServiceError(Exception):
     """Custom exception for ProductionService errors."""
 
-    pass
-
 
 class ProductionService:
     def __init__(self):
         # Configuration for effects can be added here
         self.noise_level_db = -45.0  # Very subtle background noise
-        pass
 
     def humanize_audio(self, audio_url: str) -> str | None:
         """Applies subtle effects to make audio sound less sterile.
@@ -137,12 +134,10 @@ class ProductionService:
                     audio = AudioSegment.from_mp3(local_path)
                 except Exception as e:
                     logger.warning(f"Could not load {local_path} as MP3: {e}")
-                    pass
                 try:
                     audio = AudioSegment.from_wav(local_path)
                 except Exception as e:
                     logger.warning(f"Could not load {local_path} as WAV: {e}")
-                    pass
                 if "audio" not in locals():  # If still not loaded
                     raise ProductionServiceError(
                         f"Could not load audio file {local_path}: {load_err}"

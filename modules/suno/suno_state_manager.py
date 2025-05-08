@@ -12,8 +12,6 @@ logger = logging.getLogger(__name__)
 class SunoStateManagerError(Exception):
     """Custom exception for State Manager errors."""
 
-    pass
-
 
 class SunoStateManager:
     """Manages the state of Suno generation runs, including retries and progress."""
@@ -175,7 +173,6 @@ if __name__ == "__main__":
     print(f"Final state (failure): {manager.load_state(test_id_fail)}")
 
     # Clean up test directory
-    import shutil
 
     # shutil.rmtree("./test_suno_states")
     print("Cleanup complete (manual step for safety).")

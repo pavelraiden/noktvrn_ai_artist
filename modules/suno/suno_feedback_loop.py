@@ -135,8 +135,6 @@ logger = logging.getLogger(__name__)
 class SunoFeedbackLoopError(Exception):
     """Custom exception for Feedback Loop errors."""
 
-    pass
-
 
 class SunoFeedbackLoop:
     """Handles validation of UI actions using screenshots and LLM feedback.

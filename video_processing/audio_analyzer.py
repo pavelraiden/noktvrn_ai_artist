@@ -14,8 +14,6 @@ logger = logging.getLogger(__name__)
 class AudioAnalysisError(Exception):
     """Custom exception for audio analysis errors."""
 
-    pass
-
 
 def _download_audio(audio_url: str) -> str | None:
     """Downloads audio from a URL to a temporary file."""

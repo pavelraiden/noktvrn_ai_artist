@@ -1,14 +1,10 @@
 #!/usr/bin/env python3
 
 import unittest
-import asyncio
 import os
 import sys
-import json
-import time
 import shutil
-from unittest.mock import patch, MagicMock, mock_open, call, AsyncMock
-from datetime import datetime
+from unittest.mock import patch, MagicMock
 
 # --- Mock heavy dependencies BEFORE other imports ---
 sys.modules["librosa"] = MagicMock()
@@ -130,51 +126,55 @@ class TestArtistBatchRunner(unittest.IsolatedAsyncioTestCase):
         self.patcher_get_params = patch(
             "batch_runner.artist_batch_runner.get_adapted_parameters"
         )
-# # self.mock_get_params = None # self.patcher_get_params.start()
-# self.mock_get_params.return_value = {
-#             "suno_prompt": "test",
-#             "video_keywords": ["test"],
-#        }
+        # # self.mock_get_params = None # self.patcher_get_params.start()
+        # self.mock_get_params.return_value = {
+        #             "suno_prompt": "test",
+        #             "video_keywords": ["test"],
+        #        }
 
-        self.patcher_gen_track = patch("batch_runner.artist_batch_runner.generate_music_for_artist")
+        self.patcher_gen_track = patch(
+            "batch_runner.artist_batch_runner.generate_music_for_artist"
+        )
         self.mock_gen_track = self.patcher_gen_track.start()
-        self.mock_gen_track.return_value = { # Updated for generate_music_for_artist
-            "run_id": "mock_run_id",
-            "artist_id": 99,
-            "artist_name": "Test Artist",
-            "genre": "testwave",
-            "timestamp": "mock_timestamp",
-            "status": "pending_approval",
-            "music_prompt": "mock prompt",
-            "music_url": "http://fake-beat-audio.mp3",
-            "lyrics": "mock lyrics",
-            "vocals_url": "http://fake-vocals.mp3",
-            "final_audio_url": "http://fake-final-audio.mp3",
-            "preview_message_id": "mock_message_id",
-            "approval_status": "pending",
-            "error": None,
-            "ab_test_variant": None,
-        }
+        self.mock_gen_track.return_value = (
+            {  # Updated for generate_music_for_artist
+                "run_id": "mock_run_id",
+                "artist_id": 99,
+                "artist_name": "Test Artist",
+                "genre": "testwave",
+                "timestamp": "mock_timestamp",
+                "status": "pending_approval",
+                "music_prompt": "mock prompt",
+                "music_url": "http://fake-beat-audio.mp3",
+                "lyrics": "mock lyrics",
+                "vocals_url": "http://fake-vocals.mp3",
+                "final_audio_url": "http://fake-final-audio.mp3",
+                "preview_message_id": "mock_message_id",
+                "approval_status": "pending",
+                "error": None,
+                "ab_test_variant": None,
+            }
+        )
 
         # self.patcher_sel_video = patch(
-# "batch_runner.artist_batch_runner.select_video"
-# )
+        # "batch_runner.artist_batch_runner.select_video"
+        # )
         # self.mock_sel_video = self.patcher_sel_video.start()
         # self.mock_sel_video.return_value = {
-# "video_url": "http://fake-video",
-# "source": "test-src",
-# }
+        # "video_url": "http://fake-video",
+        # "source": "test-src",
+        # }
 
         # self.patcher_create_status = patch(
-# "batch_runner.artist_batch_runner.create_initial_run_status"
-# )
+        # "batch_runner.artist_batch_runner.create_initial_run_status"
+        # )
         # self.mock_create_status = self.patcher_create_status.start()
         # self.mock_create_status.return_value = True
 
         # self.patcher_send_telegram = patch(
-# "batch_runner.artist_batch_runner.send_to_telegram_for_approval"
-# )
-# self.mock_send_telegram = self.patcher_send_telegram.start()
+        # "batch_runner.artist_batch_runner.send_to_telegram_for_approval"
+        # )
+        # self.mock_send_telegram = self.patcher_send_telegram.start()
         # self.mock_send_telegram.return_value = True
 
         self.patcher_check_approval = patch(
@@ -185,20 +185,20 @@ class TestArtistBatchRunner(unittest.IsolatedAsyncioTestCase):
         self.mock_check_approval.side_effect = [None, True]
 
         # self.patcher_update_status = patch(
-# "batch_runner.artist_batch_runner.update_run_status"
-# )
-# self.mock_update_status = self.patcher_update_status.start()
+        # "batch_runner.artist_batch_runner.update_run_status"
+        # )
+        # self.mock_update_status = self.patcher_update_status.start()
 
         # self.patcher_save_content = patch(
-# "batch_runner.artist_batch_runner.save_approved_content"
-# )
+        # "batch_runner.artist_batch_runner.save_approved_content"
+        # )
         # self.mock_save_content = self.patcher_save_content.start()
         # self.mock_save_content.return_value = True
 
-      # self.patcher_trigger_release = patch(
-# "batch_runner.artist_batch_runner.trigger_release_logic"
-# )   
-# self.mock_trigger_release = self.patcher_trigger_release.start()
+        # self.patcher_trigger_release = patch(
+        # "batch_runner.artist_batch_runner.trigger_release_logic"
+        # )
+        # self.mock_trigger_release = self.patcher_trigger_release.start()
 
         self.patcher_time_sleep = patch(
             "time.sleep"  # Patch time.sleep directly
@@ -269,23 +269,23 @@ class TestArtistBatchRunner(unittest.IsolatedAsyncioTestCase):
         self.mock_check_approval.side_effect = [None, True]
         self.mock_time_time.side_effect = [1000.0, 1000.0, 1002.0, 1004.0]
 
-#        await artist_batch_runner.main()
+    #        await artist_batch_runner.main()
 
-        # self.mock_select_artist.assert_called_once()
-# # self.mock_get_params.assert_called_once()
-        #self.mock_gen_track.assert_called_once()
-        # self.mock_sel_video.assert_called_once()
-#        self.mock_create_status.assert_called_once()  # Check if initial status creation was called
-#        self.mock_send_telegram.assert_called_once()  # Checks if telegram sending was attempted
-        # self.assertEqual(
-# self.mock_check_approval.call_count, 2
-# )  # Called twice before approval
-        # Check update_run_status was called for approval
-#        self.mock_update_status.assert_any_call(
-            # unittest.mock.ANY, "approved", "User approved"
-#        )
-        # self.mock_save_content.assert_called_once()  # Should be called on approval
-#        self.mock_trigger_release.assert_called_once()  # Should be called on approval
+    # self.mock_select_artist.assert_called_once()
+    # # self.mock_get_params.assert_called_once()
+    # self.mock_gen_track.assert_called_once()
+    # self.mock_sel_video.assert_called_once()
+    #        self.mock_create_status.assert_called_once()  # Check if initial status creation was called
+    #        self.mock_send_telegram.assert_called_once()  # Checks if telegram sending was attempted
+    # self.assertEqual(
+    # self.mock_check_approval.call_count, 2
+    # )  # Called twice before approval
+    # Check update_run_status was called for approval
+    #        self.mock_update_status.assert_any_call(
+    # unittest.mock.ANY, "approved", "User approved"
+    #        )
+    # self.mock_save_content.assert_called_once()  # Should be called on approval
+    #        self.mock_trigger_release.assert_called_once()  # Should be called on approval
 
     async def test_run_batch_cycle_rejected(self):
         """Test a run cycle where content is rejected."""
@@ -295,15 +295,15 @@ class TestArtistBatchRunner(unittest.IsolatedAsyncioTestCase):
         ]  # Reject on second check
         self.mock_time_time.side_effect = [1000.0, 1000.0, 1002.0, 1004.0]
 
-#        await artist_batch_runner.main()
+    #        await artist_batch_runner.main()
 
-        #self.assertEqual(self.mock_check_approval.call_count, 2)
-        # Check update_run_status was called for rejection
-#        self.mock_update_status.assert_any_call(
-# unittest.mock.ANY, "rejected", "User rejected"
-#        )
-        # self.mock_save_content.assert_not_called()  # Should NOT be called on rejection
-#        self.mock_trigger_release.assert_not_called()  # Should NOT be called on rejection
+    # self.assertEqual(self.mock_check_approval.call_count, 2)
+    # Check update_run_status was called for rejection
+    #        self.mock_update_status.assert_any_call(
+    # unittest.mock.ANY, "rejected", "User rejected"
+    #        )
+    # self.mock_save_content.assert_not_called()  # Should NOT be called on rejection
+    #        self.mock_trigger_release.assert_not_called()  # Should NOT be called on rejection
 
     async def test_run_batch_cycle_timeout(self):
         """Test a run cycle where approval times out."""
@@ -322,81 +322,85 @@ class TestArtistBatchRunner(unittest.IsolatedAsyncioTestCase):
             1012.0,
         ]
 
-#        await artist_batch_runner.main()
+    #        await artist_batch_runner.main()
 
-        # Check polling happened multiple times (until timeout)
-        # Expected calls = timeout / poll_interval + 1 = 10 / 2 + 1 = 6
-        #self.assertEqual(self.mock_check_approval.call_count, 6)
-        # self.mock_save_content.assert_not_called()
-#        self.mock_trigger_release.assert_not_called()
-        # Check if status was updated to rejected due to timeout
-#        self.mock_update_status.assert_called_with(
-# unittest.mock.ANY, "rejected", "Timeout waiting for approval"
-#        )
+    # Check polling happened multiple times (until timeout)
+    # Expected calls = timeout / poll_interval + 1 = 10 / 2 + 1 = 6
+    # self.assertEqual(self.mock_check_approval.call_count, 6)
+    # self.mock_save_content.assert_not_called()
+    #        self.mock_trigger_release.assert_not_called()
+    # Check if status was updated to rejected due to timeout
+    #        self.mock_update_status.assert_called_with(
+    # unittest.mock.ANY, "rejected", "Timeout waiting for approval"
+    #        )
 
     async def test_run_batch_cycle_track_generation_fails(self):
         """Test cycle when track generation returns None."""
         self.mock_gen_track.return_value = None
 
-#        await artist_batch_runner.main()
+    #        await artist_batch_runner.main()
 
-        #self.mock_gen_track.assert_called_once()
-        # self.mock_sel_video.assert_not_called()
-#        self.mock_create_status.assert_not_called()
-#        self.mock_send_telegram.assert_not_called()
-        #self.mock_check_approval.assert_not_called()
-        # self.mock_save_content.assert_not_called()
-#        self.mock_trigger_release.assert_not_called()
-        # Check if status updated to failure
-#        self.mock_update_status.assert_called_with(
-# unittest.mock.ANY,
-# "failed_generation",
-# "Track generation failed",
-#        )
+    # self.mock_gen_track.assert_called_once()
+    # self.mock_sel_video.assert_not_called()
+    #        self.mock_create_status.assert_not_called()
+    #        self.mock_send_telegram.assert_not_called()
+    # self.mock_check_approval.assert_not_called()
+    # self.mock_save_content.assert_not_called()
+    #        self.mock_trigger_release.assert_not_called()
+    # Check if status updated to failure
+    #        self.mock_update_status.assert_called_with(
+    # unittest.mock.ANY,
+    # "failed_generation",
+    # "Track generation failed",
+    #        )
 
     async def test_run_batch_cycle_video_selection_fails(self):
         """Test cycle when video selection returns None."""
-#        self.mock_sel_video.return_value = None
 
-#        await artist_batch_runner.main()
+    #        self.mock_sel_video.return_value = None
 
-        #self.mock_gen_track.assert_called_once()
-        # self.mock_sel_video.assert_called_once()
-#        self.mock_create_status.assert_not_called()
-#        self.mock_send_telegram.assert_not_called()
-        # Check if status updated to failure
-#        self.mock_update_status.assert_called_with(
-# unittest.mock.ANY,
-# "failed_generation",
-# "Video selection failed",
-#        )
+    #        await artist_batch_runner.main()
+
+    # self.mock_gen_track.assert_called_once()
+    # self.mock_sel_video.assert_called_once()
+    #        self.mock_create_status.assert_not_called()
+    #        self.mock_send_telegram.assert_not_called()
+    # Check if status updated to failure
+    #        self.mock_update_status.assert_called_with(
+    # unittest.mock.ANY,
+    # "failed_generation",
+    # "Video selection failed",
+    #        )
 
     async def test_run_batch_cycle_create_status_fails(self):
         """Test cycle when creating initial status file fails."""
-#        self.mock_create_status.return_value = False  # Simulate failure
 
-#        await artist_batch_runner.main()
+    #        self.mock_create_status.return_value = False  # Simulate failure
 
-        #self.mock_gen_track.assert_called_once()
-        # self.mock_sel_video.assert_called_once()
-#        self.mock_create_status.assert_called_once()
-#        self.mock_send_telegram.assert_not_called()  # Should not proceed
-        #self.mock_check_approval.assert_not_called()
-        # Check if status updated to failure (implicitly, as cycle stops)
-        # No direct update_status call expected here, but subsequent steps are skipped.
-        # self.mock_update_status.assert_not_called()  # Assuming failure is logged and cycle exits
+    #        await artist_batch_runner.main()
+
+    # self.mock_gen_track.assert_called_once()
+    # self.mock_sel_video.assert_called_once()
+    #        self.mock_create_status.assert_called_once()
+    #        self.mock_send_telegram.assert_not_called()  # Should not proceed
+    # self.mock_check_approval.assert_not_called()
+    # Check if status updated to failure (implicitly, as cycle stops)
+    # No direct update_status call expected here, but subsequent steps are skipped.
+    # self.mock_update_status.assert_not_called()  # Assuming failure is logged and cycle exits
 
     async def test_run_batch_cycle_telegram_send_fails(self):
         """Test cycle when sending to Telegram fails."""
-#        self.mock_send_telegram.return_value = False
+        #        self.mock_send_telegram.return_value = False
 
-#        await artist_batch_runner.main()
+        #        await artist_batch_runner.main()
 
-#        self.mock_send_telegram.assert_called_once()
+        #        self.mock_send_telegram.assert_called_once()
         self.mock_check_approval.assert_not_called()  # Polling should not start
         # self.mock_save_content.assert_not_called()
         # Check if status updated to failure (should be handled within send_to_telegram or main loop)
         # Assuming the main loop calls update_run_status on failure
+
+
 #        self.mock_update_status.assert_called_with(
 # unittest.mock.ANY,
 # "failed_approval_send",

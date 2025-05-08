@@ -12,8 +12,6 @@ logger = logging.getLogger(__name__)
 class PexelsApiError(Exception):
     """Custom exception for Pexels API errors."""
 
-    pass
-
 
 # Define common exceptions to retry on for Pexels
 # Note: The pexelsapi library might not raise specific HTTP errors easily.

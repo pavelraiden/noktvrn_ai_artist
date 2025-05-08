@@ -50,8 +50,6 @@ alt_music_client = AltMusicClient()
 class BeatServiceError(Exception):
     """Custom exception for BeatService errors."""
 
-    pass
-
 
 class BeatService:
     def __init__(self):
