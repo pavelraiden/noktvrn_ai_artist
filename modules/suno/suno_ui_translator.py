@@ -97,9 +97,8 @@ class SunoUITranslator:
             "create_page_nav": "a[href='/create/']",  # Example CSS selector
             "lyrics_input": "textarea[placeholder*='your own lyrics']",
             "style_input": "textarea[placeholder*='Enter style description']",
-            "by_line_toggle": "button[aria-label='By Line']",  # Needs verification
-            "full_song_toggle": "button[aria-label='Full Song']",  # Needs verification
-            "model_dropdown": "button[aria-haspopup='listbox']",  # Example, needs verification
+            "by_line_toggle": "button[aria-label='By Line']",  # Needs verification            "full_song_toggle": "button[aria-label=\'Full Song\']",
+            # Needs verification            "model_dropdown": "button[aria-haspopup='listbox']",  # Example, needs verification
             "model_option_v4.5": "li[role='option']:contains('v4.5')",  # Example, needs verification
             "model_option_remi": "li[role='option']:contains('ReMi')",  # Example, needs verification
             "model_option_classic": "li[role='option']:contains('Classic')",  # Example, needs verification
