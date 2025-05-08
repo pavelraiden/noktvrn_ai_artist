@@ -202,7 +202,8 @@ class SunoOrchestrator:
                     self.logger.log_event(
                         run_id,
                         "step_start",
-                        f"Executing action {step_index+1}/{len(ui_actions)}: {action.get('action')}",
+                        f"Executing action {step_index+1}/{len(ui_actions)}: "
+                        f"{action.get('action')}",
                         {"action": action},
                     )
 
