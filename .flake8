@@ -1,0 +1,17 @@
+[flake8]
+# Ignore E402 (module level import not at top of file) in test files
+# as they often need sys.path manipulation before project imports.
+# Ignore E501 (line too long) in tests, scripts, batch_runner, and other
+# non-core modules for now to focus on llm_orchestrator.
+per-file-ignores =
+    tests/*: E402,E501
+    *test*.py: E402,E501
+    scripts/*: E501
+    batch_runner/*: E501
+    dashboard/*: E501
+    data_pipelines/*: E501
+    release_chain/*: E501
+    release_uploader/*: E501
+    services/*: E501,E402
+    video_processing/*: E501
+

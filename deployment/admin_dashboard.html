@@ -1,0 +1,68 @@
+{% extends "base.html" %} {# Assuming you have a base template #}
+
+{% block title %}AI Artist Dashboard{% endblock %}
+
+{% block head %}
+    {{ super() }}
+    <style>
+        .artist-card {
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: #f9f9f9;
+        }
+        .artist-card h3 {
+            margin-top: 0;
+        }
+        .artist-stats span {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .artist-actions button {
+            margin-right: 10px;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+        .output-summary {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #555;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<h1>AI Artist Dashboard</h1>
+
+<div id="artist-list">
+    <p>Loading artists...</p>
+    {# Artist cards will be dynamically inserted here by JavaScript #}
+</div>
+
+{# Template for a single artist card (used by JavaScript) #}
+<template id="artist-card-template">
+    <div class="artist-card" data-artist-id="">
+        <h3>Artist Name</h3>
+        <div class="artist-stats">
+            <span>Status: <strong class="status">Unknown</strong></span>
+            {# Add more stats placeholders here as needed #}
+            <span>Cycles Completed: <strong class="cycles">0</strong></span>
+            <span>Last Active: <strong class="last-active">N/A</strong></span>
+        </div>
+        <div class="artist-actions">
+            <button class="start-button">Start</button>
+            <button class="pause-button">Pause</button>
+            {# Add other actions like reset if needed #}
+        </div>
+        <div class="output-summary">
+            <h4>Recent Output:</h4>
+            <p class="summary-text">No recent output available.</p>
+            {# Placeholder for links or embedded media #}
+        </div>
+    </div>
+</template>
+
+<script src="{{ url_for(	static	, filename=	js/dashboard.js	) }}"></script> {# Link to the JavaScript file #}
+{% endblock %}
+

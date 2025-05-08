@@ -1,0 +1,33 @@
+[Unit]
+Description=AI Artist Platform Backend Orchestrator/Runner
+After=network.target postgresql.service
+Requires=postgresql.service # Ensure DB is running before starting
+
+[Service]
+# Replace with the user/group you want the backend to run as
+# Ensure this user exists and has permissions to the app directory
+User=ai_artist_user # <<< ADJUST OR CREATE THIS USER
+Group=ai_artist_user # <<< ADJUST OR CREATE THIS GROUP
+
+# Set the working directory to the root of the cloned repository
+WorkingDirectory=/path/to/your/ai_artist_system_clone # <<< ADJUST THIS PATH
+
+# Load environment variables from .env file
+EnvironmentFile=/path/to/your/ai_artist_system_clone/.env # <<< ADJUST THIS PATH
+
+# Command to start the backend runner
+# Assumes virtual environment is at /path/to/your/ai_artist_system_clone/venv
+# Assumes the main backend script is batch_runner/artist_batch_runner.py
+ExecStart=/path/to/your/ai_artist_system_clone/venv/bin/python3.11 /path/to/your/ai_artist_system_clone/batch_runner/artist_batch_runner.py # <<< ADJUST PATHS
+
+# Restart policy
+Restart=always
+RestartSec=10 # Optional: wait 10 seconds before restarting
+
+# Standard output and error logging
+StandardOutput=append:/var/log/ai_artist/backend-stdout.log # Ensure /var/log/ai_artist exists and has correct permissions
+StandardError=append:/var/log/ai_artist/backend-stderr.log
+
+[Install]
+WantedBy=multi-user.target
+

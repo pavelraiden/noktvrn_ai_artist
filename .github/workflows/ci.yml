@@ -1,0 +1,74 @@
+name: Python CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"] # Use the project's Python version
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        # Install dev dependencies if needed (e.g., black, flake8, pytest)
+        pip install black flake8 pytest
+
+    - name: Check code formatting with Black
+      run: |
+        black --check .
+
+    - name: Lint with Flake8
+      run: |
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+    - name: Run tests with Pytest
+      run: |
+        pytest
+
+    - name: Check for .env.example files
+      run: |
+        # Check root
+        if [ ! -f .env.example ]; then
+          echo "::error file=.env.example::Root .env.example file is missing."
+          exit 1
+        fi
+        # Check batch_runner
+        if [ ! -f batch_runner/.env.example ]; then
+          echo "::error file=batch_runner/.env.example::batch_runner/.env.example file is missing."
+          exit 1
+        fi
+        # Check release_chain
+        if [ ! -f release_chain/.env.example ]; then
+          echo "::error file=release_chain/.env.example::release_chain/.env.example file is missing."
+          exit 1
+        fi
+        # Check streamlit_app (if it exists and needs one)
+        # if [ -d streamlit_app ] && [ ! -f streamlit_app/.env.example ]; then
+        #   echo "::error file=streamlit_app/.env.example::streamlit_app/.env.example file is missing."
+        #   exit 1
+        # fi
+        echo ".env.example files found."
+
+    # Optional: Add step to detect unused/misplaced files if a reliable method is found
+    # - name: Check for unused files (Placeholder)
+    #   run: |
+    #     echo "Placeholder for unused file detection logic"
+
