@@ -121,8 +121,9 @@ class SunoOrchestrator:
         )
         self.feedback_loop = SunoFeedbackLoop(
             bas_driver=self.bas_driver_instance,  # Use the instantiated driver
-            llm_validator_config=config.get("llm_validator_config", {}),
-        )
+            llm_validator_config=config.get(
+                "llm_validator_config", {}
+            ),
             screenshot_dir=self.screenshot_dir,
         )
         self.logger = SunoLogger(log_dir=self.log_dir)
