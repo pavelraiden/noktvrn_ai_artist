@@ -171,7 +171,7 @@ class SunoUITranslator:
                     )
                 if value is None:
                     raise SunoUITranslatorError(
-                        f"Missing 'value' for select action."
+                        "Missing 'value' for select action."
                     )
                 # This might involve multiple steps: click dropdown, then click option
                 # Simplified here - real implementation depends on BAS driver capabilities
