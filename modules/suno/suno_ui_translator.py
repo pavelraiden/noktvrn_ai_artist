@@ -145,7 +145,7 @@ class SunoUITranslator:
             if action_type == "navigate":
                 if not url:
                     raise SunoUITranslatorError(
-                        f"Missing 'url' for navigate action."
+                        "Missing 'url' for navigate action."
                     )
                 return await self.driver.navigate(url)
             elif action_type == "click":
