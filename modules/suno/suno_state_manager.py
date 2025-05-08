@@ -106,7 +106,8 @@ class SunoStateManager:
         current_state.update(update_data)
         self.save_state(run_id, current_state)
         logger.debug(
-            f"Updated state for run_id: {run_id} with keys: {list(update_data.keys())}"
+            f"Updated state for run_id: {run_id} "
+            f"with keys: {list(update_data.keys())}"
         )
 
     def save_final_state(
