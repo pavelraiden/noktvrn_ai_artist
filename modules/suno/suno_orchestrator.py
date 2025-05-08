@@ -258,7 +258,9 @@ class SunoOrchestrator:
                         logger.info(
                             f"[{run_id}] Step {step_index} validated successfully."
                         )
-                        current_state["last_completed_step"] = step_index
+                        current_state[
+                            "last_completed_step"
+                        ] = step_index
                         self.state_manager.save_state(run_id, current_state)
 
                 if step_success:
