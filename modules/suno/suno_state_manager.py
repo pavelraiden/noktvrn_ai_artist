@@ -65,7 +65,8 @@ class SunoStateManager:
                 ) from e
         else:
             logger.info(
-                f"No existing state found for run_id: {run_id}. Starting fresh."
+                f"No existing state found for run_id: {run_id}. "
+                f"Starting fresh."
             )
             return None
 
