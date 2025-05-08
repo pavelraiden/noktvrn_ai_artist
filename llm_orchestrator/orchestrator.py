@@ -672,10 +672,22 @@ class LLMOrchestrator:
                         if not messages:
                             raise OrchestratorError("Messages missing for Mistral call.")
 
-                        if ChatMessage is None:
-                             raise OrchestratorError("Mistral ChatMessage type not available (mistralai library likely not fully imported/mocked).")
-                        mistral_messages = [ChatMessage(role=msg["role"], content=msg["content"]) for msg in messages]
-                        # Mistral specific params: temperature, top_p, max_tokens, safe_prompt, random_seed
+                                                # BEGIN REPLACEMENT for Mistral ChatMessage handling (by fix_mistral_chatmessage_handling_v3.py)
+                        try:
+                            if ChatMessage is None:
+                                logger.debug(f"ChatMessage (Mistral) is None for {provider_display_name} (Attempt {attempt + 1}/{self.max_retries_per_provider}).")
+                                raise TypeError("ChatMessage is None, cannot form Mistral-specific messages.")
+                            mistral_messages = [ChatMessage(role=msg["role"], content=msg["content"]) for msg in messages]
+                            logger.debug(f"Successfully formed MistralChatMessages for {provider_display_name} (Attempt {attempt + 1}/{self.max_retries_per_provider}).")
+                        except (TypeError, AttributeError) as e_chat_format:
+                            logger.warning(
+                                f"Could not form MistralChatMessage for {provider_display_name} "
+                                f"(Attempt {attempt + 1}/{self.max_retries_per_provider}). Error: {e_chat_format}. "
+                                f"Falling back to using the original 'messages' list of dicts for the mock client."
+                            )
+                            mistral_messages = messages # Fallback to list of dicts
+                        # END REPLACEMENT
+                     # Mistral specific params: temperature, top_p, max_tokens, safe_prompt, random_seed
                         mistral_call_params = {k: v for k, v in merged_params.items() if k in ["temperature", "top_p", "max_tokens", "safe_prompt", "random_seed"]}
                         mistral_call_params["model"] = model_name # Mistral needs model in call
                         response = await instance.client.chat(messages=mistral_messages, **mistral_call_params)
