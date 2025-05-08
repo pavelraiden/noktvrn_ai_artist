@@ -286,7 +286,8 @@ class SunoOrchestrator:
                             )
                     else:
                         logger.error(
-                            f"[{run_id}] Sequence failed after {max_retries} attempts."
+                            f"[{run_id}] Sequence failed after "
+                            f"{max_retries} attempts."
                         )
 
             if overall_success:
