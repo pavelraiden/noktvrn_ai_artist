@@ -162,7 +162,8 @@ class SunoOrchestrator:
             current_state = self.state_manager.load_state(run_id) or {}
             start_step = current_state.get("last_completed_step", -1) + 1
             logger.info(
-                f"[{run_id}] Loaded state. Starting/Resuming from step {start_step}."
+                f"[{run_id}] Loaded state. "
+                f"Starting/Resuming from step {start_step}."
             )
 
             if start_step == 0:
