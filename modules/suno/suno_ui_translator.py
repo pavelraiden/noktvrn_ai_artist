@@ -122,7 +122,11 @@ class SunoUITranslator:
             action: A dictionary describing the action (e.g.,
                     {'action': 'click', 'target': 'login_button'},
                     {'action': 'input', 'target': 'lyrics_input', 'value': 'Hello'},
-                    {'action': 'select', 'target': 'model_dropdown', 'value': 'v4.5'},
+                    {
+                        'action': 'select',
+                        'target': 'model_dropdown',
+                        'value': 'v4.5'
+                    },
                     {'action': 'navigate', 'url': 'https://suno.com/'},
                     {'action': 'get_text', 'target': 'credits_display'},
                     {'action': 'screenshot', 'filename': 'step1.png'})
