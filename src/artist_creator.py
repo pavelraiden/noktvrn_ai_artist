@@ -78,9 +78,9 @@ class ArtistCreator:
             "5.  Target Audience (e.g., Gen Z, indie music lovers, gamers)"
         )
         if genre_preferences:
-            prompt += f"\nPreferred Genres: {", ".join(genre_preferences)}"
+            prompt += f"\nPreferred Genres: {', '.join(genre_preferences)}" # Corrected f-string
         if mood_tags:
-            prompt += f"\nDesired Moods: {", ".join(mood_tags)}"
+            prompt += f"\nDesired Moods: {', '.join(mood_tags)}" # Corrected f-string
         if trend_inputs:
             # Ensure trend_inputs are meaningfully used by LLM
             prompt += f"\nRelevant Trends: {json.dumps(trend_inputs)}"
@@ -302,12 +302,11 @@ class ArtistCreator:
 
 
 if __name__ == "__main__":
-    # This is a regular string, not an f-string, so F541 is fixed.
     print("Simulating Artist Creation (using mock services)...")
 
     class MockLLMOrchestrator:
         def generate_text(self, prompt, expected_format="text"):
-            print("\n--- Mock LLM Call ---") # Not an f-string
+            print(f"\n--- Mock LLM Call ---")
             print(f"Prompt: {prompt[:200]}...")
             if "core concept" in prompt and expected_format == "json":
                 return json.dumps(
@@ -352,12 +351,12 @@ if __name__ == "__main__":
         output_path="./generated_artist_profiles_recovery",
     )
 
-    print("\n--- Creating Artist 1 (No specific inputs) ---") # Not an f-string
+    print(f"\n--- Creating Artist 1 (No specific inputs) ---")
     artist1_profile = creator.create_artist_profile()
     if artist1_profile:
         print(f"Successfully created artist: {artist1_profile['name']}")
 
-    print("\n--- Creating Artist 2 (With genre and mood inputs) ---") # Not an f-string
+    print(f"\n--- Creating Artist 2 (With genre and mood inputs) ---")
     artist2_profile = creator.create_artist_profile(
         genre_preferences=["Ambient Techno", "IDM"],
         mood_tags=["introspective", "complex", "atmospheric"],
@@ -366,5 +365,5 @@ if __name__ == "__main__":
     if artist2_profile:
         print(f"Successfully created artist: {artist2_profile['name']}")
 
-    print("\nArtist creation simulation finished.") # Not an f-string
+    print(f"\nArtist creation simulation finished.")
 
