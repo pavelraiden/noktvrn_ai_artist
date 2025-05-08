@@ -138,7 +138,8 @@ class SunoUITranslator:
         filename = action.get("filename")
 
         logger.debug(
-            f"Executing action: {action_type}, Target: {target_key}, Selector: {selector}, Value: {value}"
+            f"Executing action: {action_type}, Target: {target_key}, "
+            f"Selector: {selector}, Value: {value}"
         )
 
         try:
