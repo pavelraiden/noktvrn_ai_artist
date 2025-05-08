@@ -496,7 +496,7 @@ async def test_orchestrator_fallback_through_multiple_providers(
             mock_openai_client.chat.completions.create.assert_awaited()
             mock_deepseek_client.chat.completions.create.assert_awaited()
             mock_gemini_client.generate_content_async.assert_awaited()
-            assert mock_telegram.call_count == 3  # Two fallbacks
+            assert mock_telegram.call_count == 2  # Two fallbacks
 
 
 @pytest.mark.asyncio
