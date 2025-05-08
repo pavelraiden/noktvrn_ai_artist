@@ -103,7 +103,8 @@ class SunoOrchestrator:
                 MockBASDriver()
             )  # Replace with real one when available
             logger.warning(
-                "Using MockBASDriver as placeholder for real BAS driver."
+                "Using MockBASDriver as placeholder "
+                "for real BAS driver."
             )  # Remove when real driver is used
         else:
             logger.warning(
