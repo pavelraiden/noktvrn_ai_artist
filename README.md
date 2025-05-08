@@ -100,7 +100,7 @@ graph TD
 
     BatchRunner -- Triggers --> LifecycleMgr
     BatchRunner -- Uses --> ArtistDB
-    BatchRunner -- Calls --> VoiceSvc["Voice Service"] # On artist creation
+    BatchRunner -- Calls --> VoiceSvc["Voice Service"] %% On artist creation
     BatchRunner -- Calls --> BeatSvc
     BatchRunner -- Calls --> LyricsSvc
     BatchRunner -- Calls --> VideoSelect
