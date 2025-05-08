@@ -25,7 +25,8 @@ class SunoStateManager:
         self.state_dir = state_dir
         os.makedirs(self.state_dir, exist_ok=True)
         logger.info(
-            f"Suno State Manager initialized. State directory: {self.state_dir}"
+            f"Suno State Manager initialized. "
+            f"State directory: {self.state_dir}"
         )
 
     def _get_state_filepath(self, run_id: str) -> str:
