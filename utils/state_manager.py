@@ -133,7 +133,7 @@ def persist_state_to_git(
                     relative_paths_to_add.append(os.path.relpath(p, repo_path))
                 else:
                     logger.warning(
-                        f"Path {p} is outside repo {repo_path}, skipping git add."
+                        f"Path {p} is outside repo {repo_path}, skipping."
                     )
             else:
                 logger.warning(f"Path not found, skipping git add: {p}")
