@@ -48,7 +48,8 @@ def capture_state(task_desc, last_step, next_step, knowledge_ids, repo_path):
         "next_step_id": next_step,
         "git_branch": git_branch,
         "relevant_knowledge_ids": knowledge_ids,
-        "volatile_state": {},  # Placeholder for any non-persistent runtime state if needed
+        "volatile_state": {},
+        # Placeholder for any non-persistent runtime state if needed
     }
     logger.debug(f"Captured state data: {state_data}")
     return state_data
