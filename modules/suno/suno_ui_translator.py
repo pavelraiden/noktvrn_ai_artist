@@ -108,7 +108,8 @@ class SunoUITranslator:
             "workspace_dropdown": "div[role='combobox']",  # Example, needs verification
             "workspace_option": "li[role='option']:contains('{workspace_name}')",  # Needs verification
             "song_title_input": "input[placeholder='Enter song title']",
-            "create_button": "button:contains('Create')"            "generated_song_link": ".song-list-item a[href*=\"/song/\"]",
+            "create_button": "button:contains("Create")",
+            "generated_song_link": ".song-list-item a[href*=\"/song/\"]",
             # Example, needs refinement - target latest song
             "credits_display": "#credits_remaining",  # Example, needs verification
             # Add more selectors based on screenshots and spec
