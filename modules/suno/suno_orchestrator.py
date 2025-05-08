@@ -180,7 +180,8 @@ class SunoOrchestrator:
                     )
 
             logger.info(
-                f"[{run_id}] Total planned actions: {len(ui_actions)}."
+                f"[{run_id}] Total planned actions: "
+                f"{len(ui_actions)}."
             )
 
             max_retries = self.config.get("max_retries", 3)
