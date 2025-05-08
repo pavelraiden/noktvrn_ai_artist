@@ -161,7 +161,7 @@ class SunoUITranslator:
                     )
                 if value is None:
                     raise SunoUITranslatorError(
-                        f"Missing 'value' for input action."
+                        "Missing 'value' for input action."
                     )
                 return await self.driver.input_text(selector, value)
             elif action_type == "select":  # Assuming dropdown selection
