@@ -6,7 +6,7 @@ Mocks the LLMOrchestrator and DatabaseConnectionManager interactions.
 """
 
 import pytest
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import patch, AsyncMock # Removed MagicMock
 
 # Adjust import path based on test file location
 from ...ai_artist_system.noktvrn_ai_artist.artist_builder.trend_analyzer.competitor_trend_analyzer import (
@@ -275,3 +275,4 @@ async def test_summarize_strategies_no_llm_support(
     assert result is None  # Should return None when LLM is disabled
     # DB fetch might still happen depending on implementation, but LLM call
     # shouldn't
+

@@ -3,11 +3,9 @@
 import unittest
 import os
 import sys
-import json
-import time
 import shutil
-from unittest.mock import patch, MagicMock, mock_open, call
-from datetime import datetime
+from unittest.mock import patch # Removed MagicMock, mock_open, call
+# Removed json, time, datetime
 
 # --- Add project root to sys.path for imports ---
 # Adjust path based on where tests are run from
@@ -373,3 +371,4 @@ class TestArtistBatchRunner(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

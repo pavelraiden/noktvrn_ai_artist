@@ -9,6 +9,7 @@ from typing import Dict, Any, Optional
 # Use standard Python logging
 # Configure root logger elsewhere or use basicConfig for standalone testing
 
+
 class SunoLogger:
     """Provides structured logging for Suno BAS operations."""
 
@@ -20,7 +21,9 @@ class SunoLogger:
         """
         self.log_dir = log_dir
         os.makedirs(self.log_dir, exist_ok=True)
-        self.logger = logging.getLogger("SunoBASLogger") # Dedicated logger instance
+        self.logger = logging.getLogger(
+            "SunoBASLogger"
+        )  # Dedicated logger instance
         # Avoid adding handlers here if root logger is configured elsewhere
         # If standalone, configure a file handler:
         # log_file = os.path.join(self.log_dir, "suno_bas_operations.log")
@@ -30,7 +33,9 @@ class SunoLogger:
         # if not self.logger.handlers:
         #     self.logger.addHandler(file_handler)
         #     self.logger.setLevel(logging.INFO)
-        self.logger.info(f"Suno Logger initialized. Log directory: {self.log_dir}")
+        self.logger.info(
+            f"Suno Logger initialized. Log directory: {self.log_dir}"
+        )
 
     def _get_run_log_filepath(self, run_id: str) -> str:
         """Constructs the filepath for a specific run's structured log."""
@@ -48,23 +53,34 @@ class SunoLogger:
         try:
             with open(filepath, "a") as f:
                 json.dump(event_data, f)
-                f.write("\n") # Newline for each JSON entry
+                f.write("\n")  # Newline for each JSON entry
         except IOError as e:
-            self.logger.error(f"Failed to write structured log for run_id {run_id}: {e}")
+            self.logger.error(
+                f"Failed to write structured log for run_id {run_id}: {e}"
+            )
         except TypeError as e:
-             self.logger.error(f"Failed to serialize log event for run_id {run_id}: {e}")
+            self.logger.error(
+                f"Failed to serialize log event for run_id {run_id}: {e}"
+            )
 
     def start_run(self, run_id: str, initial_prompt: Dict[str, Any]):
         """Logs the start of a generation run."""
         event = {
             "event_type": "run_start",
             "run_id": run_id,
-            "initial_prompt": initial_prompt
+            "initial_prompt": initial_prompt,
         }
         self.logger.info(f"Run started: {run_id}")
         self._log_structured_event(run_id, event)
 
-    def log_step(self, run_id: str, step_index: int, action: Dict[str, Any], action_result: Dict[str, Any], validation_result: Optional[Dict[str, Any]] = None):
+    def log_step(
+        self,
+        run_id: str,
+        step_index: int,
+        action: Dict[str, Any],
+        action_result: Dict[str, Any],
+        validation_result: Optional[Dict[str, Any]] = None,
+    ):
         """Logs the details of a single action step.
 
         Args:
@@ -80,25 +96,45 @@ class SunoLogger:
             "step_index": step_index,
             "action": action,
             "action_result": action_result,
-            "validation_result": validation_result
+            "validation_result": validation_result,
         }
         status = "success" if action_result.get("success") else "failed"
-        validation_status = "pending" if validation_result is None else ("approved" if validation_result.get("approved") else "rejected")
-        self.logger.info(f"Run {run_id}, Step {step_index}: Action=\"{action.get('action')}\" Status={status}, Validation={validation_status}")
+        validation_status = (
+            "pending"
+            if validation_result is None
+            else (
+                "approved" if validation_result.get("approved") else "rejected"
+            )
+        )
+        self.logger.info(
+            f"Run {run_id}, Step {step_index}: Action=\"{action.get('action')}\" Status={status}, Validation={validation_status}"
+        )
         self._log_structured_event(run_id, event)
 
-    def log_event(self, run_id: str, event_type: str, message: str, details: Optional[Dict[str, Any]] = None):
+    def log_event(
+        self,
+        run_id: str,
+        event_type: str,
+        message: str,
+        details: Optional[Dict[str, Any]] = None,
+    ):
         """Logs a generic event during the run."""
         event = {
             "event_type": event_type,
             "run_id": run_id,
             "message": message,
-            "details": details or {}
+            "details": details or {},
         }
         self.logger.info(f"Run {run_id}: [{event_type}] {message}")
         self._log_structured_event(run_id, event)
 
-    def end_run(self, run_id: str, final_output: Optional[Dict[str, Any]], status: str, error: Optional[str] = None):
+    def end_run(
+        self,
+        run_id: str,
+        final_output: Optional[Dict[str, Any]],
+        status: str,
+        error: Optional[str] = None,
+    ):
         """Logs the end of a generation run.
 
         Args:
@@ -112,16 +148,24 @@ class SunoLogger:
             "run_id": run_id,
             "status": status,
             "final_output": final_output,
-            "error": error
+            "error": error,
         }
-        log_level = logging.ERROR if status == 'failed' else logging.INFO
-        self.logger.log(log_level, f"Run ended: {run_id}, Status: {status}" + (f", Error: {error}" if error else ""))
+        log_level = logging.ERROR if status == "failed" else logging.INFO
+        self.logger.log(
+            log_level,
+            f"Run ended: {run_id}, Status: {status}"
+            + (f", Error: {error}" if error else ""),
+        )
         self._log_structured_event(run_id, event)
+
 
 # Example usage (for testing purposes)
 if __name__ == "__main__":
     # Configure basic logging for the example
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
 
     logger_instance = SunoLogger(log_dir="./test_suno_logs")
     test_id = "logger_test_001"
@@ -136,11 +180,17 @@ if __name__ == "__main__":
 
     action2 = {"action": "input", "target": "lyrics_input", "value": "Test"}
     result2 = {"success": False, "error": "Element not found"}
-    logger_instance.log_step(test_id, 2, action2, result2) # No validation as action failed
+    logger_instance.log_step(
+        test_id, 2, action2, result2
+    )  # No validation as action failed
 
-    logger_instance.log_event(test_id, "retry_attempt", "Attempting retry 1/3", {"retry_count": 1})
+    logger_instance.log_event(
+        test_id, "retry_attempt", "Attempting retry 1/3", {"retry_count": 1}
+    )
 
-    logger_instance.end_run(test_id, None, status="failed", error="Element not found during step 2")
+    logger_instance.end_run(
+        test_id, None, status="failed", error="Element not found during step 2"
+    )
 
     print(f"Check logs in ./test_suno_logs/suno_run_{test_id}_structured.log")
 
@@ -148,4 +198,3 @@ if __name__ == "__main__":
     # import shutil
     # shutil.rmtree("./test_suno_logs")
     print("Cleanup complete (manual step for safety).")
-

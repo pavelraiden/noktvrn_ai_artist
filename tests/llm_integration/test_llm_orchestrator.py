@@ -7,7 +7,7 @@ Mocks the OpenAI API calls to avoid actual API interaction during testing.
 
 import pytest
 import asyncio
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch, AsyncMock # Removed MagicMock
 import sys  # Added
 import os  # Added
 
@@ -45,15 +45,6 @@ class MockMessage:
         self.content = content
 
 
-class MockUsage:
-    def __init__(
-        self, prompt_tokens=10, completion_tokens=20, total_tokens=30
-    ):
-        self.prompt_tokens = prompt_tokens
-        self.completion_tokens = completion_tokens
-        self.total_tokens = total_tokens
-
-
 class MockChatCompletion:
     def __init__(self, content="Mocked response content", usage=None):
         self.choices = [MockChoice(content)]
@@ -73,9 +64,7 @@ def orchestrator():
 
 
 @pytest.mark.asyncio
-@patch(
-    "openai.AsyncOpenAI", new_callable=AsyncMock
-)  # Mock the AsyncOpenAI class
+@patch("openai.AsyncOpenAI", new_callable=AsyncMock)
 async def test_generate_text_success(mock_async_openai_class, orchestrator):
     """Test successful text generation."""
     mock_client_instance = mock_async_openai_class.return_value
@@ -232,15 +221,11 @@ async def test_orchestrator_init_no_api_key(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     # The orchestrator might fall back to other providers or raise later
     # Depending on implementation, this might not raise ValueError immediately
-    # Let's test a call instead
-    with pytest.raises(
-        ValueError, match="API key is missing for provider: openai"
-    ):
-        orchestrator_no_key = LLMOrchestrator()
-        # This call should fail if OpenAI is the only provider configured/available
-        # await orchestrator_no_key.generate_text("test")
-        # Or check internal state if possible
-        orchestrator_no_key._get_client_for_model("gpt-test-model")
+    with pytest.raises(ValueError, match="API key is missing for provider: openai"):
+        LLMOrchestrator(
+            primary_model="gpt-test-model",
+            fallback_models=["fallback-model-1", "fallback-model-2"],
+            max_retries=2,
+            initial_delay=0.1,
+        )
 
-
-# Add more tests for fallback logic, different error types, etc.

@@ -72,7 +72,9 @@ except ImportError as e:
 LOG_FILE = os.path.join(PROJECT_ROOT, "logs", "batch_runner.log")
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, "output")
 RUN_STATUS_DIR = os.path.join(OUTPUT_DIR, "run_status")
-MAX_APPROVAL_WAIT_TIME = int(os.getenv("MAX_APPROVAL_WAIT_TIME", "300").split("#")[0].strip())
+MAX_APPROVAL_WAIT_TIME = int(
+    os.getenv("MAX_APPROVAL_WAIT_TIME", "300").split("#")[0].strip()
+)
 POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "10").split("#")[0].strip())
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 REFLECTION_LLM_PRIMARY = os.getenv(

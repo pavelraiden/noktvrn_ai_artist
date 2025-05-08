@@ -174,7 +174,7 @@ def initialize_database():
         conn.commit()
     except sqlite3.Error as e:
         logger.error(f"Error initializing database tables: {e}")
-        raise # Re-raise the exception to make initialization failures explicit
+        raise  # Re-raise the exception to make initialization failures explicit
     finally:
         if conn:
             conn.close()
@@ -215,14 +215,16 @@ def add_artist(artist_data: Dict[str, Any]) -> Optional[str]:
                 initial_status,
                 json.dumps(artist_data.get("performance_history", [])),
                 artist_data.get("consecutive_rejections", 0),
-                1 if artist_data.get("autopilot_enabled", False) else 0, # Convert boolean to 1/0
+                (
+                    1 if artist_data.get("autopilot_enabled", False) else 0
+                ),  # Convert boolean to 1/0
                 artist_data.get("voice_url"),
             ),
         )
         conn.commit()
         logger.info(
-            f"Added new artist \'{artist_data['name']}\' with ID {artist_id} and "
-            f"status \'{initial_status}\'\t."
+            f"Added new artist '{artist_data['name']}' with ID {artist_id} and "
+            f"status '{initial_status}'\t."
         )
         return artist_id
     except sqlite3.IntegrityError:
@@ -262,8 +264,12 @@ def get_artist(artist_id: str) -> Optional[Dict[str, Any]]:
                     else []
                 )
             except json.JSONDecodeError as e:
-                 logger.error(f"Error decoding performance_history JSON for artist {artist_id}: {e}. Data: {perf_history_str}")
-                 artist["performance_history"] = [] # Default to empty list on error
+                logger.error(
+                    f"Error decoding performance_history JSON for artist {artist_id}: {e}. Data: {perf_history_str}"
+                )
+                artist["performance_history"] = (
+                    []
+                )  # Default to empty list on error
 
             llm_config_str = artist.get("llm_config")
             try:
@@ -273,8 +279,10 @@ def get_artist(artist_id: str) -> Optional[Dict[str, Any]]:
                     else {}
                 )
             except json.JSONDecodeError as e:
-                logger.error(f"Error decoding llm_config JSON for artist {artist_id}: {e}. Data: {llm_config_str}")
-                artist["llm_config"] = {} # Default to empty dict on error
+                logger.error(
+                    f"Error decoding llm_config JSON for artist {artist_id}: {e}. Data: {llm_config_str}"
+                )
+                artist["llm_config"] = {}  # Default to empty dict on error
 
             # Convert autopilot_enabled from 0/1 to boolean
             artist["autopilot_enabled"] = bool(
@@ -325,8 +333,10 @@ def get_all_artists(
                     )
                 except json.JSONDecodeError as e:
                     artist_id = artist.get("artist_id", "UNKNOWN")
-                    logger.error(f"Error decoding performance_history JSON for artist {artist_id} in get_all_artists: {e}. Data: {perf_history_str}")
-                    artist["performance_history"] = [] # Default to empty list
+                    logger.error(
+                        f"Error decoding performance_history JSON for artist {artist_id} in get_all_artists: {e}. Data: {perf_history_str}"
+                    )
+                    artist["performance_history"] = []  # Default to empty list
 
                 llm_config_str = artist.get("llm_config")
                 try:
@@ -337,8 +347,10 @@ def get_all_artists(
                     )
                 except json.JSONDecodeError as e:
                     artist_id = artist.get("artist_id", "UNKNOWN")
-                    logger.error(f"Error decoding llm_config JSON for artist {artist_id} in get_all_artists: {e}. Data: {llm_config_str}")
-                    artist["llm_config"] = {} # Default to empty dict
+                    logger.error(
+                        f"Error decoding llm_config JSON for artist {artist_id} in get_all_artists: {e}. Data: {llm_config_str}"
+                    )
+                    artist["llm_config"] = {}  # Default to empty dict
 
                 # Convert autopilot_enabled from 0/1 to boolean
                 artist["autopilot_enabled"] = bool(
@@ -346,9 +358,11 @@ def get_all_artists(
                 )
                 # voice_url is already TEXT, no conversion needed
                 artists.append(artist)
-            except Exception as e: # Catch broader errors during processing
+            except Exception as e:  # Catch broader errors during processing
                 artist_id = artist.get("artist_id", "UNKNOWN")
-                logger.error(f"Error processing artist {artist_id} in get_all_artists: {e}. Skipping.")
+                logger.error(
+                    f"Error processing artist {artist_id} in get_all_artists: {e}. Skipping."
+                )
                 continue
         return artists
     except sqlite3.Error as e:
@@ -374,11 +388,13 @@ def update_artist(artist_id: str, update_data: Dict[str, Any]) -> bool:
                 fields.append(f"{key} = ?")
                 values.append(json.dumps(value))
             except (TypeError, OverflowError) as e:
-                logger.error(f"Error serializing JSON field {key} for artist {artist_id}: {e}. Skipping field.")
-                continue # Skip this field if serialization fails
+                logger.error(
+                    f"Error serializing JSON field {key} for artist {artist_id}: {e}. Skipping field."
+                )
+                continue  # Skip this field if serialization fails
         elif key == "autopilot_enabled":
             fields.append(f"{key} = ?")
-            values.append(1 if value else 0) # Convert boolean to 1/0
+            values.append(1 if value else 0)  # Convert boolean to 1/0
         elif key != "artist_id":  # Avoid updating the primary key
             # Includes 'status', 'name', 'genre', 'style_notes', 'last_run_at',
             # 'consecutive_rejections', 'voice_url'
@@ -386,7 +402,9 @@ def update_artist(artist_id: str, update_data: Dict[str, Any]) -> bool:
             values.append(value)
 
     if not fields:
-        logger.warning(f"No valid fields provided for update for artist {artist_id}.")
+        logger.warning(
+            f"No valid fields provided for update for artist {artist_id}."
+        )
         # Return True because technically no update failed, but nothing was updated.
         # Or return False if an empty update should be considered a failure.
         # Let's return False for clarity that no update occurred.
@@ -471,7 +489,10 @@ def update_artist_performance_db(
         new_rejection_count = current_rejections + 1
         update_payload["consecutive_rejections"] = new_rejection_count
         # Check for retirement only if currently Active or Candidate
-        if current_status in ["Active", "Candidate"] and new_rejection_count >= retirement_threshold:
+        if (
+            current_status in ["Active", "Candidate"]
+            and new_rejection_count >= retirement_threshold
+        ):
             update_payload["status"] = "Retired"
             logger.info(
                 f"Artist {artist_id} reached rejection threshold                     ({retirement_threshold}). Setting status to Retired."
@@ -483,6 +504,7 @@ def update_artist_performance_db(
 
 
 # --- Error Report CRUD Operations (Placeholder - Implement if needed) ---
+
 
 def add_error_report(report_data: Dict[str, Any]) -> Optional[int]:
     """Adds a new error report to the database. Returns report_id."""
@@ -559,7 +581,9 @@ def update_error_report_status(report_id: int, new_status: str) -> bool:
                 f"Attempted to update status for non-existent error report ID:                     {report_id}"
             )
             return False
-        logger.debug(f"Updated error report {report_id} status to {new_status}.")
+        logger.debug(
+            f"Updated error report {report_id} status to {new_status}."
+        )
         return True
     except sqlite3.Error as e:
         logger.error(
@@ -622,7 +646,9 @@ def prune_error_reports() -> bool:
                     f"Pruned {cursor.rowcount} old error reports (exceeded                         {MAX_ERROR_REPORTS})."
                 )
             else:
-                logger.warning("Could not determine threshold timestamp for pruning errors.")
+                logger.warning(
+                    "Could not determine threshold timestamp for pruning errors."
+                )
         else:
             logger.debug("Error report count within limit, no pruning needed.")
         return True
@@ -676,4 +702,3 @@ if __name__ == "__main__":
 
     # except Exception as e:
     #     print(f"An error occurred during example usage: {e}")
-

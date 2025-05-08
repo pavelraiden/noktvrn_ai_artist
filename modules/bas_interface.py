@@ -3,6 +3,7 @@
 import abc
 from typing import Dict, Any
 
+
 class BASDriverInterface(abc.ABC):
     """Abstract Base Class defining the interface for a Browser Automation Studio (BAS) driver.
 
@@ -38,7 +39,9 @@ class BASDriverInterface(abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def input_text(self, selector: str, text: str, clear_first: bool = True) -> Dict[str, Any]:
+    async def input_text(
+        self, selector: str, text: str, clear_first: bool = True
+    ) -> Dict[str, Any]:
         """Input text into an element identified by the selector.
 
         Args:
@@ -101,4 +104,3 @@ class BASDriverInterface(abc.ABC):
     #
     # async def wait_for_element(self, selector: str, timeout: int = 30) -> Dict[str, Any]:
     #     pass
-

@@ -19,6 +19,7 @@ sys.path.append(PROJECT_ROOT)
 
 # --- Test Setup and Fixtures ---
 
+
 @pytest.fixture
 def db_service(monkeypatch, tmp_path):
     """Fixture to initialize a temporary DB for each test."""
@@ -26,7 +27,9 @@ def db_service(monkeypatch, tmp_path):
     temp_db_path = tmp_path / "test_artists.db"
 
     # Patch DB_FILE to use the temporary file path *before* importing the service
-    monkeypatch.setattr("services.artist_db_service.DB_FILE", str(temp_db_path))
+    monkeypatch.setattr(
+        "services.artist_db_service.DB_FILE", str(temp_db_path)
+    )
     # Ensure the data directory mock doesn't interfere if os.makedirs is called
     monkeypatch.setattr("os.makedirs", lambda *args, **kwargs: None)
 
@@ -37,7 +40,9 @@ def db_service(monkeypatch, tmp_path):
     try:
         service.initialize_database()
     except Exception as e:
-        pytest.fail(f"Database initialization failed in test fixture: {e} using path {temp_db_path}")
+        pytest.fail(
+            f"Database initialization failed in test fixture: {e} using path {temp_db_path}"
+        )
 
     yield service
 
@@ -55,18 +60,22 @@ def test_initialize_database(db_service):
         cursor = conn.cursor()
         # Check if the artists table exists
         cursor.execute(
-            "SELECT name FROM sqlite_master WHERE type=\'table\' AND name=\'artists\';"
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='artists';"
         )
         table_exists = cursor.fetchone()
-        assert table_exists is not None, "\'artists\' table not found after initialization"
+        assert (
+            table_exists is not None
+        ), "'artists' table not found after initialization"
         assert table_exists["name"] == "artists"
 
         # Check if the error_reports table exists
         cursor.execute(
-            "SELECT name FROM sqlite_master WHERE type=\'table\' AND name=\'error_reports\';"
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='error_reports';"
         )
         table_exists = cursor.fetchone()
-        assert table_exists is not None, "\'error_reports\' table not found after initialization"
+        assert (
+            table_exists is not None
+        ), "'error_reports' table not found after initialization"
         assert table_exists["name"] == "error_reports"
     finally:
         if conn:
@@ -89,10 +98,10 @@ def test_add_and_get_artist(db_service):
         "status": "Active",  # Use status field
         "autopilot_enabled": True,
         "llm_config": {"provider": "test"},
-        "voice_url": "http://example.com/voice.wav"
+        "voice_url": "http://example.com/voice.wav",
     }
     added_id = db_service.add_artist(artist_data)
-    assert added_id == artist_id # Check if correct ID is returned
+    assert added_id == artist_id  # Check if correct ID is returned
 
     retrieved = db_service.get_artist(artist_id)
     assert retrieved is not None
@@ -106,8 +115,8 @@ def test_add_and_get_artist(db_service):
     assert len(retrieved["performance_history"]) == 1
     assert retrieved["performance_history"][0]["run_id"] == "run0"
     assert retrieved["consecutive_rejections"] == 0
-    assert retrieved["status"] == "Active" # Check status
-    assert retrieved["autopilot_enabled"] is True # Check boolean
+    assert retrieved["status"] == "Active"  # Check status
+    assert retrieved["autopilot_enabled"] is True  # Check boolean
     assert retrieved["llm_config"] == {"provider": "test"}
     assert retrieved["voice_url"] == "http://example.com/voice.wav"
 
@@ -120,13 +129,13 @@ def test_add_artist_duplicate(db_service):
         "artist_id": artist_id,
         "name": "Dup Test",
         "created_at": now_iso,
-        "status": "Candidate"
+        "status": "Candidate",
     }
 
     added_id1 = db_service.add_artist(artist_data)
-    assert added_id1 == artist_id # First add should succeed
+    assert added_id1 == artist_id  # First add should succeed
     added_id2 = db_service.add_artist(artist_data)  # Try adding again
-    assert added_id2 is None # Second add should fail (return None)
+    assert added_id2 is None  # Second add should fail (return None)
 
 
 def test_get_nonexistent_artist(db_service):
@@ -165,7 +174,9 @@ def test_get_all_artists(db_service):
     assert len(all_artists) == 3
     assert {a["artist_id"] for a in all_artists} == {"all1", "all2", "all3"}
 
-    active_artists = db_service.get_all_artists(status_filter="Active") # Use status_filter
+    active_artists = db_service.get_all_artists(
+        status_filter="Active"
+    )  # Use status_filter
     assert len(active_artists) == 2
     assert {a["artist_id"] for a in active_artists} == {"all1", "all3"}
 
@@ -184,7 +195,7 @@ def test_update_artist(db_service):
         "genre": "initial",
         "created_at": now_iso,
         "status": "Candidate",
-        "autopilot_enabled": False
+        "autopilot_enabled": False,
     }
     added_id = db_service.add_artist(initial_data)
     assert added_id == artist_id
@@ -192,10 +203,10 @@ def test_update_artist(db_service):
     update_payload = {
         "name": "Updated Name",
         "style_notes": "Now with style!",
-        "status": "Active", # Update status
-        "autopilot_enabled": True, # Update boolean
+        "status": "Active",  # Update status
+        "autopilot_enabled": True,  # Update boolean
         "llm_config": {"provider": "updated"},
-        "voice_url": "http://new.voice/url"
+        "voice_url": "http://new.voice/url",
     }
     updated = db_service.update_artist(artist_id, update_payload)
     assert updated is True
@@ -206,7 +217,7 @@ def test_update_artist(db_service):
     assert retrieved["genre"] == "initial"  # Unchanged field
     assert retrieved["style_notes"] == "Now with style!"
     assert retrieved["status"] == "Active"  # Check updated status
-    assert retrieved["autopilot_enabled"] is True # Check updated boolean
+    assert retrieved["autopilot_enabled"] is True  # Check updated boolean
     assert retrieved["llm_config"] == {"provider": "updated"}
     assert retrieved["voice_url"] == "http://new.voice/url"
 
@@ -228,7 +239,7 @@ def test_update_artist_performance_approved(db_service):
         "name": "Perf Approve",
         "created_at": now_iso,
         "consecutive_rejections": 2,
-        "status": "Active"
+        "status": "Active",
     }
     added_id = db_service.add_artist(initial_data)
     assert added_id == artist_id
@@ -244,7 +255,9 @@ def test_update_artist_performance_approved(db_service):
     assert len(retrieved["performance_history"]) == 1
     assert retrieved["performance_history"][0]["status"] == "approved"
     assert retrieved["consecutive_rejections"] == 0  # Should reset
-    assert retrieved["status"] == "Active" # Status shouldn't change on approval
+    assert (
+        retrieved["status"] == "Active"
+    )  # Status shouldn't change on approval
 
 
 def test_update_artist_performance_rejected(db_service):
@@ -256,7 +269,7 @@ def test_update_artist_performance_rejected(db_service):
         "name": "Perf Reject",
         "created_at": now_iso,
         "consecutive_rejections": 1,
-        "status": "Active"
+        "status": "Active",
     }
     added_id = db_service.add_artist(initial_data)
     assert added_id == artist_id
@@ -272,7 +285,7 @@ def test_update_artist_performance_rejected(db_service):
     assert len(retrieved["performance_history"]) == 1
     assert retrieved["performance_history"][0]["status"] == "rejected"
     assert retrieved["consecutive_rejections"] == 2  # Should increment
-    assert retrieved["status"] == "Active" # Status shouldn't change yet
+    assert retrieved["status"] == "Active"  # Status shouldn't change yet
 
 
 def test_update_artist_performance_retirement(db_service):
@@ -285,7 +298,7 @@ def test_update_artist_performance_retirement(db_service):
         "name": "Perf Retire",
         "created_at": now_iso,
         "consecutive_rejections": retirement_threshold - 1,
-        "status": "Active"
+        "status": "Active",
     }
     added_id = db_service.add_artist(initial_data)
     assert added_id == artist_id
@@ -320,13 +333,15 @@ def test_update_artist_performance_history_limit(db_service, monkeypatch):
     now_iso = datetime.utcnow().isoformat()
     test_max_history = 3
     # Temporarily reduce max history for test using monkeypatch
-    monkeypatch.setattr("services.artist_db_service.MAX_HISTORY_LENGTH", test_max_history)
+    monkeypatch.setattr(
+        "services.artist_db_service.MAX_HISTORY_LENGTH", test_max_history
+    )
 
     initial_data = {
         "artist_id": artist_id,
         "name": "Perf History",
         "created_at": now_iso,
-        "status": "Active"
+        "status": "Active",
     }
     added_id = db_service.add_artist(initial_data)
     assert added_id == artist_id
@@ -351,10 +366,13 @@ def test_update_artist_performance_history_limit(db_service, monkeypatch):
     # The last entry should be the last one added
     expected_last_run_id = f"run_{num_entries_to_add - 1}"
 
-    assert retrieved["performance_history"][0]["run_id"] == expected_first_run_id, \
-        f"Expected first run_id {expected_first_run_id}, got {retrieved['performance_history'][0]['run_id']}"
-    assert retrieved["performance_history"][-1]["run_id"] == expected_last_run_id, \
-        f"Expected last run_id {expected_last_run_id}, got {retrieved['performance_history'][-1]['run_id']}"
+    assert (
+        retrieved["performance_history"][0]["run_id"] == expected_first_run_id
+    ), f"Expected first run_id {expected_first_run_id}, got {retrieved['performance_history'][0]['run_id']}"
+    assert (
+        retrieved["performance_history"][-1]["run_id"] == expected_last_run_id
+    ), f"Expected last run_id {expected_last_run_id}, got {retrieved['performance_history'][-1]['run_id']}"
+
 
 # Note: No need to restore MAX_HISTORY_LENGTH, monkeypatch handles it.
 
@@ -369,4 +387,3 @@ def test_update_artist_performance_history_limit(db_service, monkeypatch):
 #     ...
 # def test_prune_error_reports(db_service):
 #     ...
-
