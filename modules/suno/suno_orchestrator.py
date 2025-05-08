@@ -317,7 +317,9 @@ class SunoOrchestrator:
                     style_prompt=generation_prompt.get("style"),
                     lyrics=generation_prompt.get("lyrics"),
                     generation_source="suno_bas",
-                    suno_song_id=final_output_data.get("suno_song_id"),
+                    suno_song_id=final_output_data.get(
+                        "suno_song_id"
+                    ),
                     suno_song_url=final_output_data.get("suno_song_url"),
                 )
                 return song_metadata
