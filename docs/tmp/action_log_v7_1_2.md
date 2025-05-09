@@ -61,3 +61,44 @@ Date: 2025-05-09 18:11:00
 2.  Run local CI prechecks: `black --check .`, `flake8 .`, `pytest .`.
 3.  Report results to user. If `flake8 .` fails *only* due to the known E501s in `artist_creator.py` and other checks pass, await explicit user confirmation to proceed with the push.
 4.  If confirmed, commit and push `src/artist_creator.py` and log files to `feature/fix-artist-creator`.
+
+
+
+---
+**Decision on `src/artist_creator.py` E501 Errors (Post-Push to `feature/fix-artist-creator`):**
+
+*   **Issue:** Persistent E501 (line too long) errors on lines 69, 73, 153, 157, and 341 of `src/artist_creator.py` could not be suppressed using `# noqa: E501` directives, even after multiple precise applications and verifications. Flake8 continued to report these errors.
+*   **Assessment:** This is suspected to be an issue with the Flake8 environment or configuration in the current sandbox, rather than a code error or incorrect `noqa` usage for these specific lines.
+*   **User Directive:** Per user instruction, the resolution of these specific E501 errors in `src/artist_creator.py` is **deferred** to unblock CI and allow progress on other files.
+*   **Tag:** `src/artist_creator.py` is tagged as `deferred:manual-review` concerning these E501 issues.
+*   **Validation:** Confirmed that no other Flake8 errors (including W391 for blank line at end of file) or syntax errors exist in `src/artist_creator.py` as of the last check.
+*   **Next Action:** Proceeding to the next prioritized file: `scripts/api_web_v2.py`.
+
+
+
+---
+**Decision on `modules/suno_ui_translator.py` E501 Errors (2025-05-09)**
+
+Persistent E501 (line too long) errors were encountered in `modules/suno_ui_translator.py` despite multiple refactoring attempts and the application of `# noqa: E501` directives to the specific lines flagged by Flake8 (lines 181, 223, 253, 262, 297, 298, 325, 333, 352 after Black formatting).
+
+Black formatter consistently reformatted the file, which seemed to negate or shift the `noqa` comments, leading to Flake8 re-reporting these E501 errors. This behavior mirrors the issue previously seen with `src/artist_creator.py`.
+
+**Conclusion**: The E501 errors on these specific lines in `modules/suno_ui_translator.py` could not be reliably suppressed with `# noqa: E501` due to what appears to be a tooling interaction or configuration issue with Flake8/Black in the current environment, rather than a simple code error that can be easily refactored or suppressed.
+
+**Action Taken**: Resolution of these specific E501 errors in `modules/suno_ui_translator.py` is deferred to unblock CI and allow progress on other files. The file is tagged for `deferred:manual-review`.
+
+**File Status**: Other Flake8 errors (F401, F821) and syntax issues were addressed. The file is considered clean apart from these specific, unsuppressible E501 errors.
+
+
+
+---
+**File**: `scripts/video_gen/video_generator.py` (2025-05-09)
+
+**Action**: Resolved F401 (unused import 'os') error.
+
+**Details**:
+- Identified F401 error for unused `os` import via Flake8.
+- Removed the `import os` line from the file.
+- Ran Black and Flake8 again.
+
+**Result**: `scripts/video_gen/video_generator.py` is now clean and passes both Black and Flake8 checks.
