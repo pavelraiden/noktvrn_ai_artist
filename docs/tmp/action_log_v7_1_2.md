@@ -133,3 +133,18 @@ Black formatter consistently reformatted the file, which seemed to negate or shi
 - Ran Flake8 again.
 
 **Result**: `tests/llm_integration/test_profile_evolution_manager.py` is now clean and passes both Black and Flake8 checks.
+
+
+
+---
+**File**: `tests/services/test_artist_db_service.py` (2025-05-09)
+
+**Action**: Resolved F401 (unused imports `json` and `sqlite3`) errors.
+
+**Details**:
+- Identified F401 errors for unused `json` and `sqlite3` via Flake8.
+- Removed the `import json` and `import sqlite3` lines.
+- Ran Black, which reformatted the file.
+- Ran Flake8 again.
+
+**Result**: `tests/services/test_artist_db_service.py` is now clean and passes both Black and Flake8 checks.
