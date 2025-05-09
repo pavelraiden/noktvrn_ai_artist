@@ -680,3 +680,23 @@ Implemented the initial version of the Artist Batch Runner system (`batch_runner
 **Result**: The file `scripts/video_gen/video_generator.py` is now clean and passes both Black and Flake8 validations.
 
 **Next Steps**: Commit and push this fix along with updated logs to the `feature/fix-artist-creator` branch, then proceed to the next prioritized item (tests directory).
+
+
+
+---
+## Date: 2025-05-09 (Evening)
+
+**File**: `tests/llm_integration/test_llm_orchestrator.py`
+
+**Summary**: Addressed Flake8 compliance issues.
+
+**Details**:
+- Initial Flake8 check reported F401 (unused import `asyncio`) and F821 (undefined name `MockUsage`).
+- Removed the `import asyncio` line.
+- Defined the `MockUsage` class to resolve the F821 error.
+- Reran Black, which reformatted the file.
+- Reran Flake8, which confirmed the file is now clean.
+
+**Result**: The file `tests/llm_integration/test_llm_orchestrator.py` is now clean and passes both Black and Flake8 validations.
+
+**Next Steps**: Commit and push this fix along with updated logs to the `feature/fix-artist-creator` branch. Then proceed to the next test file with reported Flake8 errors.

@@ -102,3 +102,19 @@ Black formatter consistently reformatted the file, which seemed to negate or shi
 - Ran Black and Flake8 again.
 
 **Result**: `scripts/video_gen/video_generator.py` is now clean and passes both Black and Flake8 checks.
+
+
+
+---
+**File**: `tests/llm_integration/test_llm_orchestrator.py` (2025-05-09)
+
+**Action**: Resolved F401 (unused import 'asyncio') and F821 (undefined name 'MockUsage') errors.
+
+**Details**:
+- Identified F401 for unused `asyncio` and F821 for undefined `MockUsage` via Flake8.
+- Removed the `import asyncio` line.
+- Defined the `MockUsage` class.
+- Ran Black, which reformatted the file.
+- Ran Flake8 again.
+
+**Result**: `tests/llm_integration/test_llm_orchestrator.py` is now clean and passes both Black and Flake8 checks.
