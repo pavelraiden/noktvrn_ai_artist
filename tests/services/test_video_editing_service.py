@@ -243,4 +243,3 @@ def test_add_text_overlay_invalid_output_dir():
 # - Test with very long text
 # - Test specific error conditions from moviepy (might require mocking internal calls)
 # - Test performance on longer videos (might need specific markers or timeouts)
-

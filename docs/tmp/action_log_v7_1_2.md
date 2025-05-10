@@ -191,3 +191,19 @@ Black formatter consistently reformatted the file, which seemed to negate or shi
 7.  **Logging**: Maintained `todo.md` checklist and updated `dev_diary.md` with a summary of this documentation alignment process.
 
 **Result**: All specified documentation files have been compared and verified against the archive. The `README.md` diagram error is fixed. The `feature/fix-artist-creator` branch documentation is now aligned with the provided archive, pending user decisions on specific file removals or updates.
+
+
+
+---
+**Date**: 2025-05-10
+
+**Action**: Archived Legacy Documentation Files
+
+**Details**:
+- Moved the following legacy documentation files from `docs/development/` to `docs/development/legacy/`:
+  - `self_learning_systems.md`
+  - `self_reflection_system.md`
+  - `artist_builder_documentation.md`
+  - `artist_evolution_log.md`
+- These files are now considered deprecated but are preserved in the `docs/development/legacy/` directory for project traceability and historical reference.
+- References in `README.md` and `dev_diary.md` will be updated to reflect this change.

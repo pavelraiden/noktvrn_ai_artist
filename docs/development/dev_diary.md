@@ -796,3 +796,18 @@ Implemented the initial version of the Artist Batch Runner system (`batch_runner
 8.  **Logging:** Maintained a `todo.md` checklist throughout the process and updated this `dev_diary.md`.
 
 **Status:** Documentation alignment and verification based on the provided archive is complete. All files have been checked. The `feature/fix-artist-creator` branch now reflects the synchronized documentation state. Awaiting user confirmation on specific file removals and potential updates to `api_key_mapping.md` before final commit of these documentation changes.
+
+
+
+## 2025-05-10: Archived Legacy Documentation
+
+**Action**: Archived specific legacy documentation files.
+
+**Details**:
+- Moved the following documentation files from `docs/development/` to `docs/development/legacy/`:
+  - `self_learning_systems.md`
+  - `self_reflection_system.md`
+  - `artist_builder_documentation.md`
+  - `artist_evolution_log.md`
+- These files are now considered deprecated but are preserved in the `docs/development/legacy/` directory for project traceability and historical reference.
+- `README.md` and `action_log_v7_1_2.md` have been updated to reflect this change.

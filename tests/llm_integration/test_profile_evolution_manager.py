@@ -184,7 +184,8 @@ async def test_evolve_description_fetch_fails(
     )
 
     assert result is None
-    mock_llm_orchestrator.evolve_description.assert_not_awaited()  # LLM should not be called
+    # LLM should not be called
+    mock_llm_orchestrator.evolve_description.assert_not_awaited()
     # Verify fetch was attempted
     fetch_sql = "SELECT profile ->> 'description' FROM artist_profiles WHERE artist_id = %s;"
     mock_cursor.execute.assert_any_call(fetch_sql, (artist_id,))

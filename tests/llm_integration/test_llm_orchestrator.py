@@ -5,6 +5,7 @@ Uses pytest and pytest-asyncio.
 Mocks the OpenAI API calls to avoid actual API interaction during testing.
 """
 
+from llm_orchestrator.orchestrator import LLMOrchestrator, LLMOrchestratorError
 import pytest
 from unittest.mock import patch, AsyncMock  # Removed MagicMock
 import sys  # Added
@@ -15,7 +16,6 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(PROJECT_ROOT)
 
 # Assuming tests are run from the project root
-from llm_orchestrator.orchestrator import LLMOrchestrator, LLMOrchestratorError
 
 
 # Mock environment variables for testing

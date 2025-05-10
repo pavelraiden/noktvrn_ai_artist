@@ -1,5 +1,7 @@
 """Unit tests for the Trend Analysis Service."""
 
+from services.trend_analysis_service import TrendAnalysisService
+from unittest.mock import Mock
 import pytest
 import os
 import sys
@@ -13,12 +15,10 @@ sys.path.append(PROJECT_ROOT)
 # Mock the data_api module before importing the service
 # This prevents the service from trying to import the real ApiClient during
 # test collection
-from unittest.mock import Mock
 
 sys.modules["data_api"] = Mock()
 
 # Now import the service
-from services.trend_analysis_service import TrendAnalysisService
 
 # --- Test Setup and Fixtures ---
 
@@ -187,4 +187,3 @@ def test_calculate_trend_score_after_api_error(trend_service):
     error)."""
     score = trend_service.calculate_trend_score(None)
     assert score == 0
-

@@ -1,6 +1,3 @@
-[![CI/CD Status](https://github.com/pavelraiden/noktvrn_ai_artist/actions/workflows/ci.yml/badge.svg)](https://github.com/pavelraiden/noktvrn_ai_artist/actions/workflows/ci.yml)
-
-
 # AI Artist Platform - Production Ready v1.5 (Pipeline Enhancements)
 
 ## Project Description
@@ -278,7 +275,7 @@ Contributions are welcome! Please read our [Contribution Guide](CONTRIBUTION_GUI
     *   **Music Gen Fallback:** Implemented `BeatService` with fallback logic (primary -> alternative/mock).
     *   **Audio Analysis:** Added `AudioAnalyzer` using Librosa for tempo/duration extraction.
     *   **Beat-Aligned Lyrics:** Updated `LyricsService` to use tempo/duration in prompts.
-    *   **Audio Humanization:** Added `ProductionService` using Pydub for normalization and noise overlay.
+    *   **Audio Post-Processing:** Added `ProductionService` using Pydub for normalization and noise overlay.
     *   **Database Schema:** Added `voice_url` column to artists table.
     *   **Documentation:** Updated `ARTIST_FLOW.md` and `README.md`.
 *   **Known Issues/Placeholders:**
@@ -287,8 +284,11 @@ Contributions are welcome! Please read our [Contribution Guide](CONTRIBUTION_GUI
     *   **Integration:** `ProductionService` output (processed audio) is not yet fully integrated into the final video/release chain.
     *   Video Editing / Trend Analysis services need deeper integration.
     *   Comprehensive unit/integration tests for new services are needed.
-*   **Next Steps:** Commit documentation updates. Perform full end-to-end validation of the enhanced pipeline (using mocks where necessary). Prepare production readiness report.
+*   **Next Steps:** Commit documentation updates. Perform full end-to-end validation of the enh
+(Content truncated due to size limit. Use line ranges to read in chunks)
 
-For a detailed history, see `docs/development/dev_diary.md`.
 
 
+**Note on Archived/Missing Modules (as of 2025-05-10):**
+
+During a recent integrity check, it was noted that the `evolution_engine/` directory, a previously flagged sensitive module, is currently not present in the `feature/fix-artist-creator` branch. This module's functionality related to artist evolution is considered archived or has been superseded by other components (e.g., `services/artist_lifecycle_manager.py`). Other legacy documentation files (`self_learning_systems.md`, `self_reflection_system.md`, `artist_builder_documentation.md`, `artist_evolution_log.md`) have been moved to `docs/development/legacy/` to preserve historical context without cluttering the main development documentation.

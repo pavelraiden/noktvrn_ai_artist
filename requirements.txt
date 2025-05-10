@@ -1,0 +1,15 @@
+psycopg2-binary
+openai
+requests
+python-dotenv
+librosa
+numpy
+pandas
+pydantic
+fastapi
+uvicorn[standard]
+# Add other dependencies as identified
+
+
+prometheus-fastapi-instrumentator
+python-json-logger
