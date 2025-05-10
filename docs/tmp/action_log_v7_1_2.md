@@ -164,3 +164,30 @@ Black formatter consistently reformatted the file, which seemed to negate or shi
 - Ran `pytest tests/` which revealed several `ImportError` and `ModuleNotFoundError` issues in other test files (e.g., `test_suno_client.py`, `test_competitor_trend_analyzer.py`, `test_llm_orchestrator.py`, `test_prompt_adaptation_pipeline.py`, `test_release_chain.py`) related to missing modules like `dotenv` or incorrect relative imports. The two fixed files did not cause new errors.
 
 **Result**: `tests/services/test_trend_analysis_service.py` and `tests/services/test_video_editing_service.py` are now clean of F401 errors. Pytest identified issues in other parts of the `tests/` directory that will need to be addressed separately.
+
+
+
+---
+**Date**: 2025-05-10
+
+**Task**: Documentation Alignment and Verification (Git-Aware Recovery & Doc Alignment Finalization)
+
+**Objective**: Realign and verify all Markdown documentation files in the `feature/fix-artist-creator` branch against the `noktvrn_ai_artist-main (10).zip` archive. Ensure all documents are present, up-to-date, or merged, and that the main `README.md` Mermaid diagram rendering issue is resolved.
+
+**Actions Performed & Observations**:
+1.  **Archive Extraction**: Extracted `noktvrn_ai_artist-main (10).zip` to `/home/ubuntu/temp_archive_extract/noktvrn_ai_artist-main/`.
+2.  **File Comparison Setup**: Created temporary directory `/home/ubuntu/temp_doc_comparison/` to store lists of `.md` files from both the archive and the current feature branch (`/home/ubuntu/temp_extract/repo_v9/noktvrn_ai_artist-main/`).
+3.  **Systematic Comparison**: Iterated through all specified documentation files and directories:
+    *   Root files: `README.md`, `ARTIST_FLOW.md`, `CONTRIBUTION_GUIDE.md` (used instead of `CONTRIBUTING.md` as per archive content), `dev_diary.md`, `final_report_v1.4.md`, `TODO.md`, `flowchart.md`.
+    *   `docs/` subdirectories: `docs/Production_Ready_v1.5.md`, `docs/artist_profile.md`, `docs/architecture/`, `docs/deployment/`, `docs/development/` (excluding `dev_diary.md`), `docs/llm/`, `docs/modules/`, `docs/system_state/`.
+    *   `.github/`: Checked for `.yml` or `.yaml` workflow files (none found in archive or repo in relevant locations).
+4.  **README.md Mermaid Fix**: Corrected the Mermaid diagram syntax error in `/home/ubuntu/temp_extract/repo_v9/noktvrn_ai_artist-main/README.md`. Changed `BatchRunner -- Calls --> VoiceSvc["Voice Service"] %% On artist creation` to `BatchRunner -- Calls --> VoiceSvc %% On artist creation`.
+5.  **Content Verification**: For each corresponding file pair, content was read from both the archive and the feature branch. Most files were found to be identical. No files were missing from the feature branch that were present in the archive that required restoration. No new files were added from the archive.
+6.  **User Feedback Integration**:
+    *   Noted that `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` are considered required and should be reflected as such (e.g., in `.env.example`, `final_report_v1.4.md`), ensuring no actual keys are committed.
+    *   Acknowledged user query regarding potential obsolescence of `self_learning_systems.md`, `self_reflection_system.md`, `artist_builder_documentation.md`, and `artist_evolution_log.md` in `docs/development/`. Awaiting explicit user confirmation before any removal.
+    *   Noted user feedback that `docs/system_state/api_key_mapping.md` might be incomplete. Will update if more information is provided.
+    *   Noted user request to include details of archive processing in the final task report.
+7.  **Logging**: Maintained `todo.md` checklist and updated `dev_diary.md` with a summary of this documentation alignment process.
+
+**Result**: All specified documentation files have been compared and verified against the archive. The `README.md` diagram error is fixed. The `feature/fix-artist-creator` branch documentation is now aligned with the provided archive, pending user decisions on specific file removals or updates.

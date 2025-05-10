@@ -770,3 +770,29 @@ Implemented the initial version of the Artist Batch Runner system (`batch_runner
 - Commit and push the F401 fixes for the test files and the updated logs to the `feature/fix-artist-creator` branch.
 - Address the `ImportError` and `ModuleNotFoundError` issues identified by Pytest in the `tests/` directory.
 - Address remaining Flake8 errors across the repository.
+
+
+
+## 2025-05-10: Documentation Alignment and Verification
+
+**Goal:** Realign and verify all Markdown documentation files in the `feature/fix-artist-creator` branch against the `noktvrn_ai_artist-main (10).zip` archive. Ensure all documents are present, up-to-date, or merged, and that the main `README.md` Mermaid diagram rendering issue is resolved.
+
+**Process:**
+1.  Extracted the `noktvrn_ai_artist-main (10).zip` archive to `/home/ubuntu/temp_archive_extract/`.
+2.  Systematically listed and compared all `.md` files in the archive against the current feature branch (`/home/ubuntu/temp_extract/repo_v9/noktvrn_ai_artist-main/`).
+3.  Processed each documentation file:
+    *   **Root Files:** `README.md`, `ARTIST_FLOW.md`, `CONTRIBUTION_GUIDE.md` (verified as `CONTRIBUTING.md` was not present in archive, `CONTRIBUTION_GUIDE.md` was), `dev_diary.md`, `final_report_v1.4.md`, `TODO.md`, `flowchart.md`.
+    *   **`docs/` Subdirectories:** Systematically processed `docs/Production_Ready_v1.5.md`, `docs/artist_profile.md`, `docs/architecture/`, `docs/deployment/`, `docs/development/` (excluding `dev_diary.md` which was handled separately), `docs/llm/`, `docs/modules/`, `docs/system_state/`.
+    *   **`.github/`:** Verified no `.yml` or `.yaml` files were present in the archive or repository under `.github/workflows/` (or `.github/` generally for markdown, though the check was for yml/yaml specifically for workflows).
+    *   **`docs/tmp/action_log_v7_1_2.md`:** This file was updated as part of the ongoing process.
+4.  **README.md Fix:** Identified and corrected the Mermaid diagram syntax error in `/home/ubuntu/temp_extract/repo_v9/noktvrn_ai_artist-main/README.md` by changing `VoiceSvc["Voice Service"]` to `VoiceSvc`.
+5.  **Identical Files:** Most documentation files were found to be identical between the archive and the feature branch. No content merging was required for these.
+6.  **Missing/New Files:** No files were found to be missing in the feature branch that were present in the archive, and no new files were added from the archive that weren't already in the feature branch (based on the comparison lists generated).
+7.  **User Feedback Incorporated:**
+    *   Noted that `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` are considered required, and this should be reflected in documentation (e.g., `.env.example`, `final_report_v1.4.md`). Ensured no actual keys were committed.
+    *   Acknowledged user query about potential obsolescence of `self_learning_systems.md`, `self_reflection_system.md`, `artist_builder_documentation.md`, and `artist_evolution_log.md`. Awaiting explicit user confirmation for removal before taking action.
+    *   Noted user feedback that `docs/system_state/api_key_mapping.md` may be incomplete and will require updates if further information is provided.
+    *   Noted user request to include details of archive processing in the final task report.
+8.  **Logging:** Maintained a `todo.md` checklist throughout the process and updated this `dev_diary.md`.
+
+**Status:** Documentation alignment and verification based on the provided archive is complete. All files have been checked. The `feature/fix-artist-creator` branch now reflects the synchronized documentation state. Awaiting user confirmation on specific file removals and potential updates to `api_key_mapping.md` before final commit of these documentation changes.
