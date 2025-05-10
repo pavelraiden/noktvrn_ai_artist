@@ -148,3 +148,19 @@ Black formatter consistently reformatted the file, which seemed to negate or shi
 - Ran Flake8 again.
 
 **Result**: `tests/services/test_artist_db_service.py` is now clean and passes both Black and Flake8 checks.
+
+
+
+---
+**Files**: `tests/services/test_trend_analysis_service.py` and `tests/services/test_video_editing_service.py` (2025-05-10)
+
+**Action**: Resolved F401 (unused import) errors.
+
+**Details**:
+- Identified F401 error for unused `json` import in `tests/services/test_trend_analysis_service.py` via Flake8.
+- Removed the `import json` line from `tests/services/test_trend_analysis_service.py`.
+- Identified F401 error for unused `moviepy.editor` import in `tests/services/test_video_editing_service.py` via Flake8.
+- Removed the `import moviepy.editor` line from `tests/services/test_video_editing_service.py`.
+- Ran `pytest tests/` which revealed several `ImportError` and `ModuleNotFoundError` issues in other test files (e.g., `test_suno_client.py`, `test_competitor_trend_analyzer.py`, `test_llm_orchestrator.py`, `test_prompt_adaptation_pipeline.py`, `test_release_chain.py`) related to missing modules like `dotenv` or incorrect relative imports. The two fixed files did not cause new errors.
+
+**Result**: `tests/services/test_trend_analysis_service.py` and `tests/services/test_video_editing_service.py` are now clean of F401 errors. Pytest identified issues in other parts of the `tests/` directory that will need to be addressed separately.

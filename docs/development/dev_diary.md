@@ -738,3 +738,35 @@ Implemented the initial version of the Artist Batch Runner system (`batch_runner
 **Result**: The file `tests/services/test_artist_db_service.py` is now clean and passes both Black and Flake8 validations.
 
 **Next Steps**: Commit and push this fix along with updated logs to the `feature/fix-artist-creator` branch. Then proceed to the next test file with reported Flake8 errors (`tests/test_artist_creator.py`).
+
+
+
+## 2025-05-10: Continued Linting - Test Directory F401 Errors
+
+**Objective**: Address Flake8 errors within the `tests/` directory, starting with F401 unused import errors.
+
+**Actions & Observations**:
+1.  Verified the correct path to the project's test directory: `/home/ubuntu/temp_extract/repo_v9/noktvrn_ai_artist-main/tests/`.
+2.  Ran Flake8 specifically on the `tests/` directory. The report identified F401 errors in two files:
+    *   `tests/services/test_trend_analysis_service.py`: Unused `json` import.
+    *   `tests/services/test_video_editing_service.py`: Unused `moviepy.editor` import.
+3.  **Fixes Applied**:
+    *   Removed `import json` from `tests/services/test_trend_analysis_service.py`.
+    *   Removed `import moviepy.editor` from `tests/services/test_video_editing_service.py` (the `from moviepy.config import get_setting, change_settings` was retained as it's used).
+4.  **Validation**:
+    *   Ran `pytest tests/` in the `/home/ubuntu/temp_extract/repo_v9/noktvrn_ai_artist-main/` directory.
+    *   Pytest reported 5 errors during collection, primarily `ImportError` (e.g., `attempted relative import with no known parent package`) and `ModuleNotFoundError` (e.g., `No module named 'dotenv'`) in files such as:
+        *   `tests/api_clients/test_suno_client.py`
+        *   `tests/llm_integration/test_competitor_trend_analyzer.py`
+        *   `tests/llm_integration/test_llm_orchestrator.py`
+        *   `tests/llm_integration/test_prompt_adaptation_pipeline.py`
+        *   `tests/release_chain/test_release_chain.py`
+    *   These errors appear unrelated to the F401 fixes made in `test_trend_analysis_service.py` and `test_video_editing_service.py`.
+    *   Pytest also reported 4 `PytestUnknownMarkWarning` for `@pytest.mark.asyncio` in `tests/llm_integration/test_profile_evolution_manager.py`.
+5.  Updated `docs/tmp/action_log_v7_1_2.md` with these actions.
+
+**Next Steps**: 
+- Run `black --check .` and `flake8 .` on the entire repository.
+- Commit and push the F401 fixes for the test files and the updated logs to the `feature/fix-artist-creator` branch.
+- Address the `ImportError` and `ModuleNotFoundError` issues identified by Pytest in the `tests/` directory.
+- Address remaining Flake8 errors across the repository.
