@@ -167,8 +167,8 @@ class TestArtistBatchRunner(unittest.TestCase):
         self.mock_trigger_release = self.patcher_trigger_release.start()
 
         self.patcher_time_sleep = patch(
-            "time.sleep"  # Patch time.sleep directly
-        )
+            "time.sleep"
+        )  # Patch time.sleep directly
         self.mock_time_sleep = self.patcher_time_sleep.start()
 
         self.patcher_time_time = patch("time.time")
