@@ -24,7 +24,10 @@ from modules.suno.suno_state_manager import (  # noqa: E402
 
 # Import the REAL BAS Driver (Assuming it's defined elsewhere, e.g., modules/bas/driver.py)
 # from modules.bas.driver import BASDriver # Placeholder for actual import path
-from modules.bas.driver import BASDriver # Assuming this is the correct path for the real BAS Driver
+from modules.bas.driver import (
+    BASDriver,
+)  # Assuming this is the correct path for the real BAS Driver
+
 # Using MockBASDriver temporarily until real driver path is confirmed
 from modules.suno.suno_ui_translator import (  # noqa: E402
     SunoUITranslator,
@@ -101,9 +104,11 @@ class SunoOrchestrator:
             != "dummy_replace_with_real_connection_string"
         ):
             logger.info(
-                ("Attempting to initialize REAL BAS Driver "
-                 "(assuming class BASDriver exists).")
-            )            # from modules.bas.driver import BASDriver # Assumed path
+                (
+                    "Attempting to initialize REAL BAS Driver "
+                    "(assuming class BASDriver exists)."
+                )
+            )  # from modules.bas.driver import BASDriver # Assumed path
             # self.bas_driver_instance = BASDriver(bas_driver_config)
             self.bas_driver_instance = (
                 MockBASDriver()
@@ -375,5 +380,5 @@ async def run_real_integration_test():
     orchestrator_config = {
         "state_dir": os.path.join(base_dir, "real_test_suno_run_states"),
         "log_dir": os.path.join(base_dir, "real_test_suno_run_logs"),
-        "screenshot_dir": os.path.join(base_dir, "real_test_suno_screenshots")
+        "screenshot_dir": os.path.join(base_dir, "real_test_suno_screenshots"),
     }

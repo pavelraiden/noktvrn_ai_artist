@@ -86,8 +86,8 @@ class ReleaseManager:
             generated_song_path: Path to the generated song file.
 
         Returns:
-            The unique release_id for this release.
-        ""        logger.info(f"Initiating new release for song: {song_metadata.get('title')}")
+            The unique release_id for this release.        """
+        logger.info(f"Initiating new release for song: {song_metadata.get('title')}")
         release_id = self._generate_release_id(song_metadata.get("title", "untitled"))
         
         if not os.path.exists(generated_song_path):
@@ -113,13 +113,14 @@ class ReleaseManager:
 
     def create_preview(self, release_id: str) -> str:
         """Creates a preview version of the song.
-           For now, this might just copy the file to a preview location.
-           In the future, it could involve watermarking, format conversion, etc.
+
+        For now, this might just copy the file to a preview location.
+        In the future, it could involve watermarking, format conversion, etc.
         """
         logger.info(f"Creating preview for release_id: {release_id}")
         metadata = self._load_metadata(release_id)
         if metadata["status"] != ReleaseStatus.PENDING_PREVIEW.value:
-            logger.warning(f"Cannot create preview for {release_id}. Current status: {metadata["status"]}")
+            logger.warning(f"Cannot create preview for {release_id}. Current status: {metadata['status']}")
             raise ReleaseManagerError(f"Release {release_id} is not in PENDING_PREVIEW state.")
 
         original_song_path = metadata["original_song_path"]
@@ -160,7 +161,7 @@ class ReleaseManager:
         logger.info(f"Requesting approval for release_id: {release_id}")
         metadata = self._load_metadata(release_id)
         if metadata["status"] != ReleaseStatus.PREVIEW_READY.value:
-            logger.warning(f"Cannot request approval for {release_id}. Current status: {metadata[	"status	"]}")
+            logger.warning(f"Cannot request approval for {release_id}. Current status: {metadata['status']}")
             raise ReleaseManagerError(f"Release {release_id} is not in PREVIEW_READY state.")
 
         metadata["status"] = ReleaseStatus.PENDING_APPROVAL.value
@@ -178,7 +179,7 @@ class ReleaseManager:
         logger.info(f"Processing approval for release_id: {release_id}. Approved: {approved}")
         metadata = self._load_metadata(release_id)
         if metadata["status"] != ReleaseStatus.PENDING_APPROVAL.value:
-            logger.warning(f"Cannot process approval for {release_id}. Current status: {metadata[	"status	"]}")
+            logger.warning(f"Cannot process approval for {release_id}. Current status: {metadata['status']}")
             raise ReleaseManagerError(f"Release {release_id} is not in PENDING_APPROVAL state.")
 
         if approved:
@@ -194,7 +195,7 @@ class ReleaseManager:
             "notes": notes
         })
         self._save_metadata(release_id, metadata)
-        logger.info(f"Release {release_id} status updated to: {metadata[	"status	"]}. Notes: {notes}")
+        logger.info(f"Release {release_id} status updated to: {metadata['status']}. Notes: {notes}")
         return True
 
     def prepare_for_upload(self, release_id: str) -> str:
@@ -204,7 +205,7 @@ class ReleaseManager:
         logger.info(f"Preparing for upload for release_id: {release_id}")
         metadata = self._load_metadata(release_id)
         if metadata["status"] != ReleaseStatus.APPROVED.value:
-            logger.warning(f"Cannot prepare for upload for {release_id}. Current status: {metadata[	"status	"]}")
+            logger.warning(f"Cannot prepare for upload for {release_id}. Current status: {metadata["status"]}")
             raise ReleaseManagerError(f"Release {release_id} is not in APPROVED state.")
 
         # Use preview path if it exists and is valid, otherwise original path
