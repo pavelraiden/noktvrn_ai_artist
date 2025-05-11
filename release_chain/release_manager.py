@@ -87,8 +87,7 @@ class ReleaseManager:
 
         Returns:
             The unique release_id for this release.
-        """
-        logger.info(f"Initiating new release for song: {song_metadata.get(	"title	")}")
+        ""        logger.info(f"Initiating new release for song: {song_metadata.get('title')}")
         release_id = self._generate_release_id(song_metadata.get("title", "untitled"))
         
         if not os.path.exists(generated_song_path):
@@ -120,7 +119,7 @@ class ReleaseManager:
         logger.info(f"Creating preview for release_id: {release_id}")
         metadata = self._load_metadata(release_id)
         if metadata["status"] != ReleaseStatus.PENDING_PREVIEW.value:
-            logger.warning(f"Cannot create preview for {release_id}. Current status: {metadata[	"status	"]}")
+            logger.warning(f"Cannot create preview for {release_id}. Current status: {metadata["status"]}")
             raise ReleaseManagerError(f"Release {release_id} is not in PENDING_PREVIEW state.")
 
         original_song_path = metadata["original_song_path"]

@@ -375,5 +375,5 @@ async def run_real_integration_test():
     orchestrator_config = {
         "state_dir": os.path.join(base_dir, "real_test_suno_run_states"),
         "log_dir": os.path.join(base_dir, "real_test_suno_run_logs"),
-        "screenshot_dir": os.path.join(base_dir, "real_te
-(Content truncated due to size limit. Use line ranges to read in chunks)
+        "screenshot_dir": os.path.join(base_dir, "real_test_suno_screenshots")
+    }

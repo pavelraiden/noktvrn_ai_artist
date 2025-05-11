@@ -100,9 +100,11 @@ class SunoOrchestrator:
             != "dummy_replace_with_real_connection_string"
         ):
             logger.info(
-                ("Attempting to initialize REAL BAS Driver "
-                 "(assuming class BASDriver exists).")
-            )            # from modules.bas.driver import BASDriver # Assumed path
+                (
+                    "Attempting to initialize REAL BAS Driver "
+                    "(assuming class BASDriver exists)."
+                )
+            )  # from modules.bas.driver import BASDriver # Assumed path
             # self.bas_driver_instance = BASDriver(bas_driver_config)
             self.bas_driver_instance = (
                 MockBASDriver()
